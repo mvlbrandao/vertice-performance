@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+:root {
+  --pitch-dark: #111111;
+  --pitch: #1a1a1a;
+  --pitch-light: #2e2e2e;
+  --pitch-line: rgba(255, 220, 0, 0.22);
+  --chalk: #f5f5f5;
+  --paper: #ffffff;
+  --ink: #111111;
+  --ink-soft: #555555;
+  --ink-faint: #999999;
+  --amber: #ffd600;
+  --amber-deep: #e6c000;
+  --clay: #d72b2b;
+  --sky: #c0392b;
+  --line: #e0e0e0;
+}
+
+@theme inline {
+  --font-display: var(--font-display);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+
+  --color-pitch-dark: var(--pitch-dark);
+  --color-pitch: var(--pitch);
+  --color-pitch-light: var(--pitch-light);
+  --color-chalk: var(--chalk);
+  --color-paper: var(--paper);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-faint: var(--ink-faint);
+  --color-amber: var(--amber);
+  --color-amber-deep: var(--amber-deep);
+  --color-clay: var(--clay);
+  --color-sky: var(--sky);
+  --color-line: var(--line);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+
+  --shadow-card: 0 8px 24px -12px rgba(0, 0, 0, 0.22);
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+.display {
+  font-family: var(--font-display);
+  letter-spacing: 0.03em;
+  font-weight: 400;
+}
+
+::selection {
+  background: var(--amber);
+  color: #111;
+}

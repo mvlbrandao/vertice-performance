@@ -1,0 +1,1909 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HR Performance — Plataforma de Desenvolvimento de Atletas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --pitch-dark:#111111;
+  --pitch:#1A1A1A;
+  --pitch-light:#2E2E2E;
+  --pitch-line: rgba(255,220,0,.22);
+  --chalk:#F5F5F5;
+  --paper:#FFFFFF;
+  --ink:#111111;
+  --ink-soft:#555555;
+  --ink-faint:#999999;
+  --amber:#FFD600;
+  --amber-deep:#E6C000;
+  --clay:#D72B2B;
+  --sky:#C0392B;
+  --line:#E0E0E0;
+  --shadow: 0 8px 24px -12px rgba(0,0,0,.22);
+  --r-sm:6px; --r-md:10px; --r-lg:16px;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  font-family:'Work Sans',sans-serif;
+  background:var(--chalk);
+  color:var(--ink);
+  -webkit-font-smoothing:antialiased;
+}
+.mono{font-family:'JetBrains Mono',monospace;}
+h1,h2,h3,.display{font-family:'Bebas Neue',sans-serif; letter-spacing:.03em; font-weight:400;}
+button{font-family:inherit; cursor:pointer;}
+a{color:inherit;}
+::selection{background:var(--amber); color:#111;}
+input,select,textarea{font-family:inherit; font-size:14px;}
+
+/* ---------- LOGIN ---------- */
+#login-screen{
+  min-height:100vh; display:flex; align-items:center; justify-content:center;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(255,214,0,.10), transparent 45%),
+    linear-gradient(160deg, #111111 0%, #000000 100%);
+  padding:24px;
+}
+.login-card{
+  width:100%; max-width:920px; background:var(--paper); border-radius:var(--r-lg);
+  overflow:hidden; display:grid; grid-template-columns:1.1fr 1fr; box-shadow:0 40px 80px -30px rgba(0,0,0,.7);
+}
+.login-hero{
+  background:
+    repeating-linear-gradient(90deg, var(--pitch-line) 0 2px, transparent 2px 64px),
+    linear-gradient(180deg, #1A1A1A 0%, #000000 100%);
+  color:var(--chalk); padding:44px 36px; position:relative; display:flex; flex-direction:column; justify-content:space-between;
+  min-height:480px;
+}
+.login-hero::after{
+  content:""; position:absolute; left:0; right:0; top:50%; height:1px; background:var(--pitch-line);
+}
+.login-hero::before{
+  content:""; position:absolute; left:50%; top:50%; width:140px; height:140px; border:1px solid var(--pitch-line);
+  border-radius:50%; transform:translate(-50%,-50%);
+}
+.brand-mark{display:flex; align-items:center; gap:10px; z-index:1;}
+.brand-mark .dot{width:12px; height:12px; border-radius:50%; background:var(--amber);}
+.brand-mark span{font-family:'Bebas Neue'; font-size:22px; letter-spacing:.08em;}
+.login-hero h1{font-size:52px; line-height:.95; margin:0 0 10px; z-index:1;}
+.login-hero p{font-size:14.5px; color:rgba(245,245,245,.75); max-width:320px; z-index:1; margin:0;}
+.login-stat-row{display:flex; gap:22px; z-index:1;}
+.login-stat b{display:block; font-family:'Bebas Neue'; font-size:26px; color:var(--amber);}
+.login-stat span{font-size:11.5px; color:rgba(245,245,245,.55); text-transform:uppercase; letter-spacing:.06em;}
+
+.login-form{padding:44px 40px; display:flex; flex-direction:column; gap:18px;}
+.login-form h2{font-size:30px; margin:0 0 2px;}
+.login-form .sub{color:var(--ink-soft); font-size:13.5px; margin:0 0 8px;}
+.role-toggle{display:flex; background:var(--chalk); border:1px solid var(--line); border-radius:999px; padding:4px;}
+.role-toggle button{flex:1; border:none; background:transparent; padding:9px 10px; border-radius:999px; font-weight:600; font-size:13px; color:var(--ink-soft); transition:.15s;}
+.role-toggle button.active{background:var(--pitch-dark); color:#fff;}
+.field{display:flex; flex-direction:column; gap:5px;}
+.field label{font-size:12px; font-weight:600; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.04em;}
+.field input{padding:11px 12px; border:1px solid var(--line); border-radius:var(--r-sm); background:#fff;}
+.field input:focus{outline:2px solid var(--amber); outline-offset:1px; border-color:var(--amber);}
+.btn-primary{background:var(--pitch-dark); color:#fff; border:none; padding:13px; border-radius:var(--r-sm); font-weight:700; font-size:14.5px; transition:.15s;}
+.btn-primary:hover{background:var(--pitch-light);}
+.btn-primary:focus-visible, button:focus-visible, [tabindex]:focus-visible{outline:2px solid var(--amber); outline-offset:2px;}
+.quick-users{display:flex; flex-wrap:wrap; gap:8px; margin-top:2px;}
+.quick-user{border:1px dashed var(--line); background:#fff; border-radius:var(--r-sm); padding:7px 10px; font-size:12px; color:var(--ink-soft); font-weight:600;}
+.quick-user:hover{border-color:var(--pitch-dark); color:var(--pitch-dark);}
+
+/* ---------- APP SHELL ---------- */
+#app-shell{display:none; min-height:100vh;}
+#app-shell.active{display:flex;}
+.sidebar{
+  width:238px; background:#111111; color:var(--chalk); flex-shrink:0;
+  display:flex; flex-direction:column; padding:20px 14px; gap:4px; position:sticky; top:0; height:100vh;
+  border-right:2px solid var(--amber);
+}
+.sidebar .brand-mark{padding:6px 10px 18px;}
+.nav-item{
+  display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:var(--r-sm);
+  color:rgba(245,245,245,.65); font-size:13.5px; font-weight:600; border:none; background:transparent; text-align:left; width:100%;
+}
+.nav-item .ic{width:18px; text-align:center; font-size:15px;}
+.nav-item:hover{background:rgba(255,214,0,.08); color:#fff;}
+.nav-item.active{background:var(--amber); color:#111; font-weight:700;}
+.nav-section-label{font-size:10.5px; text-transform:uppercase; letter-spacing:.08em; color:#555; padding:16px 12px 4px;}
+.sidebar-foot{margin-top:auto; padding:12px; border-top:1px solid rgba(255,214,0,.15); display:flex; align-items:center; gap:10px;}
+.avatar{width:34px; height:34px; border-radius:50%; background:var(--amber); color:#111; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13px; flex-shrink:0;}
+.sidebar-foot .who b{display:block; font-size:12.5px;}
+.sidebar-foot .who span{font-size:11px; color:#666;}
+.logout-btn{margin-left:auto; background:none; border:none; color:#555; font-size:16px;}
+.logout-btn:hover{color:var(--clay);}
+
+.main-col{flex:1; min-width:0; display:flex; flex-direction:column;}
+.topbar{
+  position:sticky; top:0; z-index:5; background:rgba(245,245,245,.92); backdrop-filter:blur(6px);
+  border-bottom:1px solid var(--line); padding:16px 28px; display:flex; align-items:center; justify-content:space-between; gap:16px;
+}
+.topbar h1{font-size:28px; margin:0;}
+.topbar .crumb{font-size:12px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.05em; margin-bottom:2px;}
+.hamburger{display:none; background:none; border:none; font-size:20px; color:var(--ink);}
+#content{padding:26px 28px 60px; flex:1;}
+
+.badge{display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:700; padding:4px 9px; border-radius:999px; text-transform:uppercase; letter-spacing:.03em;}
+.badge.green{background:#1A1A1A; color:var(--amber);}
+.badge.amber{background:#FFF8CC; color:#9A7A00;}
+.badge.clay{background:#FDE8E8; color:var(--clay);}
+.badge.sky{background:#FDE8E8; color:#C0392B;}
+.badge.dark{background:#111; color:var(--chalk);}
+
+.card{background:var(--paper); border:1px solid var(--line); border-radius:var(--r-lg); padding:20px;}
+.card-shadow{box-shadow:var(--shadow);}
+.grid{display:grid; gap:16px;}
+.grid-4{grid-template-columns:repeat(4,1fr);}
+.grid-3{grid-template-columns:repeat(3,1fr);}
+.grid-2{grid-template-columns:2fr 1fr;}
+@media(max-width:1000px){.grid-4{grid-template-columns:repeat(2,1fr);} .grid-3{grid-template-columns:1fr;} .grid-2{grid-template-columns:1fr;}}
+
+.kpi b{display:block; font-family:'Bebas Neue'; font-size:34px; line-height:1;}
+.kpi span{font-size:12px; color:var(--ink-soft); font-weight:600;}
+.kpi .delta{font-size:11.5px; margin-top:6px; display:inline-block;}
+.up{color:#111; font-weight:700;} .down{color:var(--clay);}
+
+.section-title{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;}
+.section-title h2{font-size:22px; margin:0;}
+.section-title .sub{font-size:12.5px; color:var(--ink-faint); margin-top:2px;}
+
+.btn{border:1px solid var(--line); background:#fff; padding:9px 14px; border-radius:var(--r-sm); font-weight:600; font-size:13px; color:var(--ink);}
+.btn:hover{border-color:#111; color:#111;}
+.btn.solid{background:#111; color:#fff; border-color:#111;}
+.btn.solid:hover{background:#333;}
+.btn.amber{background:var(--amber); color:#111; border-color:var(--amber); font-weight:700;}
+.btn.amber:hover{background:var(--amber-deep);}
+.btn.ghost{background:transparent; border-color:transparent; color:var(--ink-soft);}
+.btn.sm{padding:6px 10px; font-size:12px;}
+.btn.danger{color:var(--clay); border-color:#F5C6C6;}
+
+.athlete-row{display:flex; align-items:center; gap:12px; padding:13px 10px; border-radius:var(--r-md); border:1px solid transparent;}
+.athlete-row:hover{background:#fff; border-color:var(--line); box-shadow:var(--shadow);}
+.jersey{width:38px; height:38px; border-radius:8px; background:#111; color:var(--amber); display:flex; align-items:center; justify-content:center; font-family:'Bebas Neue'; font-size:16px; flex-shrink:0;}
+.jersey.away{background:#D72B2B; color:#fff;}
+.jersey.amber{background:var(--amber); color:#111;}
+.athlete-row .info b{display:block; font-size:14px;}
+.athlete-row .info span{font-size:12px; color:var(--ink-faint);}
+
+.tabs{display:flex; gap:2px; border-bottom:2px solid var(--line); margin-bottom:20px; overflow-x:auto;}
+.tab-btn{padding:11px 16px; background:none; border:none; border-bottom:3px solid transparent; font-weight:600; font-size:13.5px; color:var(--ink-faint); white-space:nowrap; margin-bottom:-2px;}
+.tab-btn.active{color:#111; border-color:var(--amber);}
+.tab-btn:hover{color:#111;}
+
+/* timeline */
+.timeline{position:relative; padding-left:26px;}
+.timeline::before{content:""; position:absolute; left:8px; top:6px; bottom:6px; width:2px; background:var(--line);}
+.tl-item{position:relative; padding-bottom:22px;}
+.tl-item .jersey-dot{position:absolute; left:-26px; top:0; width:18px; height:18px; border-radius:50%; border:3px solid var(--chalk); background:#111;}
+.tl-item.mental .jersey-dot{background:#C0392B;}
+.tl-item.media .jersey-dot{background:var(--amber);}
+.tl-item.physical .jersey-dot{background:var(--clay);}
+.tl-card{background:#fff; border:1px solid var(--line); border-radius:var(--r-md); padding:14px 16px;}
+.tl-card .meta{font-size:11px; color:var(--ink-faint); margin-bottom:6px; display:flex; gap:8px; align-items:center;}
+.tl-card h4{margin:0 0 6px; font-size:15px; font-family:'Work Sans'; font-weight:700;}
+.tl-card p{margin:0; font-size:13.5px; color:var(--ink-soft); line-height:1.5;}
+.tl-media-strip{display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;}
+.tl-media-thumb{width:74px; height:52px; border-radius:6px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:11px; font-weight:700;}
+
+.pill-input{display:flex; gap:8px; flex-wrap:wrap;}
+.chip{padding:5px 11px; border-radius:999px; background:var(--chalk); border:1px solid var(--line); font-size:12px; font-weight:600; color:var(--ink-soft);}
+
+/* progress bars */
+.bar-row{display:flex; align-items:center; gap:10px; margin-bottom:12px;}
+.bar-row .label{width:120px; font-size:12.5px; font-weight:600; color:var(--ink-soft); flex-shrink:0;}
+.bar-track{flex:1; height:9px; background:var(--line); border-radius:999px; overflow:hidden;}
+.bar-fill{height:100%; background:linear-gradient(90deg, #111, #444); border-radius:999px;}
+.bar-fill.amber{background:linear-gradient(90deg, var(--amber-deep), var(--amber));}
+.bar-val{width:34px; text-align:right; font-family:'JetBrains Mono'; font-size:12px; color:var(--ink-soft);}
+
+/* exercise / diet list */
+.plan-item{display:flex; gap:14px; padding:14px; border:1px solid var(--line); border-radius:var(--r-md); margin-bottom:10px; align-items:flex-start;}
+.plan-item .chk{width:22px; height:22px; border-radius:6px; border:2px solid var(--line); flex-shrink:0; margin-top:2px; display:flex; align-items:center; justify-content:center;}
+.plan-item .chk.done{background:#111; border-color:#111; color:var(--amber);}
+.plan-item h4{margin:0 0 3px; font-size:14.5px;}
+.plan-item p{margin:0; font-size:12.5px; color:var(--ink-faint);}
+.plan-item.done h4{text-decoration:line-through; color:var(--ink-faint);}
+
+/* mesa tatica */
+.tatica-wrap{display:grid; grid-template-columns:1fr 260px; gap:18px;}
+@media(max-width:1000px){.tatica-wrap{grid-template-columns:1fr;}}
+.tatica-toolbar{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;}
+.tool-btn{display:flex; flex-direction:column; align-items:center; gap:4px; padding:9px 12px; border:1px solid var(--line); background:#fff; border-radius:var(--r-sm); font-size:11px; font-weight:600; color:var(--ink-soft); min-width:64px;}
+.tool-btn.active{border-color:#111; color:#111; background:var(--amber);}
+.speed-btn{border:none; background:transparent; color:#999; font-size:11.5px; font-weight:700; padding:6px 12px; border-radius:999px; transition:.15s;}
+.speed-btn:hover{color:#fff;}
+.speed-btn.active{background:var(--amber); color:#111;}
+.tool-btn .swatch{width:16px; height:16px; border-radius:50%;}
+#court-svg{width:100%; height:auto; background:#111; border-radius:var(--r-lg); touch-action:none; box-shadow:var(--shadow);}
+.token{cursor:grab;}
+.token:active{cursor:grabbing;}
+.plays-list{max-height:220px; overflow-y:auto; display:flex; flex-direction:column; gap:8px;}
+.play-card{border:1px solid var(--line); border-radius:var(--r-md); padding:10px; font-size:12.5px; display:flex; justify-content:space-between; align-items:center; gap:8px;}
+.play-card b{display:block; font-size:13px;}
+.play-card span{font-size:11px; color:var(--ink-faint);}
+
+.upload-zone{border:2px dashed var(--line); border-radius:var(--r-md); padding:22px; text-align:center; color:var(--ink-faint); font-size:12.5px;}
+.upload-zone:hover{border-color:#111; color:#111;}
+.note-box{background:#FFF8CC; border:1px solid var(--amber-deep); border-radius:var(--r-md); padding:12px 14px; font-size:12.5px; color:#7A6000; display:flex; gap:8px; align-items:flex-start;}
+.note-box.security{background:#FDE8E8; border-color:#F5AAAA; color:#8B0000;}
+
+.modal-overlay{position:fixed; inset:0; background:rgba(0,0,0,.65); display:none; align-items:center; justify-content:center; z-index:50; padding:20px;}
+.modal-overlay.active{display:flex;}
+.modal{background:#fff; border-radius:var(--r-lg); padding:26px; width:100%; max-width:460px; max-height:88vh; overflow-y:auto;}
+.modal h3{margin:0 0 16px; font-size:22px;}
+.modal .field{margin-bottom:12px;}
+.modal-actions{display:flex; justify-content:flex-end; gap:10px; margin-top:16px;}
+textarea{width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:var(--r-sm); resize:vertical;}
+select{width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:var(--r-sm); background:#fff;}
+
+.empty-state{text-align:center; padding:50px 20px; color:var(--ink-faint);}
+.empty-state .ic{font-size:34px; margin-bottom:10px;}
+
+@media(max-width:840px){
+  .sidebar{position:fixed; left:-260px; z-index:40; transition:left .2s; box-shadow:0 0 0 100vmax rgba(0,0,0,0);}
+  .sidebar.open{left:0; box-shadow:20px 0 40px rgba(0,0,0,.4);}
+  .hamburger{display:block;}
+  #content{padding:18px 16px 60px;}
+  .topbar{padding:14px 16px;}
+  .login-card{grid-template-columns:1fr;}
+  .login-hero{min-height:220px;}
+}
+</style>
+</head>
+<body>
+
+<!-- ===================== LOGIN ===================== -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-hero">
+      <div class="brand-mark"><div class="dot"></div><span>HR PERFORMANCE</span></div>
+      <div>
+        <h1>Alta<br>performance<br>começa aqui.</h1>
+        <p>Plataforma de acompanhamento técnico, físico e mental para atletas de base — do treino à mesa tática.</p>
+      </div>
+      <div class="login-stat-row">
+        <div class="login-stat"><b>128</b><span>Atletas ativos</span></div>
+        <div class="login-stat"><b>14</b><span>Categorias</span></div>
+        <div class="login-stat"><b>96%</b><span>Check-in semanal</span></div>
+      </div>
+    </div>
+    <div class="login-form">
+      <div>
+        <h2>Entrar</h2>
+        <p class="sub">Selecione seu perfil de acesso para continuar.</p>
+      </div>
+      <div class="role-toggle">
+        <button id="role-admin" class="active" onclick="setLoginRole('admin')">Treinador / Staff</button>
+        <button id="role-atleta" onclick="setLoginRole('atleta')">Atleta</button>
+      </div>
+      <div class="field">
+        <label>E-mail</label>
+        <input id="login-email" type="email" placeholder="voce@hrperformance.com" value="carla.mendes@hrperformance.com">
+      </div>
+      <div class="field">
+        <label>Senha</label>
+        <input id="login-pass" type="password" placeholder="••••••••" value="••••••••">
+      </div>
+      <button class="btn-primary" onclick="doLogin()">Entrar na plataforma</button>
+      <div>
+        <p class="sub" style="margin-bottom:8px;">Acesso rápido de demonstração:</p>
+        <div class="quick-users">
+          <button class="quick-user" onclick="quickLogin('admin','Carla Mendes')">👩‍🏫 Carla (Treinadora)</button>
+          <button class="quick-user" onclick="quickLogin('atleta','Mateus Silva')">🧑 Mateus (Atleta)</button>
+        </div>
+      </div>
+      <div class="note-box security" style="margin-top:4px;">
+        <span>🔒</span><span>Dados de atletas menores de idade são criptografados e protegidos conforme LGPD (RNF04).</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== APP SHELL ===================== -->
+<div id="app-shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand-mark"><div class="dot"></div><span>HR PERFORMANCE</span></div>
+    <div id="nav-list"></div>
+    <div class="sidebar-foot">
+      <div class="avatar" id="user-avatar">CM</div>
+      <div class="who"><b id="user-name">Carla Mendes</b><span id="user-role">Treinadora</span></div>
+      <button class="logout-btn" title="Sair" onclick="doLogout()">⏻</button>
+    </div>
+  </aside>
+
+  <div class="main-col">
+    <div class="topbar">
+      <div style="display:flex; align-items:center; gap:12px;">
+        <button class="hamburger" onclick="toggleSidebar()">☰</button>
+        <div>
+          <div class="crumb" id="crumb">Painel</div>
+          <h1 id="page-title">Visão geral</h1>
+        </div>
+      </div>
+      <div style="display:flex; gap:10px;">
+        <button class="btn" onclick="goTab('agenda')">🗓️ Agenda</button>
+        <button class="btn solid" id="topbar-cta" onclick="goTab('mesa')">♟️ Mesa Tática</button>
+      </div>
+    </div>
+    <div id="content"></div>
+  </div>
+</div>
+
+<!-- ===================== MODAL ===================== -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal" id="modal-body"></div>
+</div>
+
+<script>
+/* =========================================================
+   MOCK DATA
+========================================================= */
+const ATHLETES = [
+  {
+    id:'mateus', name:'Mateus Silva', num:9, category:'Futsal Sub-12', position:'Pivô', team:'Sub-12 A',
+    birth:'12/04/2014', guardian:'Roberta Silva (mãe)', phone:'(83) 99xxx-1122', guardianPhone:'(83) 99871-1122', instagram:'@mateus.silva9', joined:'Fev/2023',
+    photoColor:'#111111', photo:null,
+    physical:{altura:'1,52m', peso:'42kg', imc:'18.2', dorAtual:'Leve dor no joelho direito'},
+    mental:[
+      {date:'28/06/2026', title:'Confiança em finalizações', text:'Mateus demonstrou mais segurança ao finalizar de primeira após os treinos de repetição. Ainda hesita em duelos 1x1 dentro da área.', score:7},
+      {date:'14/06/2026', title:'Postura em jogo de pressão', text:'Em situação de placar adverso, manteve a calma e comunicou-se bem com os companheiros. Evolução clara na inteligência emocional.', score:8},
+    ],
+    tactical:[
+      {date:'30/06/2026', game:'Sub-12 x Guarabira FC', strengths:'Boa leitura de espaço entre linhas, finalizou 2 de 3 chances claras.', improve:'Precisa melhorar o giro de corpo (recepção de costas) e o desarme no 1x1 defensivo.'},
+      {date:'16/06/2026', game:'Sub-12 x Cabedelo FC', strengths:'Participou bem do jogo posicional, boa troca de passes curtos.', improve:'Equilíbrio ao girar em alta velocidade ainda é um ponto de atenção.'},
+    ],
+    media:[
+      {date:'30/06/2026', label:'Lance — finalização 12min', type:'video', color:'#C1432B'},
+      {date:'30/06/2026', label:'Foto pós-jogo', type:'image', color:'#3D7EA6'},
+      {date:'16/06/2026', label:'Execução — giro de corpo', type:'video', color:'#C1432B'},
+    ],
+    exercises:[
+      {name:'Equilíbrio unipodal com bola', desc:'3 séries de 45s por perna, olhos fechados na última série.', focus:'Equilíbrio', done:true},
+      {name:'Giro de corpo com recepção de costas', desc:'20 repetições alternando lado dominante e não dominante.', focus:'Técnica de giro', done:false},
+      {name:'Circuito de finalização sob pressão', desc:'4 estações, 6 finalizações cada, com marcador passivo.', focus:'Finalização', done:false},
+    ],
+    diet:[
+      {name:'Café da manhã reforçado', desc:'Aveia + banana + ovo. Meta: 100% dos dias de treino.', done:true},
+      {name:'Hidratação em quadra', desc:'Meta de 1,5L de água durante treinos e jogos.', done:true},
+      {name:'Corte de refrigerante em dias de jogo', desc:'Substituir por água de coco ou suco natural.', done:false},
+    ],
+    checkins:[
+      {date:'30/06/2026', cansaco:3, dor:'Leve dor no joelho direito', treinoOk:true, dietaOk:true},
+      {date:'28/06/2026', cansaco:2, dor:'Nenhuma', treinoOk:true, dietaOk:true},
+      {date:'26/06/2026', cansaco:4, dor:'Nenhuma', treinoOk:false, dietaOk:true},
+    ],
+    trainingVideos:[
+      {date:'29/06/2026', label:'Série 2 — equilíbrio olhos fechados', exerciseIdx:0, exerciseName:'Equilíbrio unipodal com bola', status:'Avaliado', comment:'Bom progresso no equilíbrio, continue assim!'},
+      {date:'01/07/2026', label:'Tentativa 1 — giro pela direita', exerciseIdx:1, exerciseName:'Giro de corpo com recepção de costas', status:'Pendente', comment:''},
+    ],
+    agenda:[
+      {date:'08/07/2026', time:'16:00', type:'Presencial', title:'Avaliação técnica individual'},
+      {date:'11/07/2026', time:'19:30', type:'Videochamada', title:'Feedback de jogo + plano mental'},
+    ]
+  },
+  {
+    id:'ana', name:'Ana Souza', num:10, category:'Futebol de Campo Sub-14', position:'Atacante', team:'Sub-14 Fem.',
+    birth:'03/09/2012', guardian:'João Souza (pai)', phone:'(83) 99xxx-3344', guardianPhone:'(83) 99342-3344', instagram:'@ana.souza10', joined:'Ago/2022',
+    photoColor:'#D72B2B', photo:null,
+    physical:{altura:'1,58m', peso:'48kg', imc:'19.2', dorAtual:'Nenhuma'},
+    mental:[
+      {date:'27/06/2026', title:'Liderança em campo', text:'Ana assumiu a organização ofensiva do time nos minutos finais. Confiança em alta após os últimos gols.', score:9},
+    ],
+    tactical:[
+      {date:'29/06/2026', game:'Sub-14 x União Esportiva', strengths:'Excelente movimentação nas costas da defesa, 2 gols.', improve:'Precisa melhorar o passe de primeira sob pressão.'},
+    ],
+    media:[
+      {date:'29/06/2026', label:'Gol de cabeça — 2T', type:'video', color:'#C1432B'},
+    ],
+    exercises:[
+      {name:'Passe de primeira sob pressão', desc:'Circuito com 2 marcadores ativos, 15 repetições.', focus:'Passe', done:false},
+      {name:'Sprint + finalização', desc:'6 sprints de 20m finalizando em gol.', focus:'Velocidade', done:true},
+    ],
+    diet:[
+      {name:'Plano de ganho de massa magra', desc:'Acompanhamento com nutricionista parceira — reforço proteico pós-treino.', done:true},
+    ],
+    checkins:[
+      {date:'29/06/2026', cansaco:2, dor:'Nenhuma', treinoOk:true, dietaOk:true},
+    ],
+    trainingVideos:[],
+    agenda:[
+      {date:'09/07/2026', time:'17:00', type:'Presencial', title:'Treino de finalização'},
+    ]
+  },
+  {
+    id:'pedro', name:'Pedro Costa', num:5, category:'Futsal Sub-12', position:'Fixo', team:'Sub-12 A',
+    birth:'20/01/2014', guardian:'Marcos Costa (pai)', phone:'(83) 99xxx-5566', guardianPhone:'(83) 99655-5566', instagram:'@pedrocosta5', joined:'Mar/2024',
+    photoColor:'#E6C000', photo:null,
+    physical:{altura:'1,49m', peso:'40kg', imc:'18.0', dorAtual:'Nenhuma'},
+    mental:[
+      {date:'25/06/2026', title:'Postura defensiva', text:'Pedro ainda se frustra após erros de marcação. Trabalhando técnicas de respiração para manter o foco.', score:6},
+    ],
+    tactical:[
+      {date:'16/06/2026', game:'Sub-12 x Cabedelo FC', strengths:'Boa cobertura defensiva e saída de bola.', improve:'Antecipação em bolas aéreas.'},
+    ],
+    media:[],
+    exercises:[
+      {name:'Antecipação em bolas aéreas', desc:'Séries de cruzamento com disputa aérea.', focus:'Jogo aéreo', done:false},
+    ],
+    diet:[
+      {name:'Hidratação em quadra', desc:'Meta de 1,3L durante treinos.', done:false},
+    ],
+    checkins:[
+      {date:'25/06/2026', cansaco:3, dor:'Nenhuma', treinoOk:true, dietaOk:false},
+    ],
+    trainingVideos:[],
+    agenda:[
+      {date:'10/07/2026', time:'18:00', type:'Presencial', title:'Sessão individual — jogo aéreo'},
+    ]
+  },
+];
+
+let PLAYS = [
+  {id:1, name:'Saída de bola em losango', targetType:'team', targetValue:'Sub-12 A', targetLabel:'Sub-12 A', date:'20/06/2026', svgContent:'', frames:[]},
+];
+
+/* =========================================================
+   APP STATE
+========================================================= */
+let state = {
+  role:null, userName:null,
+  tab:'dashboard',
+  selectedAthleteId:null,
+  profileTab:'dados',
+  nutritionUnlocked:false,
+};
+
+function el(html){ const d=document.createElement('div'); d.innerHTML=html.trim(); return d.firstChild; }
+function initials(name){ return name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase(); }
+function findAthlete(id){ return ATHLETES.find(a=>a.id===id); }
+function athleteAvatarCSS(a, size=38, fontSize=16){
+  if(a.photo){
+    return `<div style="width:${size}px;height:${size}px;border-radius:8px;background-image:url('${a.photo}');background-size:cover;background-position:center;flex-shrink:0;"></div>`;
+  }
+  return `<div class="jersey" style="width:${size}px;height:${size}px;font-size:${fontSize}px;background:${a.photoColor}">${a.num}</div>`;
+}
+
+/* =========================================================
+   LOGIN
+========================================================= */
+let loginRole = 'admin';
+function setLoginRole(r){
+  loginRole = r;
+  document.getElementById('role-admin').classList.toggle('active', r==='admin');
+  document.getElementById('role-atleta').classList.toggle('active', r==='atleta');
+  document.getElementById('login-email').value = r==='admin' ? 'carla.mendes@hrperformance.com' : 'mateus.silva@hrperformance.com';
+}
+function quickLogin(role, name){
+  loginRole = role;
+  enterApp(role, name);
+}
+function doLogin(){
+  const name = loginRole==='admin' ? 'Carla Mendes' : 'Mateus Silva';
+  enterApp(loginRole, name);
+}
+function enterApp(role, name){
+  state.role = role; state.userName = name;
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app-shell').classList.add('active');
+  document.getElementById('user-avatar').textContent = initials(name);
+  if(role==='atleta'){
+    const av = document.getElementById('user-avatar');
+    const selfA = ATHLETES[0];
+    if(selfA && selfA.photo){
+      av.textContent = '';
+      av.style.backgroundImage = `url('${selfA.photo}')`;
+      av.style.backgroundSize = 'cover';
+      av.style.backgroundPosition = 'center';
+    }
+  }
+  document.getElementById('user-name').textContent = name;
+  document.getElementById('user-role').textContent = role==='admin' ? 'Treinadora / Staff' : ATHLETES[0].category;
+  if(role==='atleta'){ state.selectedAthleteId = 'mateus'; state.tab='atleta-perfil'; }
+  else { state.tab='dashboard'; }
+  renderNav();
+  renderPage();
+}
+function doLogout(){
+  state = {role:null, userName:null, tab:'dashboard', selectedAthleteId:null, profileTab:'dados', nutritionUnlocked:false};
+  document.getElementById('app-shell').classList.remove('active');
+  document.getElementById('login-screen').style.display='flex';
+}
+function toggleSidebar(){ document.getElementById('sidebar').classList.toggle('open'); }
+
+/* =========================================================
+   NAVIGATION
+========================================================= */
+function renderNav(){
+  const nav = document.getElementById('nav-list');
+  let items = [];
+  if(state.role==='admin'){
+    items = [
+      {id:'dashboard', ic:'📊', label:'Painel'},
+      {id:'atletas', ic:'👥', label:'Atletas'},
+      {id:'agenda', ic:'🗓️', label:'Agenda de Encontros'},
+      {id:'mesa', ic:'♟️', label:'Mesa Tática'},
+      {id:'jogadas', ic:'📁', label:'Jogadas Salvas'},
+      {id:'config', ic:'🔒', label:'Segurança & Privacidade'},
+    ];
+  } else {
+    items = [
+      {id:'atleta-perfil', ic:'🪪', label:'Meu Perfil'},
+      {id:'agenda', ic:'🗓️', label:'Minha Agenda'},
+      {id:'atleta-evolucao', ic:'📈', label:'Minha Evolução'},
+      {id:'atleta-treino', ic:'🏋️', label:'Treinos'},
+      {id:'atleta-nutricao', ic:'🥗', label:'Nutrição'},
+      {id:'atleta-checkin', ic:'✅', label:'Check-in Diário'},
+      {id:'mesa', ic:'♟️', label:'Mesa Tática'},
+      {id:'config', ic:'🔒', label:'Privacidade dos meus dados'},
+    ];
+  }
+  nav.innerHTML = items.map(i=>`<button class="nav-item ${state.tab===i.id?'active':''}" onclick="goTab('${i.id}')"><span class="ic">${i.ic}</span>${i.label}</button>`).join('');
+  document.getElementById('topbar-cta').style.display = state.tab==='mesa' ? 'none':'inline-block';
+}
+function goTab(tab, athleteId){
+  state.tab = tab;
+  if(athleteId){ state.selectedAthleteId = athleteId; state.profileTab='dados'; }
+  document.getElementById('sidebar').classList.remove('open');
+  renderNav();
+  renderPage();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+function setCrumb(crumb, title){
+  document.getElementById('crumb').textContent = crumb;
+  document.getElementById('page-title').textContent = title;
+}
+
+/* =========================================================
+   PAGE ROUTER
+========================================================= */
+function renderPage(){
+  const c = document.getElementById('content');
+  c.innerHTML='';
+  if(state.tab==='dashboard') c.appendChild(pageDashboard());
+  else if(state.tab==='atletas') c.appendChild(pageAtletas());
+  else if(state.tab==='athlete-profile') c.appendChild(pageAthleteProfile(state.selectedAthleteId));
+  else if(state.tab==='atleta-perfil') c.appendChild(pageAthleteProfile(state.selectedAthleteId, true));
+  else if(state.tab==='atleta-evolucao'){ state.profileTab='evolucao'; c.appendChild(pageAthleteProfile(state.selectedAthleteId, true)); }
+  else if(state.tab==='atleta-treino'){ state.profileTab='treino'; c.appendChild(pageAthleteProfile(state.selectedAthleteId, true)); }
+  else if(state.tab==='atleta-nutricao'){ state.profileTab='nutricao'; c.appendChild(pageAthleteProfile(state.selectedAthleteId, true)); }
+  else if(state.tab==='atleta-checkin'){ state.profileTab='checkin'; c.appendChild(pageAthleteProfile(state.selectedAthleteId, true)); }
+  else if(state.tab==='agenda') c.appendChild(pageAgenda());
+  else if(state.tab==='mesa') c.appendChild(pageMesaTatica());
+  else if(state.tab==='jogadas') c.appendChild(pageJogadas());
+  else if(state.tab==='config') c.appendChild(pageConfig());
+}
+
+/* =========================================================
+   DASHBOARD (admin)
+========================================================= */
+function pageDashboard(){
+  setCrumb('Painel do treinador', `Olá, ${state.userName.split(' ')[0]} 👋`);
+  const wrap = el(`<div></div>`);
+  wrap.appendChild(el(`
+    <div class="grid grid-4" style="margin-bottom:20px;">
+      <div class="card kpi"><span>Atletas ativos</span><b>${ATHLETES.length}</b><span class="delta up">▲ 2 este mês</span></div>
+      <div class="card kpi"><span>Check-ins hoje</span><b>78%</b><span class="delta up">▲ 6% vs. semana passada</span></div>
+      <div class="card kpi"><span>Encontros esta semana</span><b>${ATHLETES.reduce((s,a)=>s+a.agenda.length,0)}</b><span class="delta">3 presenciais · 1 vídeo</span></div>
+      <div class="card kpi"><span>Alertas de saúde</span><b>1</b><span class="delta down">Mateus — dor no joelho</span></div>
+    </div>
+  `));
+
+  const grid2 = el(`<div class="grid grid-2"></div>`);
+  const left = el(`<div class="card card-shadow"></div>`);
+  left.appendChild(el(`<div class="section-title"><div><h2>Meus atletas</h2><div class="sub">Toque para abrir o perfil completo</div></div><button class="btn sm" onclick="goTab('atletas')">Ver todos</button></div>`));
+  ATHLETES.forEach(a=>{
+    const row = el(`
+      <div class="athlete-row" style="cursor:pointer" onclick="goTab('athlete-profile','${a.id}')">
+        ${athleteAvatarCSS(a, 38, 16)}
+        <div class="info" style="flex:1;">
+          <b>${a.name}</b>
+          <span>${a.category} · ${a.position}</span>
+        </div>
+        <span class="badge ${a.physical.dorAtual==='Nenhuma'?'green':'clay'}">${a.physical.dorAtual==='Nenhuma'?'Apto':'Atenção'}</span>
+      </div>`);
+    left.appendChild(row);
+  });
+  grid2.appendChild(left);
+
+  const right = el(`<div class="card card-shadow"></div>`);
+  right.appendChild(el(`<div class="section-title"><div><h2>Próximos encontros</h2><div class="sub">RF03 — Agenda semanal</div></div></div>`));
+  const allAgenda = ATHLETES.flatMap(a=>a.agenda.map(g=>({...g, athlete:a})));
+  allAgenda.forEach(g=>{
+    right.appendChild(el(`
+      <div class="plan-item" style="align-items:center;">
+        <div class="jersey amber" style="width:34px;height:34px;font-size:13px;">${g.time}</div>
+        <div style="flex:1;">
+          <h4>${g.title}</h4>
+          <p>${g.athlete.name} · ${g.date}</p>
+        </div>
+        <span class="badge ${g.type==='Videochamada'?'sky':'green'}">${g.type==='Videochamada'?'🎥 Vídeo':'📍 Presencial'}</span>
+      </div>
+    `));
+  });
+  grid2.appendChild(right);
+  wrap.appendChild(grid2);
+
+  wrap.appendChild(el(`<div style="height:18px;"></div>`));
+  const notes = el(`<div class="note-box"><span>🛡️</span><span><b>RNF04 —</b> este painel exibe dados de saúde e de menores de idade (Sub-12). Acesso restrito a treinadores autorizados e criptografado em repouso e em trânsito.</span></div>`);
+  wrap.appendChild(notes);
+  return wrap;
+}
+
+/* =========================================================
+   LISTA DE ATLETAS
+========================================================= */
+function pageAtletas(){
+  setCrumb('Gestão de usuários', 'Atletas');
+  const wrap = el(`<div></div>`);
+  wrap.appendChild(el(`
+    <div class="section-title">
+      <div><h2>Todos os atletas</h2><div class="sub">RF02 — Perfil, categoria, posição e histórico</div></div>
+      <button class="btn solid sm" onclick="openModal('newAthlete')">+ Novo atleta</button>
+    </div>
+  `));
+  const grid = el(`<div class="grid grid-3"></div>`);
+  ATHLETES.forEach(a=>{
+    grid.appendChild(el(`
+      <div class="card card-shadow" style="cursor:pointer;" onclick="goTab('athlete-profile','${a.id}')">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+          ${athleteAvatarCSS(a, 48, 19)}
+          <div>
+            <b style="display:block; font-size:16px;">${a.name}</b>
+            <span style="font-size:12px; color:var(--ink-faint)">${a.team}${a.instagram ? ' · '+a.instagram : ''}</span>
+          </div>
+        </div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;">
+          <span class="badge green">${a.category}</span>
+          <span class="badge amber">${a.position}</span>
+        </div>
+        <p style="font-size:12.5px; color:var(--ink-soft); margin:0;">Ingressou em ${a.joined} · Responsável: ${a.guardian}</p>
+      </div>
+    `));
+  });
+  wrap.appendChild(grid);
+  return wrap;
+}
+
+/* =========================================================
+   PERFIL DO ATLETA (RF02, RF04-RF10)
+========================================================= */
+function pageAthleteProfile(id, isAthleteSelf){
+  const a = findAthlete(id) || ATHLETES[0];
+  setCrumb(isAthleteSelf ? 'Meu perfil' : 'Perfil do atleta', a.name);
+
+  const wrap = el(`<div></div>`);
+  const avatarHtml = a.photo
+    ? `<div style="width:64px;height:64px;border-radius:12px;background-image:url('${a.photo}');background-size:cover;background-position:center;flex-shrink:0;"></div>`
+    : `<div class="jersey" style="width:64px;height:64px;font-size:26px;background:${a.photoColor}">${a.num}</div>`;
+  const header = el(`
+    <div class="card card-shadow" style="display:flex; gap:18px; align-items:center; margin-bottom:18px; flex-wrap:wrap;">
+      ${avatarHtml}
+      <div style="flex:1; min-width:200px;">
+        <h2 style="margin:0 0 4px; font-family:'Work Sans'; font-size:20px; font-weight:800;">${a.name}</h2>
+        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+          <span class="badge green">${a.category}</span>
+          <span class="badge amber">${a.position}</span>
+          <span class="badge sky">${a.team}</span>
+          ${a.instagram ? `<span class="badge dark">📸 ${a.instagram}</span>` : ''}
+        </div>
+      </div>
+      <div style="display:flex; gap:26px; text-align:center;">
+        <div><b class="mono" style="font-size:18px; display:block;">${a.physical.altura}</b><span style="font-size:11px; color:var(--ink-faint)">Altura</span></div>
+        <div><b class="mono" style="font-size:18px; display:block;">${a.physical.peso}</b><span style="font-size:11px; color:var(--ink-faint)">Peso</span></div>
+        <div><b class="mono" style="font-size:18px; display:block;">${a.physical.imc}</b><span style="font-size:11px; color:var(--ink-faint)">IMC</span></div>
+      </div>
+      ${!isAthleteSelf ? `<button class="btn amber sm" onclick="openModal('newGameReport','${a.id}')">+ Relatório de jogo</button>` : ''}
+    </div>
+  `);
+  wrap.appendChild(header);
+
+  const tabs = [
+    {id:'dados', label:'Dados & histórico'},
+    {id:'evolucao', label:'Linha do tempo'},
+    {id:'treino', label:'Treinos'},
+    {id:'nutricao', label:'Nutrição', pro:true},
+    {id:'checkin', label:'Check-ins'},
+  ];
+  const tabBar = el(`<div class="tabs"></div>`);
+  tabs.forEach(t=>{
+    tabBar.appendChild(el(`<button class="tab-btn ${state.profileTab===t.id?'active':''}" onclick="setProfileTab('${t.id}','${a.id}',${!!isAthleteSelf})">${t.label}${t.pro?' <span class="badge amber" style="vertical-align:2px; margin-left:4px;">✨ PRO</span>':''}</button>`));
+  });
+  wrap.appendChild(tabBar);
+
+  const body = el(`<div></div>`);
+  if(state.profileTab==='dados') body.appendChild(tabDados(a));
+  else if(state.profileTab==='evolucao') body.appendChild(tabEvolucao(a, isAthleteSelf));
+  else if(state.profileTab==='treino') body.appendChild(tabTreino(a, isAthleteSelf));
+  else if(state.profileTab==='nutricao') body.appendChild(tabNutricao(a, isAthleteSelf));
+  else if(state.profileTab==='checkin') body.appendChild(tabCheckin(a, isAthleteSelf));
+  wrap.appendChild(body);
+  return wrap;
+}
+function setProfileTab(tab, athleteId, isSelf){
+  state.profileTab = tab;
+  renderPage();
+}
+
+function tabDados(a){
+  const wrap = el(`<div class="grid grid-2"></div>`);
+  const left = el(`<div class="card"></div>`);
+  left.appendChild(el(`<h3 style="margin-top:0;">Dados pessoais</h3>`));
+  const rows = [['Nascimento', a.birth], ['Responsável', a.guardian], ['Cel. do responsável', a.guardianPhone||'—'], ['Instagram', a.instagram||'—'], ['Categoria', a.category], ['Posição', a.position], ['Time', a.team], ['Na plataforma desde', a.joined]];
+  rows.forEach(([k,v])=>{
+    left.appendChild(el(`<div style="display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid var(--line); font-size:13.5px;"><span style="color:var(--ink-faint)">${k}</span><b>${v}</b></div>`));
+  });
+  wrap.appendChild(left);
+
+  const right = el(`<div class="card"></div>`);
+  right.appendChild(el(`<h3 style="margin-top:0;">Saúde & condição física</h3>`));
+  right.appendChild(el(`<div class="note-box ${a.physical.dorAtual!=='Nenhuma'?'security':''}" style="margin-bottom:14px;"><span>${a.physical.dorAtual!=='Nenhuma'?'⚠️':'💪'}</span><span>${a.physical.dorAtual!=='Nenhuma'?'Relato ativo: '+a.physical.dorAtual:'Nenhuma dor relatada nos últimos check-ins.'}</span></div>`));
+  right.appendChild(el(`<div class="bar-row"><span class="label">Nível de energia</span><div class="bar-track"><div class="bar-fill" style="width:72%"></div></div><span class="bar-val">72%</span></div>`));
+  right.appendChild(el(`<div class="bar-row"><span class="label">Adesão a treinos</span><div class="bar-track"><div class="bar-fill amber" style="width:${a.checkins.filter(c=>c.treinoOk).length/a.checkins.length*100}%"></div></div><span class="bar-val">${Math.round(a.checkins.filter(c=>c.treinoOk).length/a.checkins.length*100)}%</span></div>`));
+  right.appendChild(el(`<div class="bar-row"><span class="label">Adesão à dieta</span><div class="bar-track"><div class="bar-fill" style="width:${a.checkins.filter(c=>c.dietaOk).length/a.checkins.length*100}%"></div></div><span class="bar-val">${Math.round(a.checkins.filter(c=>c.dietaOk).length/a.checkins.length*100)}%</span></div>`));
+  wrap.appendChild(right);
+  return wrap;
+}
+
+function tabEvolucao(a, isSelf){
+  const wrap = el(`<div></div>`);
+  wrap.appendChild(el(`
+    <div class="section-title">
+      <div><h2 style="font-size:19px;">Linha do tempo de evolução</h2><div class="sub">RF07 — cruzamento de análises táticas, mentais e físicas</div></div>
+      <div style="display:flex; gap:8px;">
+        <button class="btn sm" onclick="openModal('newMedia','${a.id}')">📎 Anexar mídia</button>
+        <button class="btn sm" onclick="openModal('newMental','${a.id}')">🧠 Registro mental</button>
+      </div>
+    </div>
+  `));
+
+  // build combined timeline entries
+  let entries = [];
+  a.tactical.forEach(t=>entries.push({date:t.date, type:'tactical', title:'Relatório de jogo — '+t.game, strengths:t.strengths, improve:t.improve}));
+  a.mental.forEach(m=>entries.push({date:m.date, type:'mental', title:m.title, text:m.text, score:m.score, video:m.video}));
+  const mediaByDate = {};
+  a.media.forEach(m=>{ (mediaByDate[m.date] = mediaByDate[m.date]||[]).push(m); });
+  Object.keys(mediaByDate).forEach(d=>entries.push({date:d, type:'media', title:'Artefatos de mídia anexados', items:mediaByDate[d]}));
+  entries.sort((x,y)=> y.date.split('/').reverse().join('').localeCompare(x.date.split('/').reverse().join('')));
+
+  const tl = el(`<div class="timeline"></div>`);
+  if(entries.length===0){
+    tl.appendChild(el(`<div class="empty-state"><div class="ic">📭</div>Nenhum registro na linha do tempo ainda.</div>`));
+  }
+  entries.forEach(e=>{
+    if(e.type==='tactical'){
+      tl.appendChild(el(`
+        <div class="tl-item tactical">
+          <div class="jersey-dot"></div>
+          <div class="tl-card">
+            <div class="meta"><span class="badge green">Tático</span><span class="mono">${e.date}</span></div>
+            <h4>${e.title}</h4>
+            <p><b>Pontos fortes:</b> ${e.strengths}</p>
+            <p style="margin-top:6px;"><b>A melhorar:</b> ${e.improve}</p>
+          </div>
+        </div>`));
+    } else if(e.type==='mental'){
+      tl.appendChild(el(`
+        <div class="tl-item mental">
+          <div class="jersey-dot"></div>
+          <div class="tl-card">
+            <div class="meta"><span class="badge sky">Mental</span><span class="mono">${e.date}</span><span class="badge amber">Confiança ${e.score}/10</span></div>
+            <h4>${e.title}</h4>
+            <p>${e.text}</p>
+            ${e.video ? `<a href="${e.video}" target="_blank" rel="noopener" class="btn sm" style="display:inline-flex; margin-top:10px;">▶ Ver vídeo de apoio</a>` : ''}
+          </div>
+        </div>`));
+    } else if(e.type==='media'){
+      tl.appendChild(el(`
+        <div class="tl-item media">
+          <div class="jersey-dot"></div>
+          <div class="tl-card">
+            <div class="meta"><span class="badge amber">Mídia</span><span class="mono">${e.date}</span></div>
+            <h4>${e.title}</h4>
+            <div class="tl-media-strip">
+              ${e.items.map(m=>`<div class="tl-media-thumb" style="background:${m.color}">${m.type==='video'?'▶ VÍDEO':'🖼 FOTO'}</div>`).join('')}
+            </div>
+            <p style="margin-top:8px; font-size:11.5px; color:var(--ink-faint);">Compressão automática aplicada antes do envio ao armazenamento em nuvem (RNF02).</p>
+          </div>
+        </div>`));
+    }
+  });
+  wrap.appendChild(tl);
+  return wrap;
+}
+
+function tabTreino(a, isSelf){
+  const wrap = el(`<div class="grid grid-2"></div>`);
+  const left = el(`<div></div>`);
+  left.appendChild(el(`<div class="section-title"><div><h2 style="font-size:18px;">Exercícios de aprimoramento</h2><div class="sub">RF08 — foco nas deficiências identificadas${isSelf ? ' · envie um vídeo de cada exercício para o treinador avaliar' : ''}</div></div>${!isSelf?`<button class="btn sm" onclick="openModal('newExercise','${a.id}')">+ Prescrever</button>`:''}</div>`));
+
+  if(a.exercises.length===0){
+    left.appendChild(el(`<div class="card"><div class="empty-state"><div class="ic">🏋️</div>Nenhum exercício prescrito ainda.</div></div>`));
+  }
+
+  a.exercises.forEach((ex,i)=>{
+    const exVideos = (a.trainingVideos||[]).filter(v=>v.exerciseIdx===i);
+    const pendingCount = exVideos.filter(v=>v.status==='Pendente').length;
+    const card = el(`<div class="card" style="margin-bottom:12px;"></div>`);
+
+    // exercise header row
+    card.appendChild(el(`
+      <div style="display:flex; gap:12px; align-items:flex-start;">
+        <div class="chk ${ex.done?'done':''}" ${isSelf?`onclick="toggleExercise('${a.id}',${i})" style="cursor:pointer; margin-top:2px;"`:'margin-top:2px;'}>${ex.done?'✓':''}</div>
+        <div style="flex:1;">
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:4px;">
+            <b style="font-size:14.5px; ${ex.done?'text-decoration:line-through; color:var(--ink-faint)':''}">${ex.name}</b>
+            <span class="badge sky">${ex.focus}</span>
+            ${pendingCount>0 && !isSelf ? `<span class="badge amber">🎥 ${pendingCount} aguardando avaliação</span>` : ''}
+          </div>
+          <p style="font-size:12.5px; color:var(--ink-faint); margin:0;">${ex.desc}</p>
+        </div>
+      </div>
+    `));
+
+    // video section per exercise
+    const vidSection = el(`<div style="margin-top:12px; padding-top:12px; border-top:1px solid var(--line);"></div>`);
+
+    if(exVideos.length > 0){
+      exVideos.forEach((v, vi)=>{
+        const vIdx = (a.trainingVideos||[]).findIndex(x=>x===v);
+        const clickable = !isSelf && v.status==='Pendente';
+        vidSection.appendChild(el(`
+          <div class="plan-item" style="padding:8px 0; margin-bottom:6px; ${clickable?'cursor:pointer;':''}" ${clickable?`onclick="evaluateTrainingVideo('${a.id}',${vIdx})"`:''}>
+            <div class="tl-media-thumb" style="background:#C1432B; width:52px; height:38px; flex-shrink:0; font-size:10px;">▶ VID</div>
+            <div style="flex:1;">
+              <b style="font-size:13px; display:block;">${v.label}</b>
+              <span style="font-size:11.5px; color:var(--ink-faint);">${v.date}${v.comment ? ' · "'+v.comment+'"' : ''}</span>
+            </div>
+            <span class="badge ${v.status==='Avaliado'?'green':'amber'}">${v.status}</span>
+          </div>
+        `));
+      });
+    }
+
+    if(isSelf){
+      vidSection.appendChild(el(`
+        <div class="upload-zone" style="padding:10px 14px; font-size:12.5px; cursor:pointer; text-align:left; display:flex; align-items:center; gap:10px;"
+          onclick="openModal('newTrainingVideo','${a.id}','${i}')">
+          <span style="font-size:18px;">🎥</span>
+          <span><b>Enviar vídeo deste exercício</b><br><span style="font-size:11px; color:var(--ink-faint);">Compressão automática antes do envio (RNF02)</span></span>
+        </div>
+      `));
+    } else if(exVideos.length===0){
+      vidSection.appendChild(el(`<p style="font-size:12px; color:var(--ink-faint); margin:0;">Nenhum vídeo enviado para este exercício ainda.</p>`));
+    }
+
+    card.appendChild(vidSection);
+    left.appendChild(card);
+  });
+
+  wrap.appendChild(left);
+
+  const right = el(`<div></div>`);
+  const totalPending = (a.trainingVideos||[]).filter(v=>v.status==='Pendente').length;
+  right.appendChild(el(`
+    <div class="card">
+      <h3 style="margin-top:0;">Adesão aos treinos</h3>
+      <div class="bar-row">
+        <span class="label">Concluídos</span>
+        <div class="bar-track"><div class="bar-fill" style="width:${a.exercises.filter(e=>e.done).length/Math.max(a.exercises.length,1)*100}%"></div></div>
+        <span class="bar-val">${a.exercises.filter(e=>e.done).length}/${a.exercises.length}</span>
+      </div>
+      <div class="bar-row">
+        <span class="label">Com vídeo</span>
+        <div class="bar-track"><div class="bar-fill amber" style="width:${[...new Set((a.trainingVideos||[]).map(v=>v.exerciseIdx))].length/Math.max(a.exercises.length,1)*100}%"></div></div>
+        <span class="bar-val">${[...new Set((a.trainingVideos||[]).map(v=>v.exerciseIdx))].length}/${a.exercises.length}</span>
+      </div>
+      <p style="font-size:12px; color:var(--ink-faint); margin:10px 0 0;">Marque o treino como concluído e envie o vídeo para que o treinador possa avaliar cada execução individualmente.</p>
+    </div>
+  `));
+  if(!isSelf && totalPending > 0){
+    right.appendChild(el(`<div class="note-box security" style="margin-top:14px;"><span>🎥</span><span><b>${totalPending} vídeo(s)</b> de treino aguardando sua avaliação. Toque em cada um para comentar.</span></div>`));
+  }
+  wrap.appendChild(right);
+  return wrap;
+}
+function toggleExercise(id, idx){ const a=findAthlete(id); a.exercises[idx].done = !a.exercises[idx].done; renderPage(); }
+function toggleDiet(id, idx){ const a=findAthlete(id); a.diet[idx].done = !a.diet[idx].done; renderPage(); }
+
+function tabNutricao(a, isSelf){
+  const wrap = el(`<div></div>`);
+  if(!state.nutritionUnlocked){
+    wrap.appendChild(el(`
+      <div class="card card-shadow" style="text-align:center; padding:40px 24px; position:relative; overflow:hidden;">
+        <div style="position:absolute; inset:0; background:
+          repeating-linear-gradient(45deg, rgba(232,163,61,.06) 0 10px, transparent 10px 20px); pointer-events:none;"></div>
+        <div style="font-size:38px; margin-bottom:6px;">🥗🔒</div>
+        <h2 style="margin:0 0 6px; font-size:24px;">Módulo de Nutrição — Plano Performance+</h2>
+        <p style="max-width:440px; margin:0 auto 18px; color:var(--ink-soft); font-size:13.5px; line-height:1.6;">
+          RF09 — planos alimentares, metas de hidratação e acompanhamento nutricional (com ou sem nutricionista parceiro)
+          fazem parte do módulo de Nutrição, disponível como <b>upgrade separado</b> do plano do clube.
+        </p>
+        <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-bottom:18px;">
+          <span class="badge amber">Planos alimentares ilimitados</span>
+          <span class="badge amber">Metas de hidratação</span>
+          <span class="badge amber">Nutricionista parceiro</span>
+        </div>
+        <button class="btn amber" onclick="openModal('upgradeNutrition')">✨ Fazer upgrade para Performance+</button>
+        <p style="font-size:11.5px; color:var(--ink-faint); margin-top:14px;">Prévia bloqueada abaixo — conteúdo ilustrativo</p>
+      </div>
+      <div class="card" style="margin-top:16px; filter:blur(3px); opacity:.55; pointer-events:none; user-select:none;">
+        <h3 style="margin-top:0;">Plano alimentar (prévia)</h3>
+        <div class="plan-item"><div class="chk"></div><div style="flex:1;"><h4>Café da manhã reforçado</h4><p>Aveia + banana + ovo.</p></div><span class="badge amber">Nutrição</span></div>
+        <div class="plan-item"><div class="chk"></div><div style="flex:1;"><h4>Hidratação em quadra</h4><p>Meta de 1,5L durante treinos.</p></div><span class="badge amber">Nutrição</span></div>
+      </div>
+    `));
+    return wrap;
+  }
+
+  wrap.appendChild(el(`<div class="note-box" style="margin-bottom:16px;"><span>✨</span><span><b>Performance+ ativo</b> — módulo de Nutrição desbloqueado para este clube.</span></div>`));
+  const grid = el(`<div class="grid grid-2"></div>`);
+  const left = el(`<div></div>`);
+  left.appendChild(el(`<div class="section-title"><div><h2 style="font-size:18px;">Plano alimentar</h2><div class="sub">RF09 — dieta e hidratação</div></div>${!isSelf?`<button class="btn sm" onclick="openModal('newDiet','${a.id}')">+ Adicionar meta</button>`:''}</div>`));
+  const dietCard = el(`<div class="card"></div>`);
+  if(a.diet.length===0) dietCard.appendChild(el(`<div class="empty-state"><div class="ic">🥗</div>Nenhuma meta nutricional cadastrada.</div>`));
+  a.diet.forEach((d,i)=>{
+    dietCard.appendChild(el(`
+      <div class="plan-item ${d.done?'done':''}">
+        <div class="chk ${d.done?'done':''}" ${isSelf?`onclick="toggleDiet('${a.id}',${i})" style="cursor:pointer"`:''}>${d.done?'✓':''}</div>
+        <div style="flex:1;">
+          <h4>${d.name}</h4>
+          <p>${d.desc}</p>
+        </div>
+        <span class="badge amber">Nutrição</span>
+      </div>
+    `));
+  });
+  left.appendChild(dietCard);
+  grid.appendChild(left);
+
+  const right = el(`<div></div>`);
+  right.appendChild(el(`<div class="card" style="margin-bottom:16px;"><h3 style="margin-top:0;">Documento nutricional</h3><div class="upload-zone">📄 Arraste um PDF do plano alimentar ou <b>clique para anexar</b><br><span style="font-size:11px;">(nutricionista parceiro)</span></div></div>`));
+  right.appendChild(el(`<div class="card"><h3 style="margin-top:0;">Adesão à dieta</h3><div class="bar-row"><span class="label">Metas cumpridas</span><div class="bar-track"><div class="bar-fill amber" style="width:${a.diet.filter(e=>e.done).length/Math.max(a.diet.length,1)*100}%"></div></div><span class="bar-val">${a.diet.filter(e=>e.done).length}/${a.diet.length}</span></div></div>`));
+  grid.appendChild(right);
+  wrap.appendChild(grid);
+  return wrap;
+}
+
+function tabCheckin(a, isSelf){
+  const wrap = el(`<div></div>`);
+  wrap.appendChild(el(`<div class="section-title"><div><h2 style="font-size:18px;">Check-ins do atleta</h2><div class="sub">RF10 — cansaço, dores e conclusão de treino/dieta</div></div>${isSelf?`<button class="btn amber sm" onclick="openModal('newCheckin','${a.id}')">+ Registrar check-in de hoje</button>`:''}</div>`));
+  const card = el(`<div class="card"></div>`);
+  if(a.checkins.length===0) card.appendChild(el(`<div class="empty-state"><div class="ic">✅</div>Nenhum check-in registrado ainda.</div>`));
+  a.checkins.forEach(c=>{
+    card.appendChild(el(`
+      <div class="plan-item">
+        <div style="width:44px;height:44px;border-radius:10px;background:var(--chalk);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue';font-size:16px; flex-shrink:0;">${c.cansaco}/5</div>
+        <div style="flex:1;">
+          <h4>${c.date}</h4>
+          <p>Dor relatada: ${c.dor}</p>
+        </div>
+        <span class="badge ${c.treinoOk?'green':'clay'}">${c.treinoOk?'Treino ✓':'Treino ✗'}</span>
+        <span class="badge ${c.dietaOk?'green':'clay'}">${c.dietaOk?'Dieta ✓':'Dieta ✗'}</span>
+      </div>
+    `));
+  });
+  wrap.appendChild(card);
+  return wrap;
+}
+
+/* =========================================================
+   AGENDA (RF03)
+========================================================= */
+function pageAgenda(){
+  setCrumb('Agenda de encontros', state.role==='admin' ? 'Agenda semanal' : 'Minha agenda');
+  const wrap = el(`<div></div>`);
+  const selfA = findAthlete(state.selectedAthleteId||'mateus');
+  const list = state.role==='admin'
+    ? ATHLETES.flatMap(a=>a.agenda.map((g,idx)=>({...g, athlete:a, idx})))
+    : selfA.agenda.map((g,idx)=>({...g, athlete:selfA, idx}));
+
+  wrap.appendChild(el(`<div class="section-title"><div><h2>Encontros agendados</h2><div class="sub">Presenciais ou por videochamada, individuais por atleta</div></div>${state.role==='admin'?'<button class="btn solid sm" onclick="openModal(\'newAgenda\')">+ Agendar encontro</button>':''}</div>`));
+
+  const card = el(`<div class="card"></div>`);
+  if(list.length===0) card.appendChild(el(`<div class="empty-state"><div class="ic">🗓️</div>Nenhum encontro agendado.</div>`));
+  list.sort((x,y)=> x.date.split('/').reverse().join('').localeCompare(y.date.split('/').reverse().join('')));
+  list.forEach(g=>{
+    card.appendChild(el(`
+      <div class="plan-item" style="align-items:center;">
+        <div class="jersey" style="width:44px;height:44px;font-size:13px; background:${g.type==='Videochamada'?'var(--sky)':'var(--pitch)'}">${g.time}</div>
+        <div style="flex:1;">
+          <h4>${g.title}</h4>
+          <p>${g.athlete.name} · ${g.date}${g.notes ? ' · <span style="color:var(--pitch)">Notas registradas</span>' : ''}</p>
+        </div>
+        <span class="badge ${g.type==='Videochamada'?'sky':'green'}">${g.type==='Videochamada'?'🎥 Vídeo':'📍 Presencial'}</span>
+        ${state.role==='admin'?`<button class="btn ghost sm" onclick="openManageEncontro('${g.athlete.id}', ${g.idx})">Gerenciar</button>`:''}
+      </div>
+    `));
+  });
+  wrap.appendChild(card);
+  return wrap;
+}
+
+/* =========================================================
+   MESA TÁTICA (RF11-RF13)
+========================================================= */
+let taticaTool = 'select';
+let tokenCounter = 0;
+let tokenIdCounter = 0;
+let taticaTarget = {type:'athlete', value: ATHLETES[0].id};
+let pendingLoadPlay = null;
+let taticaFrames = [];      // array of {tokens: {tid: {x,y}}}
+let isPlayingAnim = false;
+let animSpeed = 'normal'; // 'slow' | 'normal' | 'fast'
+
+function pageMesaTatica(){
+  if(pendingLoadPlay){
+    taticaTarget = {type: pendingLoadPlay.targetType, value: pendingLoadPlay.targetValue};
+  }
+  setCrumb('Mesa tática dinâmica', 'Quadro branco interativo');
+  const wrap = el(`<div></div>`);
+  wrap.appendChild(el(`<div class="section-title"><div><h2>Mesa tática</h2><div class="sub">RF11-RF13 — monte a jogada passo a passo e reproduza como animação</div></div></div>`));
+
+  const teams = [...new Set(ATHLETES.map(a=>a.team))];
+  wrap.appendChild(el(`
+    <div class="card" style="margin-bottom:16px; display:flex; gap:14px; align-items:flex-end; flex-wrap:wrap; background:#FFF8CC; border-color:var(--amber-deep);">
+      <div class="field" style="margin:0;">
+        <label>🎯 Esta jogada é para</label>
+        <select id="tatica-target-type" onchange="onTaticaTargetTypeChange()">
+          <option value="athlete" ${taticaTarget.type==='athlete'?'selected':''}>Atleta específico</option>
+          <option value="team" ${taticaTarget.type==='team'?'selected':''}>Time inteiro</option>
+        </select>
+      </div>
+      <div class="field" style="margin:0; flex:1; min-width:200px;" id="tatica-target-value-wrap">
+        <label>${taticaTarget.type==='team'?'Time':'Atleta'}</label>
+        <select id="tatica-target-value" onchange="onTaticaTargetValueChange()">
+          ${taticaTarget.type==='team'
+            ? teams.map(t=>`<option value="${t}" ${taticaTarget.value===t?'selected':''}>${t}</option>`).join('')
+            : ATHLETES.map(a=>`<option value="${a.id}" ${taticaTarget.value===a.id?'selected':''}>${a.name} — ${a.category}</option>`).join('')}
+        </select>
+      </div>
+      <span class="badge dark" style="height:fit-content;">Toda jogada criada aqui será vinculada a este destino</span>
+    </div>
+  `));
+
+  const grid = el(`<div class="tatica-wrap"></div>`);
+  const left = el(`<div></div>`);
+  left.appendChild(el(`
+    <div class="tatica-toolbar">
+      <button class="tool-btn active" data-tool="select" onclick="setTaticaTool('select', this)"><span>🖱️</span>Mover</button>
+      <button class="tool-btn" data-tool="home" onclick="setTaticaTool('home', this)"><span class="swatch" style="background:var(--amber)"></span>Time A</button>
+      <button class="tool-btn" data-tool="away" onclick="setTaticaTool('away', this)"><span class="swatch" style="background:#D72B2B"></span>Time B</button>
+      <button class="tool-btn" data-tool="ball" onclick="setTaticaTool('ball', this)"><span>⚽</span>Bola</button>
+      <button class="tool-btn" data-tool="arrow" onclick="setTaticaTool('arrow', this)"><span>➤</span>Seta</button>
+      <button class="tool-btn" onclick="clearCourt()"><span>🗑️</span>Limpar tudo</button>
+      <button class="tool-btn" onclick="openModal('savePlay')"><span>💾</span>Salvar</button>
+    </div>
+  `));
+  left.appendChild(buildCourtSVG());
+
+  // ===== ANIMATION PANEL =====
+  left.appendChild(el(`
+    <div class="card" style="margin-top:14px; background:#111; border-color:#333; color:#F5F5F5;">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+        <div>
+          <b style="font-family:'Bebas Neue'; font-size:18px; letter-spacing:.04em; color:var(--amber);">🎬 Animação da jogada</b>
+          <p style="margin:2px 0 0; font-size:12px; color:#999;">Posicione os jogadores → grave o passo → mova → grave o próximo. Ao reproduzir, eles se movem sozinhos.</p>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <button class="btn amber sm" onclick="captureFrame()">📸 Gravar passo</button>
+          <button class="btn sm" style="background:#222; color:#fff; border-color:#444;" onclick="playFrames()" id="btn-play-frames">▶ Reproduzir jogada</button>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+        <span style="font-size:11px; color:#999; text-transform:uppercase; letter-spacing:.04em; font-weight:700;">Velocidade:</span>
+        <div id="speed-toggle" style="display:inline-flex; background:#222; border-radius:999px; padding:3px; gap:2px;">
+          <button class="speed-btn ${animSpeed==='slow'?'active':''}" data-speed="slow" onclick="setAnimSpeed('slow', this)">🐢 Lenta</button>
+          <button class="speed-btn ${animSpeed==='normal'?'active':''}" data-speed="normal" onclick="setAnimSpeed('normal', this)">▶ Normal</button>
+          <button class="speed-btn ${animSpeed==='fast'?'active':''}" data-speed="fast" onclick="setAnimSpeed('fast', this)">⚡ Rápida</button>
+        </div>
+      </div>
+      <div id="frames-strip" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; min-height:34px;"></div>
+      <div id="anim-status" style="font-size:12px; color:var(--amber); margin-top:6px; min-height:16px;"></div>
+    </div>
+  `));
+
+  left.appendChild(el(`<div class="note-box" style="margin-top:12px;"><span>⚡</span><span>RNF03 — a mesa responde ao toque em tempo real. Use a ferramenta <b>Seta</b> (arraste) para marcar trajetórias fixas, e os <b>passos gravados</b> para criar a animação de movimento dos jogadores.</span></div>`));
+  grid.appendChild(left);
+
+  const right = el(`<div></div>`);
+  right.appendChild(el(`<div class="card" style="margin-bottom:16px;"><h3 style="margin-top:0; font-size:16px;">Como criar a animação</h3><p style="font-size:12.5px; color:var(--ink-soft); line-height:1.7; margin:0;"><b>1.</b> Adicione os jogadores e a bola na posição inicial.<br><b>2.</b> Toque em <b>📸 Gravar passo</b> — este é o Passo 1.<br><b>3.</b> Arraste os jogadores/bola para a próxima posição da jogada.<br><b>4.</b> Grave o Passo 2. Repita quantos passos quiser.<br><b>5.</b> Toque em <b>▶ Reproduzir</b> — os jogadores se movem passo a passo automaticamente.<br><b>6.</b> Salve: a animação vai junto para o atleta estudar.</p></div>`));
+  right.appendChild(el(`<div class="card"><h3 style="margin-top:0; font-size:16px;">Jogadas salvas recentemente</h3><div class="plays-list" id="mini-plays"></div></div>`));
+  grid.appendChild(right);
+
+  wrap.appendChild(grid);
+  setTimeout(()=>{
+    renderMiniPlays();
+    if(pendingLoadPlay){
+      const svg = document.getElementById('court-svg');
+      const layer = document.getElementById('tokens-layer');
+      if(svg && layer){
+        layer.innerHTML = pendingLoadPlay.svgContent || '';
+        layer.querySelectorAll('g.token').forEach(g=>makeDraggable(g, svg));
+        tokenCounter = layer.querySelectorAll('g.token').length;
+        // restore tokenIdCounter above the max existing tid
+        let maxTid = 0;
+        layer.querySelectorAll('g.token').forEach(g=>{ const t = parseInt(g.getAttribute('data-tid')||'0'); if(t>maxTid) maxTid=t; });
+        tokenIdCounter = maxTid;
+        taticaFrames = pendingLoadPlay.frames ? JSON.parse(JSON.stringify(pendingLoadPlay.frames)) : [];
+        renderFramesStrip();
+        // if athlete is studying and there are frames, auto-highlight play button
+        if(state.role==='atleta' && taticaFrames.length>1){
+          setAnimStatus('Esta jogada tem animação! Toque em ▶ Reproduzir para assistir.');
+        }
+      }
+      pendingLoadPlay = null;
+    } else {
+      taticaFrames = [];
+      renderFramesStrip();
+    }
+  }, 0);
+  return wrap;
+}
+
+function onTaticaTargetTypeChange(){
+  const type = document.getElementById('tatica-target-type').value;
+  taticaTarget.type = type;
+  const valueSelect = document.getElementById('tatica-target-value');
+  const label = document.querySelector('#tatica-target-value-wrap label');
+  const teams = [...new Set(ATHLETES.map(a=>a.team))];
+  if(type==='team'){
+    label.textContent = 'Time';
+    valueSelect.innerHTML = teams.map(t=>`<option value="${t}">${t}</option>`).join('');
+    taticaTarget.value = teams[0];
+  } else {
+    label.textContent = 'Atleta';
+    valueSelect.innerHTML = ATHLETES.map(a=>`<option value="${a.id}">${a.name} — ${a.category}</option>`).join('');
+    taticaTarget.value = ATHLETES[0].id;
+  }
+}
+function onTaticaTargetValueChange(){
+  taticaTarget.value = document.getElementById('tatica-target-value').value;
+}
+function taticaTargetLabel(){
+  if(taticaTarget.type==='team') return taticaTarget.value;
+  const a = findAthlete(taticaTarget.value);
+  return a ? a.name : '—';
+}
+
+function buildCourtSVG(){
+  const wrapper = el(`<div></div>`);
+  const svgHTML = `
+  <svg id="court-svg" viewBox="0 0 600 380" xmlns="http://www.w3.org/2000/svg">
+    <rect x="6" y="6" width="588" height="368" fill="none" stroke="var(--pitch-line)" stroke-width="2"/>
+    <line x1="300" y1="6" x2="300" y2="374" stroke="var(--pitch-line)" stroke-width="2"/>
+    <circle cx="300" cy="190" r="46" fill="none" stroke="var(--pitch-line)" stroke-width="2"/>
+    <circle cx="300" cy="190" r="3" fill="var(--pitch-line)"/>
+    <rect x="6" y="120" width="70" height="140" fill="none" stroke="var(--pitch-line)" stroke-width="2"/>
+    <rect x="524" y="120" width="70" height="140" fill="none" stroke="var(--pitch-line)" stroke-width="2"/>
+    <path d="M 6 150 A 40 40 0 0 1 6 230" fill="none" stroke="var(--pitch-line)" stroke-width="2"/>
+    <path d="M 594 150 A 40 40 0 0 0 594 230" fill="none" stroke="var(--pitch-line)" stroke-width="2"/>
+    <defs>
+      <marker id="arrowhead" markerWidth="10" markerHeight="8" refX="8" refY="4" orient="auto">
+        <polygon points="0 0, 10 4, 0 8" fill="#FFD600"/>
+      </marker>
+    </defs>
+    <g id="tokens-layer"></g>
+    <text id="step-indicator" x="300" y="34" text-anchor="middle" font-family="Bebas Neue" font-size="22" fill="#FFD600" style="display:none; letter-spacing:.06em;"></text>
+  </svg>`.trim();
+  wrapper.innerHTML = svgHTML;
+  return wrapper.firstChild;
+}
+
+function setTaticaTool(tool, btn){
+  taticaTool = tool;
+  document.querySelectorAll('.tool-btn[data-tool]').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+}
+
+function courtPoint(evt, svg){
+  const pt = svg.createSVGPoint();
+  const src = evt.touches ? evt.touches[0] : evt;
+  pt.x = src.clientX; pt.y = src.clientY;
+  const ctm = svg.getScreenCTM().inverse();
+  const loc = pt.matrixTransform(ctm);
+  return {x:loc.x, y:loc.y};
+}
+
+document.addEventListener('pointerdown', function(e){
+  if(isPlayingAnim) return;
+  const svg = document.getElementById('court-svg');
+  if(!svg || !svg.contains(e.target)) return;
+  if(e.target.closest('.token')) return; // handled by token drag
+  const p = courtPoint(e, svg);
+  const layer = document.getElementById('tokens-layer');
+
+  if(taticaTool==='home' || taticaTool==='away'){
+    tokenCounter++;
+    tokenIdCounter++;
+    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.setAttribute('class','token');
+    g.setAttribute('data-tid', tokenIdCounter);
+    g.setAttribute('transform', `translate(${p.x},${p.y})`);
+    g.innerHTML = `<circle r="14" fill="${taticaTool==='home'?'#FFD600':'#D72B2B'}" stroke="#fff" stroke-width="2"/><text x="0" y="4" text-anchor="middle" font-family="Bebas Neue" font-size="13" fill="${taticaTool==='home'?'#111':'#fff'}">${tokenCounter}</text>`;
+    layer.appendChild(g);
+    makeDraggable(g, svg);
+  } else if(taticaTool==='ball'){
+    tokenIdCounter++;
+    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.setAttribute('class','token');
+    g.setAttribute('data-tid', tokenIdCounter);
+    g.setAttribute('transform', `translate(${p.x},${p.y})`);
+    g.innerHTML = `<circle r="8" fill="#FFFFFF" stroke="#111111" stroke-width="1.5"/>`;
+    layer.appendChild(g);
+    makeDraggable(g, svg);
+  } else if(taticaTool==='arrow'){
+    startArrowDrag(p, svg, layer);
+  }
+});
+
+function startArrowDrag(start, svg, layer){
+  const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+  line.setAttribute('class','arrow-line');
+  line.setAttribute('x1', start.x); line.setAttribute('y1', start.y);
+  line.setAttribute('x2', start.x); line.setAttribute('y2', start.y);
+  line.setAttribute('stroke','#FFD600'); line.setAttribute('stroke-width','3');
+  line.setAttribute('stroke-dasharray','7 5');
+  line.setAttribute('marker-end','url(#arrowhead)');
+  layer.appendChild(line);
+  function move(ev){
+    const p = courtPoint(ev, svg);
+    line.setAttribute('x2', p.x); line.setAttribute('y2', p.y);
+  }
+  function up(ev){
+    const p = courtPoint(ev, svg);
+    const dx = p.x-start.x, dy = p.y-start.y;
+    if(Math.sqrt(dx*dx+dy*dy) < 14){ line.remove(); }
+    else { line.setAttribute('x2', p.x); line.setAttribute('y2', p.y); }
+    svg.removeEventListener('pointermove', move);
+    window.removeEventListener('pointerup', up);
+  }
+  svg.addEventListener('pointermove', move);
+  window.addEventListener('pointerup', up);
+}
+
+function makeDraggable(g, svg){
+  let dragging = false;
+  function start(e){ if(isPlayingAnim) return; dragging = true; e.stopPropagation(); }
+  function move(e){
+    if(!dragging) return;
+    const p = courtPoint(e, svg);
+    g.setAttribute('transform', `translate(${p.x},${p.y})`);
+  }
+  function end(){ dragging = false; }
+  g.addEventListener('pointerdown', start);
+  svg.addEventListener('pointermove', move);
+  window.addEventListener('pointerup', end);
+}
+
+function clearCourt(){
+  if(isPlayingAnim) return;
+  const layer = document.getElementById('tokens-layer');
+  if(layer) layer.innerHTML='';
+  tokenCounter = 0;
+  taticaFrames = [];
+  renderFramesStrip();
+  setAnimStatus('');
+}
+
+/* ============ KEYFRAME ANIMATION SYSTEM ============ */
+function getTokenPositions(){
+  const layer = document.getElementById('tokens-layer');
+  const positions = {};
+  if(!layer) return positions;
+  layer.querySelectorAll('g.token').forEach(g=>{
+    const tid = g.getAttribute('data-tid');
+    const m = /translate\(([^,]+),([^)]+)\)/.exec(g.getAttribute('transform')||'');
+    if(tid && m) positions[tid] = {x: parseFloat(m[1]), y: parseFloat(m[2])};
+  });
+  return positions;
+}
+
+function captureFrame(){
+  if(isPlayingAnim) return;
+  const positions = getTokenPositions();
+  if(Object.keys(positions).length===0){
+    alert('Adicione jogadores ou a bola na quadra antes de gravar um passo.');
+    return;
+  }
+  taticaFrames.push({tokens: positions});
+  renderFramesStrip();
+  setAnimStatus(`Passo ${taticaFrames.length} gravado! ${taticaFrames.length===1 ? 'Agora mova os jogadores e grave o próximo passo.' : 'Continue movendo e gravando, ou toque em ▶ para ver a animação.'}`);
+}
+
+function deleteFrame(idx){
+  if(isPlayingAnim) return;
+  taticaFrames.splice(idx,1);
+  renderFramesStrip();
+  setAnimStatus(taticaFrames.length ? `Passo removido. ${taticaFrames.length} passo(s) restante(s).` : 'Todos os passos removidos.');
+}
+
+function goToFrame(idx){
+  if(isPlayingAnim) return;
+  const frame = taticaFrames[idx];
+  if(!frame) return;
+  applyFramePositions(frame.tokens);
+  renderFramesStrip(idx);
+  setAnimStatus(`Visualizando o Passo ${idx+1}. Arraste os jogadores para ajustar e grave por cima se quiser.`);
+}
+
+function applyFramePositions(tokens){
+  const layer = document.getElementById('tokens-layer');
+  if(!layer) return;
+  layer.querySelectorAll('g.token').forEach(g=>{
+    const tid = g.getAttribute('data-tid');
+    if(tokens[tid]) g.setAttribute('transform', `translate(${tokens[tid].x},${tokens[tid].y})`);
+  });
+}
+
+function renderFramesStrip(activeIdx){
+  const strip = document.getElementById('frames-strip');
+  if(!strip) return;
+  if(taticaFrames.length===0){
+    strip.innerHTML = `<span style="font-size:12px; color:#777;">Nenhum passo gravado ainda — posicione os jogadores e toque em 📸 Gravar passo.</span>`;
+    return;
+  }
+  strip.innerHTML = taticaFrames.map((f,i)=>`
+    <div style="display:inline-flex; align-items:center; gap:6px; background:${i===activeIdx?'var(--amber)':'#2A2A2A'}; color:${i===activeIdx?'#111':'#eee'}; border:1px solid ${i===activeIdx?'var(--amber)':'#444'}; border-radius:999px; padding:5px 6px 5px 12px; font-size:12px; font-weight:700;">
+      <span style="cursor:pointer;" onclick="goToFrame(${i})">Passo ${i+1}</span>
+      <button onclick="deleteFrame(${i})" title="Excluir passo" style="background:${i===activeIdx?'rgba(0,0,0,.15)':'#444'}; border:none; color:${i===activeIdx?'#111':'#ccc'}; width:18px; height:18px; border-radius:50%; font-size:10px; line-height:1; display:flex; align-items:center; justify-content:center;">✕</button>
+    </div>
+    ${i < taticaFrames.length-1 ? '<span style="color:#555;">→</span>' : ''}
+  `).join('');
+}
+
+function setAnimStatus(msg){
+  const s = document.getElementById('anim-status');
+  if(s) s.textContent = msg;
+}
+
+function easeInOut(t){ return t<.5 ? 2*t*t : -1+(4-2*t)*t; }
+
+function setAnimSpeed(speed, btn){
+  if(isPlayingAnim) return;
+  animSpeed = speed;
+  document.querySelectorAll('.speed-btn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+}
+
+function speedDurations(){
+  // returns {step, pause} in ms based on current animSpeed
+  if(animSpeed==='slow') return {step: 2000, pause: 600};
+  if(animSpeed==='fast') return {step: 550, pause: 150};
+  return {step: 1100, pause: 350}; // normal
+}
+
+function playFrames(){
+  if(isPlayingAnim) return;
+  if(taticaFrames.length < 2){
+    alert('Grave pelo menos 2 passos para criar a animação:\n\n1. Posicione os jogadores → 📸 Gravar passo\n2. Mova os jogadores → 📸 Gravar passo\n3. Toque em ▶ Reproduzir');
+    return;
+  }
+  isPlayingAnim = true;
+  const btn = document.getElementById('btn-play-frames');
+  if(btn) btn.textContent = '⏸ Reproduzindo...';
+  const indicator = document.getElementById('step-indicator');
+
+  // jump to first frame
+  applyFramePositions(taticaFrames[0].tokens);
+  renderFramesStrip(0);
+
+  const { step: STEP_DURATION, pause: PAUSE } = speedDurations();
+  let segment = 0;            // transition from frame[segment] to frame[segment+1]
+
+  function showStep(n){
+    if(indicator){
+      indicator.textContent = `PASSO ${n}`;
+      indicator.style.display = 'block';
+    }
+  }
+
+  function animateSegment(){
+    if(segment >= taticaFrames.length-1){
+      // done
+      isPlayingAnim = false;
+      if(btn) btn.textContent = '▶ Reproduzir jogada';
+      if(indicator) indicator.style.display='none';
+      renderFramesStrip();
+      setAnimStatus('✅ Animação concluída! Toque em ▶ para repetir.');
+      return;
+    }
+    const from = taticaFrames[segment].tokens;
+    const to = taticaFrames[segment+1].tokens;
+    showStep(segment+2);
+    renderFramesStrip(segment+1);
+    const startTime = performance.now();
+
+    function tick(now){
+      const raw = Math.min((now-startTime)/STEP_DURATION, 1);
+      const t = easeInOut(raw);
+      const layer = document.getElementById('tokens-layer');
+      if(!layer){ isPlayingAnim=false; return; }
+      layer.querySelectorAll('g.token').forEach(g=>{
+        const tid = g.getAttribute('data-tid');
+        const a = from[tid], b = to[tid];
+        if(a && b){
+          const x = a.x + (b.x-a.x)*t;
+          const y = a.y + (b.y-a.y)*t;
+          g.setAttribute('transform', `translate(${x},${y})`);
+        }
+      });
+      if(raw < 1){
+        requestAnimationFrame(tick);
+      } else {
+        segment++;
+        setTimeout(animateSegment, PAUSE);
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+
+  setAnimStatus('▶ Reproduzindo a jogada...');
+  setTimeout(animateSegment, 400);
+}
+
+function renderMiniPlays(){
+  const box = document.getElementById('mini-plays');
+  if(!box) return;
+  box.innerHTML='';
+  if(PLAYS.length===0){ box.appendChild(el(`<div class="empty-state" style="padding:16px;"><div class="ic">📁</div>Nenhuma jogada salva.</div>`)); return; }
+  PLAYS.slice().reverse().forEach(p=>{
+    const hasAnim = p.frames && p.frames.length > 1;
+    box.appendChild(el(`
+      <div class="play-card">
+        <div><b>${p.name} ${hasAnim?'🎬':''}</b><span>${p.targetLabel} · ${p.date}${hasAnim?' · '+p.frames.length+' passos':''}</span></div>
+        <button class="btn ghost sm" onclick="studyPlay(${p.id})">Abrir</button>
+      </div>
+    `));
+  });
+}
+
+/* =========================================================
+   JOGADAS SALVAS (RF13)
+========================================================= */
+function pageJogadas(){
+  setCrumb('Biblioteca tática', 'Jogadas salvas');
+  const wrap = el(`<div></div>`);
+  wrap.appendChild(el(`<div class="section-title"><div><h2>Jogadas & pranchetas</h2><div class="sub">Vinculadas a atletas ou times para estudo no app</div></div><button class="btn solid sm" onclick="goTab('mesa')">+ Nova jogada</button></div>`));
+  const grid = el(`<div class="grid grid-3"></div>`);
+  if(PLAYS.length===0) grid.appendChild(el(`<div class="empty-state"><div class="ic">♟️</div>Nenhuma jogada salva ainda.</div>`));
+  PLAYS.forEach(p=>{
+    const hasAnim = p.frames && p.frames.length > 1;
+    grid.appendChild(el(`
+      <div class="card card-shadow">
+        <div style="height:110px; border-radius:8px; background:#111; display:flex; align-items:center; justify-content:center; margin-bottom:12px; position:relative; overflow:hidden;">
+          <div style="position:absolute; inset:0; background:repeating-linear-gradient(90deg, rgba(255,214,0,.08) 0 2px, transparent 2px 30px);"></div>
+          <span style="font-family:'Bebas Neue'; color:var(--amber); font-size:15px; z-index:1;">${hasAnim?'🎬 JOGADA ANIMADA':'PRANCHETA'}</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px; flex-wrap:wrap;">
+          <b style="font-size:14.5px;">${p.name}</b>
+          ${hasAnim?`<span class="badge amber">${p.frames.length} passos</span>`:''}
+        </div>
+        <span style="font-size:12px; color:var(--ink-faint);">Vinculado a: ${p.targetLabel} · ${p.date}</span>
+        <div style="display:flex; gap:8px; margin-top:12px;">
+          <button class="btn sm" style="flex:1;" onclick="studyPlay(${p.id})">${hasAnim?'▶ Estudar animação':'Estudar'}</button>
+          <button class="btn ghost sm" onclick="openSharePlay(${p.id})">Compartilhar</button>
+        </div>
+      </div>
+    `));
+  });
+  wrap.appendChild(grid);
+  return wrap;
+}
+
+function studyPlay(id){
+  const p = PLAYS.find(x=>x.id===id);
+  if(!p) return;
+  pendingLoadPlay = p;
+  goTab('mesa');
+}
+
+function openSharePlay(id){
+  const p = PLAYS.find(x=>x.id===id);
+  if(!p) return;
+  const link = `https://hrperformance.app/jogadas/${p.id}`;
+  const overlay = document.getElementById('modal-overlay');
+  const body = document.getElementById('modal-body');
+  body.innerHTML = `
+    <h3>Compartilhar jogada</h3>
+    <p style="font-size:13px; color:var(--ink-soft); margin:0 0 14px;">"${p.name}" — vinculada a ${p.targetLabel}</p>
+    <div class="field"><label>Link de estudo</label><input id="share-link" value="${link}" readonly></div>
+    <button class="btn sm" style="margin-bottom:16px;" onclick="copyShareLink()">📋 Copiar link</button>
+    <div class="field"><label>Notificar atletas</label>
+      <div class="pill-input">
+        ${ATHLETES.map(a=>`<label class="chip" style="cursor:pointer; display:inline-flex; align-items:center; gap:5px;"><input type="checkbox" checked>${a.name}</label>`).join('')}
+      </div>
+    </div>
+    <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Fechar</button><button class="btn solid" onclick="sendShareNotification()">Enviar notificação</button></div>
+  `;
+  overlay.classList.add('active');
+}
+function copyShareLink(){
+  const input = document.getElementById('share-link');
+  input.select();
+  if(navigator.clipboard){ navigator.clipboard.writeText(input.value).catch(()=>{}); }
+  alert('Link copiado para a área de transferência!');
+}
+function sendShareNotification(){
+  alert('Jogada compartilhada! Os atletas selecionados receberão uma notificação para estudar a jogada no app.');
+  closeModal();
+}
+
+/* =========================================================
+   SEGURANÇA & CONFIG (RNF04)
+========================================================= */
+function pageConfig(){
+  if(state.role==='atleta') return pageConfigAtleta();
+  return pageConfigAdmin();
+}
+
+function pageConfigAdmin(){
+  setCrumb('Configurações', 'Segurança & Privacidade do clube');
+  const wrap = el(`<div></div>`);
+  wrap.appendChild(el(`<div class="note-box" style="margin-bottom:16px;"><span>ℹ️</span><span>Esta página traz os <b>controles administrativos</b> do clube. O atleta vê uma versão própria, focada nos direitos sobre os dados dele — sem os controles de configuração abaixo.</span></div>`));
+  const grid = el(`<div class="grid grid-2"></div>`);
+  const left = el(`<div class="card"></div>`);
+  left.appendChild(el(`<h3 style="margin-top:0;">Proteção de dados de menores</h3>`));
+  left.appendChild(el(`<div class="note-box security" style="margin-bottom:14px;"><span>🔒</span><span>Perfis de atletas menores de 18 anos (ex: categorias Sub-12) têm campos sensíveis criptografados em repouso e em trânsito (AES-256 / TLS 1.3).</span></div>`));
+  const items = [
+    ['Autenticação em dois fatores', true],
+    ['Criptografia de dados de saúde', true],
+    ['Acesso restrito por perfil (Admin/Atleta)', true],
+    ['Retenção limitada de vídeos brutos (90 dias)', true],
+    ['Consentimento do responsável legal registrado', true],
+  ];
+  items.forEach(([label,val])=>{
+    left.appendChild(el(`<div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--line); font-size:13.5px;"><span>${label}</span><span class="badge green">Ativo</span></div>`));
+  });
+  grid.appendChild(left);
+
+  const right = el(`<div class="card"></div>`);
+  right.appendChild(el(`<h3 style="margin-top:0;">Armazenamento em nuvem</h3>`));
+  right.appendChild(el(`<div class="note-box" style="margin-bottom:14px;"><span>☁️</span><span>RNF02 — vídeos de partidas passam por compressão automática antes do upload para o armazenamento (Supabase Storage / AWS S3), evitando estouro de limite de dados.</span></div>`));
+  right.appendChild(el(`<div class="bar-row"><span class="label">Uso de armazenamento</span><div class="bar-track"><div class="bar-fill" style="width:34%"></div></div><span class="bar-val">34%</span></div>`));
+  right.appendChild(el(`<p style="font-size:12px; color:var(--ink-faint); margin:10px 0 0;">6.8 GB de 20 GB utilizados neste clube. Vídeos comprimidos automaticamente para até 720p antes do armazenamento definitivo.</p>`));
+  grid.appendChild(right);
+  wrap.appendChild(grid);
+  return wrap;
+}
+
+function pageConfigAtleta(){
+  const a = findAthlete(state.selectedAthleteId||'mateus');
+  setCrumb('Privacidade', 'Privacidade dos meus dados');
+  const wrap = el(`<div></div>`);
+  wrap.appendChild(el(`<div class="note-box" style="margin-bottom:16px;"><span>ℹ️</span><span>Esta página é diferente da versão do treinador: aqui você vê <b>apenas os seus direitos</b> sobre os seus dados — o treinador tem, além disso, controles administrativos do clube inteiro.</span></div>`));
+  const grid = el(`<div class="grid grid-2"></div>`);
+
+  const left = el(`<div class="card"></div>`);
+  left.appendChild(el(`<h3 style="margin-top:0;">O que guardamos sobre você</h3>`));
+  const dataItems = [
+    ['Dados pessoais', 'nome, nascimento, categoria, posição'],
+    ['Dados de saúde', 'dores relatadas, nível de cansaço, IMC'],
+    ['Mídia', 'fotos e vídeos de jogos e treinos'],
+    ['Avaliações', 'relatórios técnicos, mentais e de nutrição'],
+  ];
+  dataItems.forEach(([k,v])=>{
+    left.appendChild(el(`<div style="padding:9px 0; border-bottom:1px solid var(--line); font-size:13.5px;"><b>${k}</b><br><span style="color:var(--ink-faint); font-size:12.5px;">${v}</span></div>`));
+  });
+  left.appendChild(el(`<div class="note-box security" style="margin-top:14px;"><span>🔒</span><span>Como você está registrado como categoria de base, esses dados são criptografados e o acesso é restrito ao seu treinador e à sua responsável legal (${a.guardian}).</span></div>`));
+  grid.appendChild(left);
+
+  const right = el(`<div class="card"></div>`);
+  right.appendChild(el(`<h3 style="margin-top:0;">Seus direitos (LGPD)</h3>`));
+  right.appendChild(el(`<p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 14px; line-height:1.6;">Consentimento registrado por ${a.guardian} em ${a.joined}. Você pode solicitar uma cópia ou a exclusão dos seus dados a qualquer momento.</p>`));
+  right.appendChild(el(`<div style="display:flex; flex-direction:column; gap:10px;">
+    <button class="btn sm" onclick="alert('Solicitação enviada! Você receberá uma cópia dos seus dados por e-mail em até 15 dias, conforme a LGPD.')">📄 Baixar meus dados</button>
+    <button class="btn sm danger" onclick="alert('Solicitação de exclusão enviada ao seu treinador e responsável legal para confirmação.')">🗑️ Solicitar exclusão dos meus dados</button>
+  </div>`));
+  grid.appendChild(right);
+  wrap.appendChild(grid);
+  return wrap;
+}
+
+/* =========================================================
+   MODALS
+========================================================= */
+function openModal(kind, athleteId, extraArg){
+  const overlay = document.getElementById('modal-overlay');
+  const body = document.getElementById('modal-body');
+  const a = athleteId ? findAthlete(athleteId) : null;
+  state._modalExtra = extraArg; // stores exerciseIdx for newTrainingVideo
+
+  const forms = {
+    newGameReport: `
+      <h3>Novo relatório de jogo</h3>
+      <div class="field"><label>Atleta</label><input value="${a?a.name:''}" disabled></div>
+      <div class="field"><label>Jogo / adversário</label><input id="m-game" placeholder="Ex: Sub-12 x Guarabira FC"></div>
+      <div class="field"><label>Pontos fortes</label><textarea id="m-strengths" rows="2" placeholder="O que se destacou no jogo"></textarea></div>
+      <div class="field"><label>A melhorar</label><textarea id="m-improve" rows="2" placeholder="Pontos de atenção para os próximos treinos"></textarea></div>
+      <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn solid" onclick="saveGameReport('${athleteId}')">Salvar relatório</button></div>
+    `,
+    newMental: `
+      <h3>Registro de análise mental</h3>
+      <div class="field"><label>Título</label><input id="m-title" placeholder="Ex: Confiança em duelos 1x1"></div>
+      <div class="field"><label>Observações</label><textarea id="m-text" rows="3" placeholder="Confiança, inteligência emocional, postura em jogo..."></textarea></div>
+      <div class="field"><label>Nível de confiança (0–10)</label><input id="m-score" type="number" min="0" max="10" value="7"></div>
+      <div class="field"><label>Vídeo de apoio (opcional)</label><input id="m-mental-video-link" type="text" placeholder="Cole o link do vídeo (YouTube, Drive...)"></div>
+      <div class="upload-zone" style="margin-bottom:6px;">📤 ...ou clique para anexar um vídeo curto<br><span style="font-size:11px;">Compressão automática antes do envio (RNF02)</span></div>
+      <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn solid" onclick="saveMental('${athleteId}')">Salvar</button></div>
+    `,
+    newMedia: `
+      <h3>Anexar mídia à linha do tempo</h3>
+      <div class="field"><label>Descrição</label><input id="m-label" placeholder="Ex: Lance da finalização aos 12min"></div>
+      <div class="field"><label>Tipo</label><select id="m-type"><option value="video">Vídeo</option><option value="image">Foto</option></select></div>
+      <div class="upload-zone" style="margin-bottom:6px;">📤 Clique ou arraste o arquivo aqui<br><span style="font-size:11px;">Vídeos serão comprimidos automaticamente (RNF02)</span></div>
+      <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn solid" onclick="saveMedia('${athleteId}')">Anexar</button></div>
+    `,
+    newExercise: `
+      <h3>Prescrever exercício</h3>
+      <div class="field"><label>Nome do exercício</label><input id="m-exname" placeholder="Ex: Equilíbrio unipodal com bola"></div>
+      <div class="field"><label>Descrição / séries</label><textarea id="m-exdesc" rows="2"></textarea></div>
+      <div class="field"><label>Foco (deficiência trabalhada)</label><input id="m-exfocus" placeholder="Ex: Equilíbrio no jogo de campo"></div>
+      <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn solid" onclick="saveExercise('${athleteId}')">Enviar rotina</button></div>
+    `,
+    newDiet: `
+      <h3>Nova meta nutricional</h3>
+      <div class="field"><label>Meta</label><input id="m-dname" placeholder="Ex: Hidratação em quadra"></div>
+      <div class="field"><label>Detalhes</label><textarea id="m-ddesc" rows="2" placeholder="Meta de hidratação, alimento, horário..."></textarea></div>
+      <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn solid" onclick="saveDiet('${athleteId}')">Salvar meta</button></div>
+    `,
+    newTrainingVideo: `
+      <h3>Enviar vídeo do exercício</h3>
+      ${(()=>{ const exIdx = parseInt(state._modalExtra); const ex = a && !isNaN(exIdx) ? a.exercises[exIdx] : null; return ex ? `<div class="note-box" style="margin-bottom:14px;"><span>🏋️</span><span>Vinculado ao exercício: <b>${ex.name}</b></span></div>` : ''; })()}
+      <div class="field"><label>Descrição do vídeo</label><input id="m-tv-label" placeholder="Ex: Execução da série 1 — hoje de manhã"></div>
+      <div class="upload-zone" style="margin-bottom:6px;">🎥 Clique ou arraste o vídeo aqui<br><span style="font-size:11px;">Compressão automática antes do envio (RNF02)</span></div>
+      <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn amber" onclick="saveTrainingVideo('${athleteId}')">Enviar para o treinador</button></div>
+    `,
+    newCheckin: `
+      <h3>Check-in de hoje</h3>
+      <div class="field"><label>Nível de cansaço (1–5)</label><input id="m-cansaco" type="number" min="1" max="5" value="2"></div>
+      <div class="field"><label>Dores relatadas</label><input id="m-dor" placeholder="Ex: Nenhuma"></div>
+      <div class="field"><label>Treino concluído?</label><select id="m-treino"><option value="true">Sim</option><option value="false">Não</option></select></div>
+      <div class="field"><label>Dieta seguida?</label><select id="m-dieta"><option value="true">Sim</option><option value="false">Não</option></select></div>
+      <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn amber" onclick="saveCheckin('${athleteId}')">Registrar</button></div>
+    `,
+    newAgenda: `
+      <h3>Agendar encontro</h3>
+      <div class="field"><label>Atleta</label><select id="m-athlete">${ATHLETES.map(x=>`<option value="${x.id}">${x.name}</option>`).join('')}</select></div>
+      <div class="field"><label>Título</label><input id="m-agtitle" placeholder="Ex: Feedback de jogo"></div>
+      <div class="field"><label>Data</label><input id="m-agdate" type="date"></div>
+      <div class="field"><label>Horário</label><input id="m-agtime" type="time" value="19:30"></div>
+      <div class="field"><label>Formato</label><select id="m-agtype"><option>Presencial</option><option>Videochamada</option></select></div>
+      <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn solid" onclick="saveAgenda()">Agendar</button></div>
+    `,
+    newAthlete: `
+      <h3>Novo atleta</h3>
+      <div style="display:flex; justify-content:center; margin-bottom:16px;">
+        <div id="photo-preview" style="width:80px; height:80px; border-radius:50%; background:var(--pitch); display:flex; align-items:center; justify-content:center; color:#fff; font-family:'Bebas Neue'; font-size:28px; cursor:pointer; border:3px dashed var(--line); position:relative; overflow:hidden;" onclick="document.getElementById('m-nphoto-input').click()">
+          <span id="photo-preview-icon">📷</span>
+          <input id="m-nphoto-input" type="file" accept="image/*" style="display:none;" onchange="previewAthletePhoto(event)">
+        </div>
+      </div>
+      <div class="field"><label>Nome completo</label><input id="m-nname" placeholder="Nome do atleta"></div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <div class="field"><label>Data de nascimento</label><input id="m-nbirth" type="date"></div>
+        <div class="field"><label>Categoria</label><input id="m-ncat" placeholder="Ex: Futsal Sub-12"></div>
+        <div class="field"><label>Posição</label><input id="m-npos" placeholder="Ex: Pivô"></div>
+        <div class="field"><label>Time</label><input id="m-nteam" placeholder="Ex: Sub-12 A"></div>
+      </div>
+      <div class="field"><label>Responsável legal</label><input id="m-nguard" placeholder="Nome do responsável"></div>
+      <div class="field"><label>Celular do responsável</label><input id="m-nguardphone" type="tel" placeholder="(83) 99999-0000"></div>
+      <div class="field"><label>Instagram do atleta</label><input id="m-ninsta" placeholder="@usuario"></div>
+      <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn solid" onclick="cadastrarAtleta()">Cadastrar</button></div>
+    `,
+    upgradeNutrition: `
+      <h3>✨ Performance+ — Módulo de Nutrição</h3>
+      <p style="font-size:13px; color:var(--ink-soft); line-height:1.6; margin:0 0 16px;">
+        Desbloqueie planos alimentares, metas de hidratação e acompanhamento com nutricionista parceiro para todos os atletas do clube.
+      </p>
+      <div class="card" style="background:var(--chalk); margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px;">
+          <b style="font-family:'Bebas Neue'; font-size:26px;">R$ 49,90<span style="font-size:12px; font-family:'Work Sans'; color:var(--ink-faint);">/mês por clube</span></b>
+        </div>
+        <ul style="margin:0; padding-left:18px; font-size:12.5px; color:var(--ink-soft); line-height:1.8;">
+          <li>Planos alimentares ilimitados por atleta</li>
+          <li>Metas de hidratação com check-in diário</li>
+          <li>Upload de documentos do nutricionista parceiro</li>
+        </ul>
+      </div>
+      <p style="font-size:11px; color:var(--ink-faint); margin:0 0 16px;">Simulação de upgrade para fins de protótipo — nenhuma cobrança real é feita aqui.</p>
+      <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Agora não</button><button class="btn amber" onclick="unlockNutrition()">Assinar Performance+</button></div>
+    `,
+    savePlay: `
+      <h3>Salvar jogada</h3>
+      <div class="note-box" style="margin-bottom:14px;"><span>🎯</span><span>Destino: <b>${taticaTargetLabel()}</b> (definido no topo da Mesa Tática)</span></div>
+      ${taticaFrames.length>1 ? `<div class="note-box" style="margin-bottom:14px; background:#111; border-color:#333; color:var(--amber);"><span>🎬</span><span>Esta jogada tem <b>${taticaFrames.length} passos de animação</b> que serão salvos junto — o atleta poderá assistir ao movimento.</span></div>` : taticaFrames.length===1 ? `<div class="note-box security" style="margin-bottom:14px;"><span>⚠️</span><span>Você gravou apenas <b>1 passo</b>. Para o atleta ver a animação, grave pelo menos 2 passos antes de salvar.</span></div>` : ''}
+      <div class="field"><label>Nome da jogada</label><input id="m-playname" placeholder="Ex: Saída de bola em losango"></div>
+      <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn solid" onclick="savePlay()">Salvar jogada</button></div>
+    `,
+  };
+  body.innerHTML = forms[kind] || '';
+  overlay.classList.add('active');
+}
+function openManageEncontro(athleteId, idx){
+  const a = findAthlete(athleteId);
+  const g = a.agenda[idx];
+  if(!g) return;
+  const overlay = document.getElementById('modal-overlay');
+  const body = document.getElementById('modal-body');
+  body.innerHTML = `
+    <h3>Gerenciar encontro</h3>
+    <div class="note-box" style="margin-bottom:16px;"><span>${g.type==='Videochamada'?'🎥':'📍'}</span><span><b>${g.title}</b><br>${a.name} · ${g.date} às ${g.time} · ${g.type}</span></div>
+    <div class="field"><label>Notas do encontro</label><textarea id="m-encontro-notes" rows="3" placeholder="O que foi conversado, combinado ou observado...">${g.notes||''}</textarea></div>
+    <div style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;">
+      <button class="btn sm" onclick="openModal('newGameReport','${a.id}')">📋 Relatório de jogo</button>
+      <button class="btn sm" onclick="openModal('newMental','${a.id}')">🧠 Registro mental</button>
+      <button class="btn sm" onclick="openModal('newMedia','${a.id}')">📎 Anexar mídia</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn danger" onclick="deleteEncontro('${a.id}',${idx})">Cancelar encontro</button>
+      <button class="btn solid" onclick="saveEncontroNotes('${a.id}',${idx})">Salvar notas</button>
+    </div>
+  `;
+  overlay.classList.add('active');
+}
+function saveEncontroNotes(athleteId, idx){
+  const a = findAthlete(athleteId);
+  a.agenda[idx].notes = document.getElementById('m-encontro-notes').value.trim();
+  closeModal(); renderPage();
+}
+function deleteEncontro(athleteId, idx){
+  const a = findAthlete(athleteId);
+  a.agenda.splice(idx,1);
+  closeModal(); renderPage();
+}
+function closeModal(){ document.getElementById('modal-overlay').classList.remove('active'); }
+
+function saveGameReport(id){
+  const a = findAthlete(id);
+  const game = document.getElementById('m-game').value || 'Jogo sem título';
+  a.tactical.unshift({date: today(), game, strengths: document.getElementById('m-strengths').value || '—', improve: document.getElementById('m-improve').value || '—'});
+  closeModal(); renderPage();
+}
+function saveMental(id){
+  const a = findAthlete(id);
+  const title = document.getElementById('m-title').value || 'Registro mental';
+  const video = document.getElementById('m-mental-video-link').value.trim();
+  a.mental.unshift({date: today(), title, text: document.getElementById('m-text').value || '—', score: +document.getElementById('m-score').value || 7, video: video || null});
+  if(video){
+    a.media.unshift({date: today(), label: 'Vídeo de apoio — '+title, type:'video', color:'#C1432B'});
+  }
+  closeModal(); renderPage();
+}
+function saveMedia(id){
+  const a = findAthlete(id);
+  const type = document.getElementById('m-type').value;
+  a.media.unshift({date: today(), label: document.getElementById('m-label').value || 'Novo artefato', type, color: type==='video'?'#C1432B':'#3D7EA6'});
+  closeModal(); renderPage();
+}
+function saveExercise(id){
+  const a = findAthlete(id);
+  a.exercises.unshift({name: document.getElementById('m-exname').value || 'Novo exercício', desc: document.getElementById('m-exdesc').value || '—', focus: document.getElementById('m-exfocus').value || 'Geral', done:false});
+  closeModal(); renderPage();
+}
+function saveTrainingVideo(id){
+  const a = findAthlete(id);
+  const label = document.getElementById('m-tv-label').value.trim() || 'Vídeo do exercício';
+  const exIdx = parseInt(state._modalExtra);
+  const exName = (!isNaN(exIdx) && a.exercises[exIdx]) ? a.exercises[exIdx].name : '—';
+  a.trainingVideos.push({
+    date: today(),
+    label,
+    exerciseIdx: isNaN(exIdx) ? null : exIdx,
+    exerciseName: exName,
+    status:'Pendente',
+    comment:''
+  });
+  closeModal(); renderPage();
+}
+function evaluateTrainingVideo(id, idx){
+  const a = findAthlete(id);
+  const comment = prompt('Comentário para o atleta sobre este vídeo (opcional):', '');
+  if(comment===null) return;
+  a.trainingVideos[idx].status = 'Avaliado';
+  a.trainingVideos[idx].comment = comment;
+  renderPage();
+}
+function saveDiet(id){
+  const a = findAthlete(id);
+  a.diet.unshift({name: document.getElementById('m-dname').value || 'Nova meta', desc: document.getElementById('m-ddesc').value || '—', done:false});
+  closeModal(); renderPage();
+}
+function saveCheckin(id){
+  const a = findAthlete(id);
+  a.checkins.unshift({date: today(), cansaco: +document.getElementById('m-cansaco').value||2, dor: document.getElementById('m-dor').value || 'Nenhuma', treinoOk: document.getElementById('m-treino').value==='true', dietaOk: document.getElementById('m-dieta').value==='true'});
+  closeModal(); renderPage();
+}
+function saveAgenda(){
+  const id = document.getElementById('m-athlete').value;
+  const a = findAthlete(id);
+  const isoDate = document.getElementById('m-agdate').value;
+  const displayDate = isoDate ? isoDate.split('-').reverse().join('/') : today();
+  a.agenda.push({date: displayDate, time: document.getElementById('m-agtime').value || '10:00', type: document.getElementById('m-agtype').value, title: document.getElementById('m-agtitle').value || 'Encontro'});
+  closeModal(); renderPage();
+}
+function savePlay(){
+  const name = document.getElementById('m-playname').value.trim();
+  if(!name){ alert('Dê um nome para a jogada antes de salvar.'); return; }
+  const layer = document.getElementById('tokens-layer');
+  if(!layer || layer.children.length===0){ alert('Monte a jogada na quadra (adicione ao menos um jogador ou a bola) antes de salvar.'); return; }
+  // if there are frames, snap board back to frame 1 so the saved thumbnail/state is the starting position
+  if(taticaFrames.length > 0){
+    applyFramePositions(taticaFrames[0].tokens);
+  }
+  PLAYS.push({
+    id: PLAYS.length ? Math.max(...PLAYS.map(p=>p.id))+1 : 1,
+    name,
+    targetType: taticaTarget.type,
+    targetValue: taticaTarget.value,
+    targetLabel: taticaTargetLabel(),
+    date: today(),
+    svgContent: layer.innerHTML,
+    frames: JSON.parse(JSON.stringify(taticaFrames)),
+  });
+  closeModal();
+  if(state.tab==='mesa') renderMiniPlays();
+}
+function previewAthletePhoto(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    const preview = document.getElementById('photo-preview');
+    if(preview){
+      preview.style.backgroundImage = `url('${e.target.result}')`;
+      preview.style.backgroundSize = 'cover';
+      preview.style.backgroundPosition = 'center';
+      document.getElementById('photo-preview-icon').style.display = 'none';
+    }
+    state._pendingPhoto = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+function cadastrarAtleta(){
+  const name = document.getElementById('m-nname').value.trim();
+  if(!name){ alert('Nome do atleta é obrigatório.'); return; }
+  const isoDate = document.getElementById('m-nbirth').value;
+  const birth = isoDate ? isoDate.split('-').reverse().join('/') : '—';
+  const num = ATHLETES.length + 1;
+  const colors = ['#111111','#D72B2B','#E6C000','#1A1A1A','#C0392B'];
+  const photoColor = colors[ATHLETES.length % colors.length];
+  ATHLETES.push({
+    id: 'atleta_'+Date.now(),
+    name,
+    num,
+    category: document.getElementById('m-ncat').value || '—',
+    position: document.getElementById('m-npos').value || '—',
+    team: document.getElementById('m-nteam').value || '—',
+    birth,
+    guardian: document.getElementById('m-nguard').value || '—',
+    guardianPhone: document.getElementById('m-nguardphone').value || '—',
+    phone: document.getElementById('m-nguardphone').value || '—',
+    instagram: document.getElementById('m-ninsta').value || null,
+    joined: (() => { const d=new Date(); return ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][d.getMonth()]+'/'+d.getFullYear(); })(),
+    photo: state._pendingPhoto || null,
+    photoColor,
+    physical:{altura:'—', peso:'—', imc:'—', dorAtual:'Nenhuma'},
+    mental:[], tactical:[], media:[], exercises:[], diet:[],
+    checkins:[], trainingVideos:[],
+    agenda:[],
+  });
+  state._pendingPhoto = null;
+  closeModal(); renderPage();
+}
+function unlockNutrition(){
+  state.nutritionUnlocked = true;
+  closeModal();
+  renderPage();
+}
+function today(){
+  const d = new Date();
+  return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
+}
+
+document.getElementById('modal-overlay').addEventListener('click', (e)=>{ if(e.target.id==='modal-overlay') closeModal(); });
+</script>
+</body>
+</html>

@@ -21,7 +21,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "HR Performance — Plataforma de Desenvolvimento de Atletas",
+  title: "Vértice Performance — Plataforma de Desenvolvimento de Atletas",
   description:
     "Acompanhamento técnico, físico e mental de atletas de base — do treino à mesa tática.",
 };

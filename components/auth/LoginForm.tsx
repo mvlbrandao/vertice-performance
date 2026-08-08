@@ -49,7 +49,7 @@ export function LoginForm() {
         >
           <div className="flex items-center gap-2.5 z-10">
             <div className="w-3 h-3 rounded-full bg-amber" />
-            <span className="font-display text-[22px] tracking-wide">HR PERFORMANCE</span>
+            <span className="font-display text-[22px] tracking-wide">VÉRTICE PERFORMANCE</span>
           </div>
           <div className="z-10">
             <h1 className="text-[52px] leading-[0.95] mb-2.5">

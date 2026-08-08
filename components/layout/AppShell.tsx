@@ -39,7 +39,7 @@ export function AppShell({
         <div className="flex items-center gap-2.5 px-2.5 pt-1.5 pb-4">
           <div className="w-3 h-3 rounded-full bg-amber" />
           <span className="font-display text-[22px] tracking-wide">
-            HR PERFORMANCE
+            VÉRTICE PERFORMANCE
           </span>
         </div>
         <nav className="flex flex-col gap-1">
@@ -84,7 +84,7 @@ export function AppShell({
           >
             ☰
           </button>
-          <span className="font-display text-lg tracking-wide">HR PERFORMANCE</span>
+          <span className="font-display text-lg tracking-wide">VÉRTICE PERFORMANCE</span>
         </div>
         <main className="flex-1 px-7 pt-6 pb-16 max-[840px]:px-4 max-[840px]:pt-4.5">
           {children}

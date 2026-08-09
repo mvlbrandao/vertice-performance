@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/Badge";
 import { setChargeStatus, deleteCharge, updateChargeDueDate } from "@/lib/actions/billing";
@@ -39,6 +40,7 @@ function todayISO() {
 export function ChargeRow({
   id,
   athleteId,
+  athleteName,
   description,
   amountCents,
   discountCents = 0,
@@ -50,6 +52,7 @@ export function ChargeRow({
 }: {
   id: string;
   athleteId: string;
+  athleteName?: string;
   description: string;
   amountCents: number;
   discountCents?: number;
@@ -105,6 +108,14 @@ export function ChargeRow({
   return (
     <div className="flex items-center gap-3 py-2.5 border-b border-line last:border-b-0 flex-wrap">
       <div className="flex-1 min-w-[160px]">
+        {athleteName && (
+          <Link
+            href={`/athletes/${athleteId}/financeiro`}
+            className="text-[11px] font-semibold text-pitch-dark hover:underline block mb-0.5"
+          >
+            {athleteName}
+          </Link>
+        )}
         <b className="text-sm block">{description}</b>
         {editingDate ? (
           <span className="inline-flex items-center gap-1.5 mt-1">

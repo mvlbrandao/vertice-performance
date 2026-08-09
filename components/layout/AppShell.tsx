@@ -11,6 +11,7 @@ export interface NavItem {
   href: string;
   icon: string;
   label: string;
+  children?: NavItem[];
 }
 
 export function AppShell({
@@ -26,6 +27,18 @@ export function AppShell({
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+
+  function isActive(href: string) {
+    return pathname === href || pathname.startsWith(href + "/");
+  }
+
+  const [expanded, setExpanded] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    for (const item of navItems) {
+      if (item.children?.some((c) => isActive(c.href))) initial[item.label] = true;
+    }
+    return initial;
+  });
 
   return (
     <div className="flex min-h-screen">
@@ -44,7 +57,57 @@ export function AppShell({
         </div>
         <nav className="flex flex-col gap-1">
           {navItems.map((item) => {
-            const active = pathname === item.href || pathname.startsWith(item.href + "/");
+            if (item.children) {
+              const groupActive = item.children.some((c) => isActive(c.href));
+              const isOpen = expanded[item.label] ?? groupActive;
+              return (
+                <div key={item.label}>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setExpanded((prev) => ({ ...prev, [item.label]: !isOpen }))
+                    }
+                    className={cn(
+                      "w-full flex items-center gap-2.5 px-3 py-2.5 rounded-sm text-[13.5px] font-semibold",
+                      groupActive && !isOpen
+                        ? "bg-amber/15 text-white"
+                        : "text-white/65 hover:bg-amber/10 hover:text-white",
+                    )}
+                  >
+                    <span className="w-[18px] text-center text-[15px]">{item.icon}</span>
+                    <span className="flex-1 text-left">{item.label}</span>
+                    <span className={cn("text-[10px] transition-transform", isOpen && "rotate-90")}>
+                      ▸
+                    </span>
+                  </button>
+                  {isOpen && (
+                    <div className="flex flex-col gap-1 mt-1 ml-[18px] pl-2.5 border-l border-amber/15">
+                      {item.children.map((child) => {
+                        const active = isActive(child.href);
+                        return (
+                          <Link
+                            key={child.href}
+                            href={child.href}
+                            onClick={() => setOpen(false)}
+                            className={cn(
+                              "flex items-center gap-2.5 px-3 py-2 rounded-sm text-[13px] font-semibold",
+                              active
+                                ? "bg-amber text-pitch-dark font-bold"
+                                : "text-white/65 hover:bg-amber/10 hover:text-white",
+                            )}
+                          >
+                            <span className="w-[15px] text-center text-[13px]">{child.icon}</span>
+                            {child.label}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
+            const active = isActive(item.href);
             return (
               <Link
                 key={item.href}

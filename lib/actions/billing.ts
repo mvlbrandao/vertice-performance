@@ -19,6 +19,8 @@ import type { ChargeStatus } from "@/lib/types/database";
 function paths(athleteId: string) {
   revalidatePath(`/athletes/${athleteId}/financeiro`);
   revalidatePath("/financeiro");
+  revalidatePath("/contas-a-receber");
+  revalidatePath("/dashboard");
 }
 
 const chargeSchema = z.object({

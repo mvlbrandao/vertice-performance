@@ -26,20 +26,22 @@ export default async function GameSumulaPage({
 
   if (!game) notFound();
 
-  const rosterQuery =
+  let rosterQuery =
     game.target_type === "team"
       ? supabase
           .from("athletes")
           .select("id, full_name, jersey_num, photo_color")
           .eq("club_id", profile!.clubId)
           .eq("team", game.target_team ?? "")
-          .eq("category", game.target_category ?? "")
           .order("full_name", { ascending: true })
       : supabase
           .from("athletes")
           .select("id, full_name, jersey_num, photo_color")
           .eq("club_id", profile!.clubId)
           .eq("id", game.target_athlete_id ?? "");
+  if (game.target_type === "team" && game.target_category) {
+    rosterQuery = rosterQuery.eq("category", game.target_category);
+  }
 
   const [{ data: roster }, { data: events }] = await Promise.all([
     rosterQuery,

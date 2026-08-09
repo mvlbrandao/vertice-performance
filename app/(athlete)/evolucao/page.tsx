@@ -105,14 +105,12 @@ export default async function AthleteEvolucaoPage() {
     supabase
       .from("games")
       .select(
-        "id, scheduled_date, scheduled_time, location, opponent, our_score, opponent_score, competitions(name)",
+        "id, scheduled_date, scheduled_time, location, opponent, our_score, opponent_score, target_athlete_id, target_category, competitions(name)",
       )
       .eq("club_id", profile!.clubId)
       .or(
         `target_athlete_id.eq.${athleteId}${
-          athlete?.team && athlete?.category
-            ? `,and(target_team.eq.${athlete.team},target_category.eq.${athlete.category})`
-            : ""
+          athlete?.team ? `,target_team.eq.${athlete.team}` : ""
         }`,
       ),
     supabase
@@ -162,7 +160,13 @@ export default async function AthleteEvolucaoPage() {
     mediaByDate.set(m.entry_date, list);
   }
   mediaByDate.forEach((items, date) => entries.push({ type: "media", date, items }));
-  (games ?? []).forEach((g) =>
+  const relevantGames = (games ?? []).filter(
+    (g) =>
+      g.target_athlete_id === athleteId ||
+      !g.target_category ||
+      g.target_category === athlete?.category,
+  );
+  relevantGames.forEach((g) =>
     entries.push({
       type: "game",
       date: g.scheduled_date,

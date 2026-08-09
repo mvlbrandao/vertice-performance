@@ -16,6 +16,17 @@ const EVENT_TYPES = [
   "Pênalti sofrido",
   "Pênalti perdido",
   "Pênalti defendido",
+  "Escanteio",
+  "Lateral",
+  "Desarme",
+  "Interceptação",
+  "Cruzamento",
+  "Finalização certa",
+  "Finalização errada",
+  "Impedimento",
+  "Defesa",
+  "Passe certo",
+  "Passe errado",
 ] as const;
 const GOAL_TYPES = ["Normal", "Pênalti", "Cabeça", "Contra", "Fora da área"] as const;
 

@@ -10,22 +10,58 @@ import { initials } from "@/lib/utils/initials";
 import { createGameEvent, deleteGameEvent, updateGameScore } from "@/lib/actions/gameEvents";
 import type { GameEventType, GoalType } from "@/lib/types/database";
 
-const EVENT_BUTTONS: { type: GameEventType; icon: string }[] = [
-  { type: "Gol", icon: "⚽" },
-  { type: "Assistência", icon: "🅰️" },
-  { type: "Cartão amarelo", icon: "🟨" },
-  { type: "Cartão vermelho", icon: "🟥" },
-  { type: "Falta", icon: "⚠️" },
-  { type: "Lesão", icon: "🤕" },
-  { type: "Pênalti sofrido", icon: "🎯" },
-  { type: "Pênalti perdido", icon: "❌" },
-  { type: "Pênalti defendido", icon: "🧤" },
+const EVENT_GROUPS: { label: string; events: { type: GameEventType; icon: string }[] }[] = [
+  {
+    label: "Ofensivo",
+    events: [
+      { type: "Gol", icon: "⚽" },
+      { type: "Assistência", icon: "🅰️" },
+      { type: "Finalização certa", icon: "🎯" },
+      { type: "Finalização errada", icon: "💨" },
+      { type: "Cruzamento", icon: "↗️" },
+      { type: "Escanteio", icon: "🚩" },
+    ],
+  },
+  {
+    label: "Defensivo",
+    events: [
+      { type: "Desarme", icon: "🛡️" },
+      { type: "Interceptação", icon: "✋" },
+      { type: "Defesa", icon: "🧤" },
+      { type: "Lateral", icon: "↩️" },
+    ],
+  },
+  {
+    label: "Disciplina",
+    events: [
+      { type: "Falta", icon: "⚠️" },
+      { type: "Cartão amarelo", icon: "🟨" },
+      { type: "Cartão vermelho", icon: "🟥" },
+      { type: "Impedimento", icon: "🚫" },
+      { type: "Lesão", icon: "🤕" },
+    ],
+  },
+  {
+    label: "Pênalti",
+    events: [
+      { type: "Pênalti sofrido", icon: "🎯" },
+      { type: "Pênalti perdido", icon: "❌" },
+      { type: "Pênalti defendido", icon: "🧤" },
+    ],
+  },
+  {
+    label: "Passe",
+    events: [
+      { type: "Passe certo", icon: "✅" },
+      { type: "Passe errado", icon: "↪️" },
+    ],
+  },
 ];
 
 const GOAL_TYPES: GoalType[] = ["Normal", "Pênalti", "Cabeça", "Fora da área", "Contra"];
 
 const EVENT_ICONS: Record<GameEventType, string> = Object.fromEntries(
-  EVENT_BUTTONS.map((e) => [e.type, e.icon]),
+  EVENT_GROUPS.flatMap((g) => g.events.map((e) => [e.type, e.icon])),
 ) as Record<GameEventType, string>;
 
 export interface RosterAthlete {
@@ -61,6 +97,7 @@ export function GameSumulaClient({
   const router = useRouter();
   const [activeAthlete, setActiveAthlete] = useState<RosterAthlete | null>(null);
   const [pendingGoal, setPendingGoal] = useState(false);
+  const [activeGroup, setActiveGroup] = useState(EVENT_GROUPS[0].label);
   const [minute, setMinute] = useState("");
   const [saving, setSaving] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -149,6 +186,7 @@ export function GameSumulaClient({
                 onClick={() => {
                   setActiveAthlete(a);
                   setPendingGoal(false);
+                  setActiveGroup(EVENT_GROUPS[0].label);
                   setMinute("");
                 }}
                 className="flex items-center gap-2.5 px-3 py-3 rounded-md border border-line bg-white hover:border-pitch-dark text-left"
@@ -251,20 +289,38 @@ export function GameSumulaClient({
               </Button>
             </>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {EVENT_BUTTONS.map((e) => (
-                <button
-                  key={e.type}
-                  type="button"
-                  disabled={!!saving}
-                  onClick={() => (e.type === "Gol" ? setPendingGoal(true) : logEvent(e.type))}
-                  className="flex flex-col items-center gap-1 px-3 py-3.5 rounded-md border border-line bg-white hover:border-pitch-dark font-semibold text-[12.5px] disabled:opacity-50"
-                >
-                  <span className="text-xl">{e.icon}</span>
-                  {e.type}
-                </button>
-              ))}
-            </div>
+            <>
+              <div className="flex gap-1.5 flex-wrap">
+                {EVENT_GROUPS.map((g) => (
+                  <button
+                    key={g.label}
+                    type="button"
+                    onClick={() => setActiveGroup(g.label)}
+                    className={`px-3 py-1.5 rounded-full text-[12px] font-semibold border ${
+                      activeGroup === g.label
+                        ? "bg-pitch-dark text-chalk border-pitch-dark"
+                        : "border-line text-ink-soft"
+                    }`}
+                  >
+                    {g.label}
+                  </button>
+                ))}
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {(EVENT_GROUPS.find((g) => g.label === activeGroup)?.events ?? []).map((e) => (
+                  <button
+                    key={e.type}
+                    type="button"
+                    disabled={!!saving}
+                    onClick={() => (e.type === "Gol" ? setPendingGoal(true) : logEvent(e.type))}
+                    className="flex flex-col items-center gap-1 px-3 py-3.5 rounded-md border border-line bg-white hover:border-pitch-dark font-semibold text-[12.5px] disabled:opacity-50"
+                  >
+                    <span className="text-xl">{e.icon}</span>
+                    {e.type}
+                  </button>
+                ))}
+              </div>
+            </>
           )}
 
           <Button variant="outline" onClick={() => setActiveAthlete(null)}>

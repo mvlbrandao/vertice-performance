@@ -29,7 +29,18 @@ export type GameEventType =
   | "Lesão"
   | "Pênalti sofrido"
   | "Pênalti perdido"
-  | "Pênalti defendido";
+  | "Pênalti defendido"
+  | "Escanteio"
+  | "Lateral"
+  | "Desarme"
+  | "Interceptação"
+  | "Cruzamento"
+  | "Finalização certa"
+  | "Finalização errada"
+  | "Impedimento"
+  | "Defesa"
+  | "Passe certo"
+  | "Passe errado";
 export type GoalType = "Normal" | "Pênalti" | "Cabeça" | "Contra" | "Fora da área";
 
 export interface Database {

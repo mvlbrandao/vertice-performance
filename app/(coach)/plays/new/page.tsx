@@ -6,15 +6,19 @@ export default async function NewPlayPage() {
   const profile = await getSessionProfile();
   const supabase = await createClient();
 
-  const { data: athletes } = await supabase
-    .from("athletes")
-    .select("id, full_name, team")
-    .eq("club_id", profile!.clubId)
-    .order("full_name", { ascending: true });
-
-  const teams = Array.from(
-    new Set((athletes ?? []).map((a) => a.team).filter((t): t is string => !!t)),
-  );
+  const [{ data: athletes }, { data: teamRows }] = await Promise.all([
+    supabase
+      .from("athletes")
+      .select("id, full_name")
+      .eq("club_id", profile!.clubId)
+      .order("full_name", { ascending: true }),
+    supabase
+      .from("teams")
+      .select("name")
+      .eq("club_id", profile!.clubId)
+      .order("name", { ascending: true }),
+  ]);
+  const teams = (teamRows ?? []).map((t) => t.name);
 
   return (
     <div>

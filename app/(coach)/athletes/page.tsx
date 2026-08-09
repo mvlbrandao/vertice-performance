@@ -12,7 +12,7 @@ export default async function AthletesPage() {
   const profile = await getSessionProfile();
   const supabase = await createClient();
 
-  const [{ data: athletes }, { data: categories }] = await Promise.all([
+  const [{ data: athletes }, { data: categories }, { data: teams }] = await Promise.all([
     supabase
       .from("athletes")
       .select("id, full_name, team, category, position, instagram, joined_at, guardian_name, photo_color, photo_url")
@@ -23,8 +23,14 @@ export default async function AthletesPage() {
       .select("name")
       .eq("club_id", profile!.clubId)
       .order("name", { ascending: true }),
+    supabase
+      .from("teams")
+      .select("name")
+      .eq("club_id", profile!.clubId)
+      .order("name", { ascending: true }),
   ]);
   const categoryNames = (categories ?? []).map((c) => c.name);
+  const teamNames = (teams ?? []).map((t) => t.name);
 
   const athletesWithPhotos = await Promise.all(
     (athletes ?? []).map(async (a) => ({
@@ -42,7 +48,7 @@ export default async function AthletesPage() {
           </div>
           <h1 className="text-[28px] m-0">Atletas</h1>
         </div>
-        <NewAthleteModal categories={categoryNames} />
+        <NewAthleteModal categories={categoryNames} teams={teamNames} />
       </div>
 
       {!athletes || athletes.length === 0 ? (

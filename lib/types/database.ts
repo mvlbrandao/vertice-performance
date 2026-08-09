@@ -382,6 +382,22 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["categories"]["Insert"]>;
         Relationships: [];
       };
+      teams: {
+        Row: {
+          id: string;
+          club_id: string;
+          name: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          club_id: string;
+          name: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["teams"]["Insert"]>;
+        Relationships: [];
+      };
       plays: {
         Row: {
           id: string;

@@ -12,20 +12,23 @@ export default async function EditPlayPage({
   const profile = await getSessionProfile();
   const supabase = await createClient();
 
-  const [{ data: play }, { data: athletes }] = await Promise.all([
+  const [{ data: play }, { data: athletes }, { data: teamRows }] = await Promise.all([
     supabase.from("plays").select("*").eq("id", playId).single(),
     supabase
       .from("athletes")
-      .select("id, full_name, team")
+      .select("id, full_name")
       .eq("club_id", profile!.clubId)
       .order("full_name", { ascending: true }),
+    supabase
+      .from("teams")
+      .select("name")
+      .eq("club_id", profile!.clubId)
+      .order("name", { ascending: true }),
   ]);
 
   if (!play) return null;
 
-  const teams = Array.from(
-    new Set((athletes ?? []).map((a) => a.team).filter((t): t is string => !!t)),
-  );
+  const teams = (teamRows ?? []).map((t) => t.name);
   const frames = (play.frames as unknown as PlayFrame[]) ?? [];
 
   return (

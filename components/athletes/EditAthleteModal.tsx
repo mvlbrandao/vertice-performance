@@ -24,15 +24,19 @@ export function EditAthleteModal({
   athleteId,
   athlete,
   categories,
+  teams,
 }: {
   athleteId: string;
   athlete: AthleteEditableData;
   categories: string[];
+  teams: string[];
 }) {
   const categoryOptions =
     athlete.category && !categories.includes(athlete.category)
       ? [athlete.category, ...categories]
       : categories;
+  const teamOptions =
+    athlete.team && !teams.includes(athlete.team) ? [athlete.team, ...teams] : teams;
   const { open, setOpen, pending, error, formRef, handleSubmit } = useFormModal((formData) =>
     updateAthlete(athleteId, formData),
   );
@@ -73,7 +77,22 @@ export function EditAthleteModal({
               <Input name="position" defaultValue={athlete.position ?? ""} />
             </Field>
             <Field label="Time">
-              <Input name="team" defaultValue={athlete.team ?? ""} />
+              {teamOptions.length > 0 ? (
+                <select
+                  name="team"
+                  defaultValue={athlete.team ?? ""}
+                  className="w-full px-3 py-2.5 border border-line rounded-sm bg-white text-sm"
+                >
+                  <option value="">Selecione…</option>
+                  {teamOptions.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <Input name="team" defaultValue={athlete.team ?? ""} />
+              )}
             </Field>
             <Field label="Altura (cm)">
               <Input

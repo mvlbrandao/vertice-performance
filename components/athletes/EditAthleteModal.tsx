@@ -23,10 +23,16 @@ type AthleteEditableData = {
 export function EditAthleteModal({
   athleteId,
   athlete,
+  categories,
 }: {
   athleteId: string;
   athlete: AthleteEditableData;
+  categories: string[];
 }) {
+  const categoryOptions =
+    athlete.category && !categories.includes(athlete.category)
+      ? [athlete.category, ...categories]
+      : categories;
   const { open, setOpen, pending, error, formRef, handleSubmit } = useFormModal((formData) =>
     updateAthlete(athleteId, formData),
   );
@@ -46,7 +52,22 @@ export function EditAthleteModal({
               <Input name="birthDate" type="date" defaultValue={athlete.birthDate ?? ""} />
             </Field>
             <Field label="Categoria">
-              <Input name="category" defaultValue={athlete.category ?? ""} />
+              {categoryOptions.length > 0 ? (
+                <select
+                  name="category"
+                  defaultValue={athlete.category ?? ""}
+                  className="w-full px-3 py-2.5 border border-line rounded-sm bg-white text-sm"
+                >
+                  <option value="">Selecione…</option>
+                  {categoryOptions.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <Input name="category" defaultValue={athlete.category ?? ""} />
+              )}
             </Field>
             <Field label="Posição">
               <Input name="position" defaultValue={athlete.position ?? ""} />

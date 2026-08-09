@@ -6,7 +6,7 @@ import { Field, Input } from "@/components/ui/Field";
 import { createAthlete } from "@/lib/actions/athletes";
 import { useFormModal } from "@/lib/utils/useFormModal";
 
-export function NewAthleteModal() {
+export function NewAthleteModal({ categories }: { categories: string[] }) {
   const { open, setOpen, pending, error, formRef, handleSubmit } =
     useFormModal(createAthlete);
 
@@ -25,7 +25,22 @@ export function NewAthleteModal() {
               <Input name="birthDate" type="date" />
             </Field>
             <Field label="Categoria">
-              <Input name="category" placeholder="Ex: Futsal Sub-12" />
+              {categories.length > 0 ? (
+                <select
+                  name="category"
+                  defaultValue=""
+                  className="w-full px-3 py-2.5 border border-line rounded-sm bg-white text-sm"
+                >
+                  <option value="">Selecione…</option>
+                  {categories.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <Input name="category" placeholder="Ex: Futsal Sub-12" />
+              )}
             </Field>
             <Field label="Posição">
               <Input name="position" placeholder="Ex: Pivô" />

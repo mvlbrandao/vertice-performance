@@ -48,6 +48,13 @@ export default async function AthleteDadosPage({
 
   if (!athlete) return null;
 
+  const { data: categories } = await supabase
+    .from("categories")
+    .select("name")
+    .eq("club_id", athlete.club_id)
+    .order("name", { ascending: true });
+  const categoryNames = (categories ?? []).map((c) => c.name);
+
   const totalCheckins = checkins?.length ?? 0;
   const trainingPct = totalCheckins
     ? Math.round((checkins!.filter((c) => c.training_done).length / totalCheckins) * 100)
@@ -66,6 +73,7 @@ export default async function AthleteDadosPage({
           <div className="flex items-center gap-2">
             <EditAthleteModal
               athleteId={athlete.id}
+              categories={categoryNames}
               athlete={{
                 fullName: athlete.full_name,
                 birthDate: athlete.birth_date,

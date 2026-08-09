@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/Card";
 import { InviteAthleteModal } from "@/components/athletes/InviteAthleteModal";
 import { EditAthleteModal } from "@/components/athletes/EditAthleteModal";
+import { getPartnerClubOptions } from "@/lib/data/partnerClubs";
 
 function Row({ k, v }: { k: string; v: string }) {
   return (
@@ -48,20 +49,7 @@ export default async function AthleteDadosPage({
 
   if (!athlete) return null;
 
-  const [{ data: categories }, { data: teams }] = await Promise.all([
-    supabase
-      .from("categories")
-      .select("name")
-      .eq("club_id", athlete.club_id)
-      .order("name", { ascending: true }),
-    supabase
-      .from("teams")
-      .select("name")
-      .eq("club_id", athlete.club_id)
-      .order("name", { ascending: true }),
-  ]);
-  const categoryNames = (categories ?? []).map((c) => c.name);
-  const teamNames = (teams ?? []).map((t) => t.name);
+  const partnerClubs = await getPartnerClubOptions(supabase, athlete.club_id);
 
   const totalCheckins = checkins?.length ?? 0;
   const trainingPct = totalCheckins
@@ -81,8 +69,7 @@ export default async function AthleteDadosPage({
           <div className="flex items-center gap-2">
             <EditAthleteModal
               athleteId={athlete.id}
-              categories={categoryNames}
-              teams={teamNames}
+              partnerClubs={partnerClubs}
               athlete={{
                 fullName: athlete.full_name,
                 birthDate: athlete.birth_date,

@@ -20,7 +20,7 @@ export default async function EditPlayPage({
       .eq("club_id", profile!.clubId)
       .order("full_name", { ascending: true }),
     supabase
-      .from("teams")
+      .from("partner_clubs")
       .select("name")
       .eq("club_id", profile!.clubId)
       .order("name", { ascending: true }),

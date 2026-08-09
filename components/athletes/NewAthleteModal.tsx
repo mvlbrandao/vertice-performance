@@ -1,20 +1,17 @@
 "use client";
 
+import { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Field";
 import { createAthlete } from "@/lib/actions/athletes";
 import { useFormModal } from "@/lib/utils/useFormModal";
+import type { PartnerClubOption } from "@/lib/types/partnerClubs";
 
-export function NewAthleteModal({
-  categories,
-  teams,
-}: {
-  categories: string[];
-  teams: string[];
-}) {
-  const { open, setOpen, pending, error, formRef, handleSubmit } =
-    useFormModal(createAthlete);
+export function NewAthleteModal({ partnerClubs }: { partnerClubs: PartnerClubOption[] }) {
+  const { open, setOpen, pending, error, formRef, handleSubmit } = useFormModal(createAthlete);
+  const [selectedClub, setSelectedClub] = useState("");
+  const availableCategories = partnerClubs.find((c) => c.name === selectedClub)?.categories ?? [];
 
   return (
     <>
@@ -30,15 +27,41 @@ export function NewAthleteModal({
             <Field label="Data de nascimento">
               <Input name="birthDate" type="date" />
             </Field>
-            <Field label="Categoria">
-              {categories.length > 0 ? (
+            <Field label="Posição">
+              <Input name="position" placeholder="Ex: Pivô" />
+            </Field>
+            <Field label="Time">
+              {partnerClubs.length > 0 ? (
                 <select
-                  name="category"
-                  defaultValue=""
+                  name="team"
+                  value={selectedClub}
+                  onChange={(e) => setSelectedClub(e.target.value)}
                   className="w-full px-3 py-2.5 border border-line rounded-sm bg-white text-sm"
                 >
                   <option value="">Selecione…</option>
-                  {categories.map((c) => (
+                  {partnerClubs.map((c) => (
+                    <option key={c.id} value={c.name}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <Input name="team" placeholder="Ex: Sociedade Esportiva Palmeiras" />
+              )}
+            </Field>
+            <Field label="Categoria">
+              {partnerClubs.length > 0 ? (
+                <select
+                  key={selectedClub}
+                  name="category"
+                  defaultValue=""
+                  disabled={!selectedClub || availableCategories.length === 0}
+                  className="w-full px-3 py-2.5 border border-line rounded-sm bg-white text-sm disabled:opacity-50"
+                >
+                  <option value="">
+                    {selectedClub ? "Selecione…" : "Escolha o time primeiro"}
+                  </option>
+                  {availableCategories.map((c) => (
                     <option key={c} value={c}>
                       {c}
                     </option>
@@ -46,27 +69,6 @@ export function NewAthleteModal({
                 </select>
               ) : (
                 <Input name="category" placeholder="Ex: Futsal Sub-12" />
-              )}
-            </Field>
-            <Field label="Posição">
-              <Input name="position" placeholder="Ex: Pivô" />
-            </Field>
-            <Field label="Time">
-              {teams.length > 0 ? (
-                <select
-                  name="team"
-                  defaultValue=""
-                  className="w-full px-3 py-2.5 border border-line rounded-sm bg-white text-sm"
-                >
-                  <option value="">Selecione…</option>
-                  {teams.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <Input name="team" placeholder="Ex: Sub-12 A" />
               )}
             </Field>
           </div>

@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Field";
 import { updateAthlete } from "@/lib/actions/athletes";
 import { useFormModal } from "@/lib/utils/useFormModal";
+import type { PartnerClubOption } from "@/lib/types/partnerClubs";
 
 type AthleteEditableData = {
   fullName: string;
@@ -23,20 +25,20 @@ type AthleteEditableData = {
 export function EditAthleteModal({
   athleteId,
   athlete,
-  categories,
-  teams,
+  partnerClubs,
 }: {
   athleteId: string;
   athlete: AthleteEditableData;
-  categories: string[];
-  teams: string[];
+  partnerClubs: PartnerClubOption[];
 }) {
+  const [selectedClub, setSelectedClub] = useState(athlete.team ?? "");
+  const availableCategories = partnerClubs.find((c) => c.name === selectedClub)?.categories ?? [];
+  // se o atleta já tinha uma categoria fora da lista do time atual (dado legado), mantém como opção
   const categoryOptions =
-    athlete.category && !categories.includes(athlete.category)
-      ? [athlete.category, ...categories]
-      : categories;
-  const teamOptions =
-    athlete.team && !teams.includes(athlete.team) ? [athlete.team, ...teams] : teams;
+    athlete.category && !availableCategories.includes(athlete.category)
+      ? [athlete.category, ...availableCategories]
+      : availableCategories;
+
   const { open, setOpen, pending, error, formRef, handleSubmit } = useFormModal((formData) =>
     updateAthlete(athleteId, formData),
   );
@@ -55,14 +57,43 @@ export function EditAthleteModal({
             <Field label="Data de nascimento">
               <Input name="birthDate" type="date" defaultValue={athlete.birthDate ?? ""} />
             </Field>
-            <Field label="Categoria">
-              {categoryOptions.length > 0 ? (
+            <Field label="Posição">
+              <Input name="position" defaultValue={athlete.position ?? ""} />
+            </Field>
+            <Field label="Time">
+              {partnerClubs.length > 0 ? (
                 <select
-                  name="category"
-                  defaultValue={athlete.category ?? ""}
+                  name="team"
+                  value={selectedClub}
+                  onChange={(e) => setSelectedClub(e.target.value)}
                   className="w-full px-3 py-2.5 border border-line rounded-sm bg-white text-sm"
                 >
                   <option value="">Selecione…</option>
+                  {(athlete.team && !partnerClubs.some((c) => c.name === athlete.team)
+                    ? [{ id: "legacy", name: athlete.team, categories: [] }, ...partnerClubs]
+                    : partnerClubs
+                  ).map((c) => (
+                    <option key={c.id} value={c.name}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <Input name="team" defaultValue={athlete.team ?? ""} />
+              )}
+            </Field>
+            <Field label="Categoria">
+              {partnerClubs.length > 0 ? (
+                <select
+                  key={selectedClub}
+                  name="category"
+                  defaultValue={athlete.category ?? ""}
+                  disabled={!selectedClub || categoryOptions.length === 0}
+                  className="w-full px-3 py-2.5 border border-line rounded-sm bg-white text-sm disabled:opacity-50"
+                >
+                  <option value="">
+                    {selectedClub ? "Selecione…" : "Escolha o time primeiro"}
+                  </option>
                   {categoryOptions.map((c) => (
                     <option key={c} value={c}>
                       {c}
@@ -71,27 +102,6 @@ export function EditAthleteModal({
                 </select>
               ) : (
                 <Input name="category" defaultValue={athlete.category ?? ""} />
-              )}
-            </Field>
-            <Field label="Posição">
-              <Input name="position" defaultValue={athlete.position ?? ""} />
-            </Field>
-            <Field label="Time">
-              {teamOptions.length > 0 ? (
-                <select
-                  name="team"
-                  defaultValue={athlete.team ?? ""}
-                  className="w-full px-3 py-2.5 border border-line rounded-sm bg-white text-sm"
-                >
-                  <option value="">Selecione…</option>
-                  {teamOptions.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <Input name="team" defaultValue={athlete.team ?? ""} />
               )}
             </Field>
             <Field label="Altura (cm)">

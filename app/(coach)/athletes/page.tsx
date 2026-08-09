@@ -7,30 +7,20 @@ import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { NewAthleteModal } from "@/components/athletes/NewAthleteModal";
 import { initials } from "@/lib/utils/initials";
+import { getPartnerClubOptions } from "@/lib/data/partnerClubs";
 
 export default async function AthletesPage() {
   const profile = await getSessionProfile();
   const supabase = await createClient();
 
-  const [{ data: athletes }, { data: categories }, { data: teams }] = await Promise.all([
+  const [{ data: athletes }, partnerClubs] = await Promise.all([
     supabase
       .from("athletes")
       .select("id, full_name, team, category, position, instagram, joined_at, guardian_name, photo_color, photo_url")
       .eq("club_id", profile!.clubId)
       .order("full_name", { ascending: true }),
-    supabase
-      .from("categories")
-      .select("name")
-      .eq("club_id", profile!.clubId)
-      .order("name", { ascending: true }),
-    supabase
-      .from("teams")
-      .select("name")
-      .eq("club_id", profile!.clubId)
-      .order("name", { ascending: true }),
+    getPartnerClubOptions(supabase, profile!.clubId),
   ]);
-  const categoryNames = (categories ?? []).map((c) => c.name);
-  const teamNames = (teams ?? []).map((t) => t.name);
 
   const athletesWithPhotos = await Promise.all(
     (athletes ?? []).map(async (a) => ({
@@ -48,7 +38,7 @@ export default async function AthletesPage() {
           </div>
           <h1 className="text-[28px] m-0">Atletas</h1>
         </div>
-        <NewAthleteModal categories={categoryNames} teams={teamNames} />
+        <NewAthleteModal partnerClubs={partnerClubs} />
       </div>
 
       {!athletes || athletes.length === 0 ? (

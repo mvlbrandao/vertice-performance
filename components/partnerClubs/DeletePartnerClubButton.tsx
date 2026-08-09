@@ -3,16 +3,16 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
-import { deleteTeam } from "@/lib/actions/teams";
+import { deletePartnerClub } from "@/lib/actions/partnerClubs";
 
-export function DeleteTeamButton({ teamId }: { teamId: string }) {
+export function DeletePartnerClubButton({ partnerClubId }: { partnerClubId: string }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
   async function handleDelete() {
     setPending(true);
-    await deleteTeam(teamId);
+    await deletePartnerClub(partnerClubId);
     setPending(false);
     router.refresh();
   }
@@ -20,8 +20,9 @@ export function DeleteTeamButton({ teamId }: { teamId: string }) {
   if (confirming) {
     return (
       <div className="flex items-center gap-1.5">
+        <span className="text-xs text-ink-faint">Excluir clube e seus subs?</span>
         <Button variant="danger" size="sm" onClick={handleDelete} disabled={pending}>
-          {pending ? "…" : "Confirmar"}
+          {pending ? "…" : "Sim"}
         </Button>
         <Button variant="ghost" size="sm" onClick={() => setConfirming(false)} disabled={pending}>
           Não

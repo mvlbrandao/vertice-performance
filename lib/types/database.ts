@@ -366,7 +366,7 @@ export interface Database {
         >;
         Relationships: [];
       };
-      categories: {
+      partner_clubs: {
         Row: {
           id: string;
           club_id: string;
@@ -379,23 +379,27 @@ export interface Database {
           name: string;
           created_at?: string;
         };
-        Update: Partial<Database["public"]["Tables"]["categories"]["Insert"]>;
+        Update: Partial<Database["public"]["Tables"]["partner_clubs"]["Insert"]>;
         Relationships: [];
       };
-      teams: {
+      partner_club_categories: {
         Row: {
           id: string;
           club_id: string;
+          partner_club_id: string;
           name: string;
           created_at: string;
         };
         Insert: {
           id?: string;
           club_id: string;
+          partner_club_id: string;
           name: string;
           created_at?: string;
         };
-        Update: Partial<Database["public"]["Tables"]["teams"]["Insert"]>;
+        Update: Partial<
+          Database["public"]["Tables"]["partner_club_categories"]["Insert"]
+        >;
         Relationships: [];
       };
       plays: {

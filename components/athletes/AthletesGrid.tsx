@@ -19,6 +19,7 @@ export interface AthleteGridItem {
   guardian_name: string | null;
   photo_color: string | null;
   signedPhotoUrl: string | null;
+  is_active: boolean;
 }
 
 const ALL = "";
@@ -27,6 +28,8 @@ export function AthletesGrid({ athletes }: { athletes: AthleteGridItem[] }) {
   const [team, setTeam] = useState(ALL);
   const [category, setCategory] = useState(ALL);
   const [position, setPosition] = useState(ALL);
+  const [showInactive, setShowInactive] = useState(false);
+  const inactiveCount = athletes.filter((a) => !a.is_active).length;
 
   const teams = useMemo(
     () => Array.from(new Set(athletes.map((a) => a.team).filter(Boolean))).sort() as string[],
@@ -43,6 +46,7 @@ export function AthletesGrid({ athletes }: { athletes: AthleteGridItem[] }) {
 
   const filtered = athletes.filter(
     (a) =>
+      (showInactive || a.is_active) &&
       (!team || a.team === team) &&
       (!category || a.category === category) &&
       (!position || (a.position ?? []).includes(position)),
@@ -89,6 +93,16 @@ export function AthletesGrid({ athletes }: { athletes: AthleteGridItem[] }) {
             </option>
           ))}
         </select>
+        {inactiveCount > 0 && (
+          <label className="flex items-center gap-1.5 text-[12.5px] font-semibold text-ink-soft cursor-pointer">
+            <input
+              type="checkbox"
+              checked={showInactive}
+              onChange={(e) => setShowInactive(e.target.checked)}
+            />
+            Mostrar inativos ({inactiveCount})
+          </label>
+        )}
         {hasActiveFilter && (
           <Button
             variant="ghost"
@@ -115,7 +129,10 @@ export function AthletesGrid({ athletes }: { athletes: AthleteGridItem[] }) {
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((a) => (
             <Link key={a.id} href={`/athletes/${a.id}/dados`}>
-              <Card shadow className="h-full cursor-pointer hover:border-pitch-dark transition-colors">
+              <Card
+                shadow
+                className={`h-full cursor-pointer hover:border-pitch-dark transition-colors ${!a.is_active ? "opacity-60" : ""}`}
+              >
                 <div className="flex items-center gap-3 mb-3">
                   {a.signedPhotoUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -141,6 +158,7 @@ export function AthletesGrid({ athletes }: { athletes: AthleteGridItem[] }) {
                   </div>
                 </div>
                 <div className="flex gap-1.5 flex-wrap mb-2.5">
+                  {!a.is_active && <Badge tone="dark">Inativo</Badge>}
                   {a.category && <Badge tone="green">{a.category}</Badge>}
                   {a.position?.map((p) => (
                     <Badge key={p} tone="amber">

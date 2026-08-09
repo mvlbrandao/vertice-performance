@@ -38,22 +38,40 @@ export default async function RelatoriosPage({
   const supabase = await createClient();
   const { start, end, year, month } = monthBounds(monthParam);
 
-  const [{ data: charges }, { data: expenses }] = await Promise.all([
-    supabase
-      .from("athlete_charges")
-      .select("amount_cents, discount_cents, paid_at")
-      .eq("club_id", profile!.clubId)
-      .eq("status", "Pago")
-      .gte("paid_at", start)
-      .lte("paid_at", `${end}T23:59:59`),
-    supabase
-      .from("expenses")
-      .select("amount_cents, paid_at, expense_categories(name)")
-      .eq("club_id", profile!.clubId)
-      .eq("status", "Pago")
-      .gte("paid_at", start)
-      .lte("paid_at", `${end}T23:59:59`),
-  ]);
+  const [{ data: charges }, { data: expenses }, { count: churnCount }, { count: activeCount }] =
+    await Promise.all([
+      supabase
+        .from("athlete_charges")
+        .select("amount_cents, discount_cents, paid_at")
+        .eq("club_id", profile!.clubId)
+        .eq("status", "Pago")
+        .gte("paid_at", start)
+        .lte("paid_at", `${end}T23:59:59`),
+      supabase
+        .from("expenses")
+        .select("amount_cents, paid_at, expense_categories(name)")
+        .eq("club_id", profile!.clubId)
+        .eq("status", "Pago")
+        .gte("paid_at", start)
+        .lte("paid_at", `${end}T23:59:59`),
+      supabase
+        .from("athletes")
+        .select("*", { count: "exact", head: true })
+        .eq("club_id", profile!.clubId)
+        .eq("is_active", false)
+        .gte("deactivated_at", start)
+        .lte("deactivated_at", `${end}T23:59:59`),
+      supabase
+        .from("athletes")
+        .select("*", { count: "exact", head: true })
+        .eq("club_id", profile!.clubId)
+        .eq("is_active", true),
+    ]);
+
+  const churnCountValue = churnCount ?? 0;
+  const rosterAtMonthStart = (activeCount ?? 0) + churnCountValue;
+  const churnPct =
+    rosterAtMonthStart > 0 ? Math.round((churnCountValue / rosterAtMonthStart) * 100) : 0;
 
   const revenueCents = (charges ?? []).reduce(
     (sum, c) => sum + (c.amount_cents - c.discount_cents),
@@ -134,6 +152,16 @@ export default async function RelatoriosPage({
           >
             {formatCents(balanceCents)}
           </b>
+        </Card>
+        <Card>
+          <span className="text-xs font-semibold text-ink-soft">Churn de contratos</span>
+          <b className="block font-display text-2xl leading-none mt-1">
+            {churnCountValue} <span className="text-base font-semibold">({churnPct}%)</span>
+          </b>
+          <span className="text-[11px] text-ink-faint mt-1 block">
+            atleta{churnCountValue === 1 ? "" : "s"} desativado{churnCountValue === 1 ? "" : "s"}{" "}
+            no mês
+          </span>
         </Card>
       </div>
 

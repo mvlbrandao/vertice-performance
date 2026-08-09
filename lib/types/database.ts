@@ -162,6 +162,9 @@ export interface Database {
           guardian_cpf: string | null;
           guardian_email: string | null;
           asaas_customer_id: string | null;
+          is_active: boolean;
+          deactivated_at: string | null;
+          deactivation_reason: string | null;
           created_by: string | null;
           created_at: string;
           updated_at: string;
@@ -191,6 +194,9 @@ export interface Database {
           guardian_cpf?: string | null;
           guardian_email?: string | null;
           asaas_customer_id?: string | null;
+          is_active?: boolean;
+          deactivated_at?: string | null;
+          deactivation_reason?: string | null;
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;

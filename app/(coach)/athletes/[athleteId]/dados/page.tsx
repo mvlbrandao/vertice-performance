@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/Card";
 import { InviteAthleteModal } from "@/components/athletes/InviteAthleteModal";
 import { EditAthleteModal } from "@/components/athletes/EditAthleteModal";
 import { TransferClubModal } from "@/components/athletes/TransferClubModal";
+import { DeactivateAthleteModal } from "@/components/athletes/DeactivateAthleteModal";
 import { PlayerScoreCard } from "@/components/athletes/PlayerScoreCard";
 import { getPartnerClubOptions } from "@/lib/data/partnerClubs";
 import { classifyBmi } from "@/lib/utils/bmiReference";
@@ -114,8 +115,18 @@ export default async function AthleteDadosPage({
                 fullName={athlete.full_name}
                 alreadyProvisioned={!!existingProfile}
               />
+              <DeactivateAthleteModal athleteId={athlete.id} isActive={athlete.is_active} />
             </div>
           </div>
+          {!athlete.is_active && (
+            <div className="bg-[#F2F2F2] border border-line rounded-md px-3.5 py-2.5 text-[12.5px] text-ink-soft mb-3">
+              🚫 Atleta inativo desde{" "}
+              {athlete.deactivated_at
+                ? new Date(athlete.deactivated_at).toLocaleDateString("pt-BR")
+                : "—"}
+              {athlete.deactivation_reason ? ` · ${athlete.deactivation_reason}` : ""}
+            </div>
+          )}
           <Row k="Nascimento" v={athlete.birth_date ?? "—"} />
           <Row k="Responsável" v={athlete.guardian_name ?? "—"} />
           <Row k="Cel. do responsável" v={athlete.guardian_phone ?? "—"} />

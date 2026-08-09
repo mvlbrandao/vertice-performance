@@ -14,7 +14,9 @@ export default async function AthletesPage() {
   const [{ data: athletes }, partnerClubs] = await Promise.all([
     supabase
       .from("athletes")
-      .select("id, full_name, team, category, position, instagram, joined_at, guardian_name, photo_color, photo_url")
+      .select(
+        "id, full_name, team, category, position, instagram, joined_at, guardian_name, photo_color, photo_url, is_active",
+      )
       .eq("club_id", profile!.clubId)
       .order("full_name", { ascending: true }),
     getPartnerClubOptions(supabase, profile!.clubId),

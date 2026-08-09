@@ -35,7 +35,8 @@ export default async function DashboardPage() {
     supabase
       .from("athletes")
       .select("*", { count: "exact", head: true })
-      .eq("club_id", clubId),
+      .eq("club_id", clubId)
+      .eq("is_active", true),
     supabase
       .from("checkins")
       .select("athlete_id")
@@ -58,6 +59,7 @@ export default async function DashboardPage() {
       .from("athletes")
       .select("id, full_name, team, category, position, jersey_num, current_pain, photo_url, photo_color")
       .eq("club_id", clubId)
+      .eq("is_active", true)
       .order("created_at", { ascending: false })
       .limit(6),
     supabase
@@ -75,6 +77,22 @@ export default async function DashboardPage() {
       .eq("club_id", clubId)
       .in("status", ["Pendente", "Atrasado"]),
   ]);
+
+  // Churn do mês: quantos atletas foram desativados desde o dia 1 do mês
+  // corrente. % é sobre o tamanho do elenco no início do período (ativos
+  // agora + quem saiu nesse meio tempo), já que não guardamos snapshot
+  // histórico do tamanho do elenco.
+  const monthStart = `${today.slice(0, 7)}-01`;
+  const { count: churnCount } = await supabase
+    .from("athletes")
+    .select("*", { count: "exact", head: true })
+    .eq("club_id", clubId)
+    .eq("is_active", false)
+    .gte("deactivated_at", monthStart);
+  const churnCountValue = churnCount ?? 0;
+  const rosterAtMonthStart = (athletesCount ?? 0) + churnCountValue;
+  const churnPct =
+    rosterAtMonthStart > 0 ? Math.round((churnCountValue / rosterAtMonthStart) * 100) : 0;
 
   // Jogos das equipes sob gestão (não de qualquer clube só cadastrado como
   // referência) — mesmo critério do toggle "Sob sua gestão" em /clube.
@@ -198,6 +216,15 @@ export default async function DashboardPage() {
               {overdueCount > 1 ? "s" : ""}
             </span>
           )}
+        </Card>
+        <Card>
+          <span className="text-xs font-semibold text-ink-soft">Churn do mês</span>
+          <b className="block font-display text-2xl leading-none mt-1 truncate">
+            {churnCountValue} <span className="text-base font-semibold">({churnPct}%)</span>
+          </b>
+          <span className="text-[11px] text-ink-faint mt-1 block">
+            atleta{churnCountValue === 1 ? "" : "s"} desativado{churnCountValue === 1 ? "" : "s"}
+          </span>
         </Card>
       </div>
 

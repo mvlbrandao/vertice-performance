@@ -938,6 +938,38 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["financial_audit_log"]["Insert"]>;
         Relationships: [];
       };
+      daily_cash_closures: {
+        Row: {
+          id: string;
+          club_id: string;
+          closure_date: string;
+          income_cents: number;
+          expense_cents: number;
+          balance_cents: number;
+          income_count: number;
+          expense_count: number;
+          notes: string | null;
+          closed_by: string;
+          closed_by_name: string;
+          closed_at: string;
+        };
+        Insert: {
+          id?: string;
+          club_id: string;
+          closure_date: string;
+          income_cents: number;
+          expense_cents: number;
+          balance_cents: number;
+          income_count: number;
+          expense_count: number;
+          notes?: string | null;
+          closed_by: string;
+          closed_by_name: string;
+          closed_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["daily_cash_closures"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {

@@ -4,42 +4,74 @@ import { createClient } from "@/lib/supabase/server";
 import { resolveSignedUrl } from "@/lib/storage/resolveSignedUrl";
 import { initials } from "@/lib/utils/initials";
 import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { NewPartnerClubModal } from "@/components/partnerClubs/NewPartnerClubModal";
 import { DeletePartnerClubButton } from "@/components/partnerClubs/DeletePartnerClubButton";
 import { NewPartnerClubCategoryModal } from "@/components/partnerClubs/NewPartnerClubCategoryModal";
 import { DeletePartnerClubCategoryButton } from "@/components/partnerClubs/DeletePartnerClubCategoryButton";
 import { EditPartnerClubColorsModal } from "@/components/partnerClubs/EditPartnerClubColorsModal";
+import { SubStaffModal } from "@/components/partnerClubs/SubStaffModal";
 
 export default async function ClubPage() {
   const profile = await getSessionProfile();
   const supabase = await createClient();
 
-  const [{ data: club }, { data: partnerClubs }, { data: categories }, { data: athletes }] =
-    await Promise.all([
-      supabase.from("clubs").select("name, created_at").eq("id", profile!.clubId).single(),
-      supabase
-        .from("partner_clubs")
-        .select("id, name, color_1, color_2, color_3")
-        .eq("club_id", profile!.clubId)
-        .order("name", { ascending: true }),
-      supabase
-        .from("partner_club_categories")
-        .select("id, name, partner_club_id")
-        .eq("club_id", profile!.clubId)
-        .order("name", { ascending: true }),
-      supabase
-        .from("athletes")
-        .select("id, full_name, team, category, photo_url, photo_color")
-        .eq("club_id", profile!.clubId)
-        .order("full_name", { ascending: true }),
-    ]);
+  const [
+    { data: club },
+    { data: partnerClubs },
+    { data: categories },
+    { data: athletes },
+    { data: staffProfiles },
+    { data: subAssignments },
+  ] = await Promise.all([
+    supabase.from("clubs").select("name, created_at").eq("id", profile!.clubId).single(),
+    supabase
+      .from("partner_clubs")
+      .select("id, name, color_1, color_2, color_3")
+      .eq("club_id", profile!.clubId)
+      .order("name", { ascending: true }),
+    supabase
+      .from("partner_club_categories")
+      .select("id, name, partner_club_id")
+      .eq("club_id", profile!.clubId)
+      .order("name", { ascending: true }),
+    supabase
+      .from("athletes")
+      .select("id, full_name, team, category, photo_url, photo_color")
+      .eq("club_id", profile!.clubId)
+      .order("full_name", { ascending: true }),
+    supabase
+      .from("profiles")
+      .select("id, full_name, title")
+      .eq("club_id", profile!.clubId)
+      .eq("role", "staff")
+      .order("full_name", { ascending: true }),
+    supabase
+      .from("sub_staff_assignments")
+      .select("partner_club_category_id, staff_profile_id, role_title, profiles!staff_profile_id(full_name)")
+      .eq("club_id", profile!.clubId),
+  ]);
 
   const categoriesByClub = new Map<string, { id: string; name: string }[]>();
   for (const c of categories ?? []) {
     const list = categoriesByClub.get(c.partner_club_id) ?? [];
     list.push({ id: c.id, name: c.name });
     categoriesByClub.set(c.partner_club_id, list);
+  }
+
+  const assignmentsByCategory = new Map<
+    string,
+    { staffProfileId: string; roleTitle: string; staffName: string }[]
+  >();
+  for (const a of subAssignments ?? []) {
+    const list = assignmentsByCategory.get(a.partner_club_category_id) ?? [];
+    list.push({
+      staffProfileId: a.staff_profile_id,
+      roleTitle: a.role_title,
+      staffName: (a.profiles as unknown as { full_name: string } | null)?.full_name ?? "—",
+    });
+    assignmentsByCategory.set(a.partner_club_category_id, list);
   }
 
   const athletesWithPhotos = await Promise.all(
@@ -86,8 +118,9 @@ export default async function ClubPage() {
               return (
                 <div key={pc.id} className="border border-line rounded-md p-3.5">
                   <div className="flex items-center justify-between gap-2 flex-wrap mb-2.5">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <b className="text-sm">{pc.name}</b>
+                      <Badge tone="green">Sob sua gestão</Badge>
                       <EditPartnerClubColorsModal
                         partnerClubId={pc.id}
                         clubName={pc.name}
@@ -104,16 +137,38 @@ export default async function ClubPage() {
                   {clubCategories.length === 0 ? (
                     <p className="text-xs text-ink-faint m-0">Nenhum sub cadastrado.</p>
                   ) : (
-                    <div className="flex flex-wrap gap-1.5">
-                      {clubCategories.map((c) => (
-                        <div
-                          key={c.id}
-                          className="flex items-center gap-1.5 bg-chalk border border-line rounded-full pl-2.5 pr-2 py-0.5"
-                        >
-                          <span className="text-xs font-semibold">{c.name}</span>
-                          <DeletePartnerClubCategoryButton categoryId={c.id} />
-                        </div>
-                      ))}
+                    <div className="flex flex-col gap-1.5">
+                      {clubCategories.map((c) => {
+                        const staffHere = assignmentsByCategory.get(c.id) ?? [];
+                        return (
+                          <div
+                            key={c.id}
+                            className="border border-line rounded-sm px-2.5 py-1.5"
+                          >
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-xs font-semibold bg-chalk rounded-full px-2.5 py-0.5">
+                                {c.name}
+                              </span>
+                              <DeletePartnerClubCategoryButton categoryId={c.id} />
+                              <SubStaffModal
+                                categoryId={c.id}
+                                categoryName={`${pc.name} · ${c.name}`}
+                                staffList={staffProfiles ?? []}
+                                assignments={staffHere}
+                              />
+                            </div>
+                            {staffHere.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1.5">
+                                {staffHere.map((a) => (
+                                  <Badge key={a.staffProfileId} tone="amber">
+                                    {a.roleTitle}: {a.staffName}
+                                  </Badge>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
 

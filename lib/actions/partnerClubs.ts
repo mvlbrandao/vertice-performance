@@ -135,3 +135,55 @@ export async function deletePartnerClubCategory(categoryId: string): Promise<Act
   revalidatePath("/clube");
   return { success: true };
 }
+
+const subStaffSchema = z.object({
+  categoryId: z.string().uuid(),
+  staffProfileId: z.string().uuid(),
+  roleTitle: z.string().trim().min(1, "Informe a função."),
+});
+
+export async function assignSubStaff(formData: FormData): Promise<ActionResult> {
+  const coach = await requireCoach();
+  const parsed = subStaffSchema.safeParse({
+    categoryId: formData.get("categoryId"),
+    staffProfileId: formData.get("staffProfileId"),
+    roleTitle: formData.get("roleTitle"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("sub_staff_assignments").upsert(
+    {
+      club_id: coach.clubId,
+      partner_club_category_id: parsed.data.categoryId,
+      staff_profile_id: parsed.data.staffProfileId,
+      role_title: parsed.data.roleTitle,
+      created_by: coach.userId,
+    },
+    { onConflict: "partner_club_category_id,staff_profile_id" },
+  );
+  if (error) return { error: error.message };
+
+  revalidatePath("/clube");
+  return { success: true };
+}
+
+export async function removeSubStaff(
+  categoryId: string,
+  staffProfileId: string,
+): Promise<ActionResult> {
+  const coach = await requireCoach();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("sub_staff_assignments")
+    .delete()
+    .eq("club_id", coach.clubId)
+    .eq("partner_club_category_id", categoryId)
+    .eq("staff_profile_id", staffProfileId);
+  if (error) return { error: error.message };
+
+  revalidatePath("/clube");
+  return { success: true };
+}

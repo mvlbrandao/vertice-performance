@@ -486,6 +486,28 @@ export interface Database {
         >;
         Relationships: [];
       };
+      sub_staff_assignments: {
+        Row: {
+          id: string;
+          club_id: string;
+          partner_club_category_id: string;
+          staff_profile_id: string;
+          role_title: string;
+          created_by: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          club_id: string;
+          partner_club_category_id: string;
+          staff_profile_id: string;
+          role_title: string;
+          created_by: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["sub_staff_assignments"]["Insert"]>;
+        Relationships: [];
+      };
       plays: {
         Row: {
           id: string;

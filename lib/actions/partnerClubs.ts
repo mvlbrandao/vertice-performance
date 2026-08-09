@@ -78,6 +78,23 @@ export async function updatePartnerClubColors(
   return { success: true };
 }
 
+export async function setPartnerClubManaged(
+  partnerClubId: string,
+  isManaged: boolean,
+): Promise<ActionResult> {
+  const coach = await requireCoach();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("partner_clubs")
+    .update({ is_managed: isManaged })
+    .eq("id", partnerClubId)
+    .eq("club_id", coach.clubId);
+  if (error) return { error: error.message };
+
+  revalidatePath("/clube");
+  return { success: true };
+}
+
 export async function deletePartnerClub(partnerClubId: string): Promise<ActionResult> {
   const coach = await requireCoach();
   const supabase = await createClient();

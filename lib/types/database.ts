@@ -478,6 +478,7 @@ export interface Database {
           color_1: string | null;
           color_2: string | null;
           color_3: string | null;
+          is_managed: boolean;
           created_at: string;
         };
         Insert: {
@@ -487,6 +488,7 @@ export interface Database {
           color_1?: string | null;
           color_2?: string | null;
           color_3?: string | null;
+          is_managed?: boolean;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["partner_clubs"]["Insert"]>;

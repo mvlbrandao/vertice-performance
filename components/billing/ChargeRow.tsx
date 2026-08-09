@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/Badge";
-import { setChargeStatus, deleteCharge } from "@/lib/actions/billing";
+import { setChargeStatus, deleteCharge, updateChargeDueDate } from "@/lib/actions/billing";
 import type { ChargeStatus } from "@/lib/types/database";
 
 const MONTHS = [
@@ -32,6 +32,10 @@ function formatCents(cents: number) {
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export function ChargeRow({
   id,
   athleteId,
@@ -55,10 +59,20 @@ export function ChargeRow({
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
+  const [editingDate, setEditingDate] = useState(false);
+  const [dateValue, setDateValue] = useState(dueDate);
+  const isOverdue = status === "Atrasado" || (status === "Pendente" && dueDate < todayISO());
 
   async function markPaid() {
     setPending(true);
     await setChargeStatus(id, athleteId, "Pago");
+    setPending(false);
+    router.refresh();
+  }
+
+  async function undoPaid() {
+    setPending(true);
+    await setChargeStatus(id, athleteId, "Pendente");
     setPending(false);
     router.refresh();
   }
@@ -77,16 +91,64 @@ export function ChargeRow({
     router.refresh();
   }
 
+  async function saveDueDate() {
+    setPending(true);
+    await updateChargeDueDate(id, athleteId, dateValue);
+    setPending(false);
+    setEditingDate(false);
+    router.refresh();
+  }
+
   return (
     <div className="flex items-center gap-3 py-2.5 border-b border-line last:border-b-0 flex-wrap">
       <div className="flex-1 min-w-[160px]">
         <b className="text-sm block">{description}</b>
-        <span className="text-xs text-ink-faint">
-          {MONTHS[competenceMonth - 1]}/{competenceYear} · vence {dueDate}
-        </span>
+        {editingDate ? (
+          <span className="inline-flex items-center gap-1.5 mt-1">
+            <input
+              type="date"
+              value={dateValue}
+              onChange={(e) => setDateValue(e.target.value)}
+              className="px-1.5 py-0.5 border border-line rounded-sm text-xs"
+            />
+            <button
+              type="button"
+              onClick={saveDueDate}
+              disabled={pending}
+              className="text-[11px] font-semibold text-pitch-dark hover:underline"
+            >
+              Salvar
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setDateValue(dueDate);
+                setEditingDate(false);
+              }}
+              className="text-[11px] text-ink-faint hover:underline"
+            >
+              Cancelar
+            </button>
+          </span>
+        ) : (
+          <span className="text-xs text-ink-faint">
+            {MONTHS[competenceMonth - 1]}/{competenceYear} · vence {dueDate}
+            {canManage && status !== "Pago" && status !== "Cancelado" && (
+              <button
+                type="button"
+                onClick={() => setEditingDate(true)}
+                className="ml-1.5 text-pitch-dark hover:underline font-semibold"
+              >
+                editar
+              </button>
+            )}
+          </span>
+        )}
       </div>
       <span className="font-mono text-sm font-semibold">{formatCents(amountCents)}</span>
-      <Badge tone={STATUS_TONE[status]}>{status}</Badge>
+      <Badge tone={isOverdue ? "clay" : STATUS_TONE[status]}>
+        {isOverdue ? "Atrasado" : status}
+      </Badge>
       {canManage && status !== "Pago" && status !== "Cancelado" && (
         <button
           type="button"
@@ -95,6 +157,16 @@ export function ChargeRow({
           className="text-[11px] font-semibold text-pitch-dark hover:underline disabled:opacity-50"
         >
           Marcar pago
+        </button>
+      )}
+      {canManage && status === "Pago" && (
+        <button
+          type="button"
+          onClick={undoPaid}
+          disabled={pending}
+          className="text-[11px] font-semibold text-ink-faint hover:text-clay disabled:opacity-50"
+        >
+          Desfazer baixa
         </button>
       )}
       {canManage && status === "Pendente" && (

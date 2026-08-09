@@ -77,12 +77,25 @@ export default async function DashboardPage() {
   ]);
 
   const total = athletesCount ?? 0;
-  const openTotalCents = (openCharges ?? []).reduce((sum, c) => sum + c.amount_cents, 0);
-  const overdueCount = (openCharges ?? []).filter((c) => c.status === "Atrasado").length;
-  const openTotalFormatted = (openTotalCents / 100).toLocaleString("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  });
+  const charges = openCharges ?? [];
+  const openTotalCents = charges.reduce((sum, c) => sum + c.amount_cents, 0);
+  // Inadimplência conta por data de vencimento, não só pelo status "Atrasado" —
+  // nada muda esse status sozinho quando a data passa, então confiar só nele
+  // subestimaria a inadimplência real.
+  const isOverdue = (c: { status: string; due_date: string }) =>
+    c.status === "Atrasado" || (c.status === "Pendente" && c.due_date < today);
+  const overdueCharges = charges.filter(isOverdue);
+  const overdueCents = overdueCharges.reduce((sum, c) => sum + c.amount_cents, 0);
+  const overdueCount = overdueCharges.length;
+  const dueTodayCents = charges
+    .filter((c) => c.status === "Pendente" && c.due_date === today)
+    .reduce((sum, c) => sum + c.amount_cents, 0);
+  const due7DaysCents = charges
+    .filter((c) => c.status === "Pendente" && c.due_date >= today && c.due_date <= weekAhead)
+    .reduce((sum, c) => sum + c.amount_cents, 0);
+  const formatCents = (cents: number) =>
+    (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const openTotalFormatted = formatCents(openTotalCents);
   const checkinPct =
     total > 0
       ? Math.round(
@@ -104,7 +117,7 @@ export default async function DashboardPage() {
       </div>
       <h1 className="text-[28px] mb-6">Olá, {profile!.fullName.split(" ")[0]} 👋</h1>
 
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-5">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
         <Card>
           <span className="text-xs font-semibold text-ink-soft">Atletas ativos</span>
           <b className="block font-display text-[34px] leading-none mt-1">{total}</b>
@@ -125,14 +138,39 @@ export default async function DashboardPage() {
             {healthAlertsCount ?? 0}
           </b>
         </Card>
+      </div>
+
+      <div className="text-xs font-semibold text-ink-faint uppercase tracking-wide mb-2">
+        Financeiro
+      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
         <Card>
-          <span className="text-xs font-semibold text-ink-soft">Financeiro em aberto</span>
-          <b className="block font-display text-[26px] leading-none mt-1 truncate">
+          <span className="text-xs font-semibold text-ink-soft">Em aberto (total)</span>
+          <b className="block font-display text-2xl leading-none mt-1 truncate">
             {openTotalFormatted}
+          </b>
+        </Card>
+        <Card>
+          <span className="text-xs font-semibold text-ink-soft">A receber hoje</span>
+          <b className="block font-display text-2xl leading-none mt-1 truncate">
+            {formatCents(dueTodayCents)}
+          </b>
+        </Card>
+        <Card>
+          <span className="text-xs font-semibold text-ink-soft">A receber em 7 dias</span>
+          <b className="block font-display text-2xl leading-none mt-1 truncate">
+            {formatCents(due7DaysCents)}
+          </b>
+        </Card>
+        <Card>
+          <span className="text-xs font-semibold text-ink-soft">Inadimplência</span>
+          <b className="block font-display text-2xl leading-none mt-1 truncate text-clay">
+            {formatCents(overdueCents)}
           </b>
           {overdueCount > 0 && (
             <span className="text-[11px] text-clay font-semibold mt-1 block">
-              {overdueCount} atrasado{overdueCount > 1 ? "s" : ""}
+              {overdueCount} lançamento{overdueCount > 1 ? "s" : ""} atrasado
+              {overdueCount > 1 ? "s" : ""}
             </span>
           )}
         </Card>

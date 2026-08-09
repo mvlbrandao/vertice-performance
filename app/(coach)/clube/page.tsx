@@ -12,6 +12,7 @@ import { NewPartnerClubCategoryModal } from "@/components/partnerClubs/NewPartne
 import { DeletePartnerClubCategoryButton } from "@/components/partnerClubs/DeletePartnerClubCategoryButton";
 import { EditPartnerClubColorsModal } from "@/components/partnerClubs/EditPartnerClubColorsModal";
 import { SubStaffModal } from "@/components/partnerClubs/SubStaffModal";
+import { ManagedToggle } from "@/components/partnerClubs/ManagedToggle";
 
 export default async function ClubPage() {
   const profile = await getSessionProfile();
@@ -28,7 +29,7 @@ export default async function ClubPage() {
     supabase.from("clubs").select("name, created_at").eq("id", profile!.clubId).single(),
     supabase
       .from("partner_clubs")
-      .select("id, name, color_1, color_2, color_3")
+      .select("id, name, color_1, color_2, color_3, is_managed")
       .eq("club_id", profile!.clubId)
       .order("name", { ascending: true }),
     supabase
@@ -120,7 +121,7 @@ export default async function ClubPage() {
                   <div className="flex items-center justify-between gap-2 flex-wrap mb-2.5">
                     <div className="flex items-center gap-2 flex-wrap">
                       <b className="text-sm">{pc.name}</b>
-                      <Badge tone="green">Sob sua gestão</Badge>
+                      <ManagedToggle partnerClubId={pc.id} isManaged={pc.is_managed} />
                       <EditPartnerClubColorsModal
                         partnerClubId={pc.id}
                         clubName={pc.name}

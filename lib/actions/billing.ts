@@ -112,6 +112,25 @@ export async function setChargeStatus(
   return { success: true };
 }
 
+export async function updateChargeDueDate(
+  chargeId: string,
+  athleteId: string,
+  dueDate: string,
+): Promise<ActionResult> {
+  const coach = await requireCoach();
+  if (!dueDate) return { error: "Informe uma data válida." };
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("athlete_charges")
+    .update({ due_date: dueDate })
+    .eq("id", chargeId)
+    .eq("club_id", coach.clubId);
+  if (error) return { error: error.message };
+
+  paths(athleteId);
+  return { success: true };
+}
+
 export async function deleteCharge(chargeId: string, athleteId: string): Promise<ActionResult> {
   const coach = await requireCoach();
   const supabase = await createClient();

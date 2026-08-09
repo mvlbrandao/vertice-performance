@@ -116,3 +116,119 @@ export async function deleteGame(gameId: string): Promise<ActionResult> {
   revalidatePath("/jogos");
   return { success: true };
 }
+
+function lineupPaths(gameId: string) {
+  revalidatePath(`/jogos/${gameId}`);
+  revalidatePath(`/jogos/${gameId}/escalacao`);
+  revalidatePath("/minha-agenda");
+  revalidatePath("/perfil");
+}
+
+export async function setLineupStatus(
+  gameId: string,
+  athleteId: string,
+  status: "Titular" | "Reserva" | "Convocado" | null,
+): Promise<ActionResult> {
+  const coach = await requireCoach();
+  const supabase = await createClient();
+
+  if (status === null) {
+    const { error } = await supabase
+      .from("game_lineups")
+      .delete()
+      .eq("club_id", coach.clubId)
+      .eq("game_id", gameId)
+      .eq("athlete_id", athleteId);
+    if (error) return { error: error.message };
+    lineupPaths(gameId);
+    return { success: true };
+  }
+
+  const { error } = await supabase.from("game_lineups").upsert(
+    { club_id: coach.clubId, game_id: gameId, athlete_id: athleteId, status },
+    { onConflict: "game_id,athlete_id" },
+  );
+  if (error) return { error: error.message };
+
+  lineupPaths(gameId);
+  return { success: true };
+}
+
+export async function setLineupNotes(
+  gameId: string,
+  athleteId: string,
+  notes: string,
+): Promise<ActionResult> {
+  const coach = await requireCoach();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("game_lineups")
+    .update({ notes: notes || null })
+    .eq("club_id", coach.clubId)
+    .eq("game_id", gameId)
+    .eq("athlete_id", athleteId);
+  if (error) return { error: error.message };
+
+  lineupPaths(gameId);
+  return { success: true };
+}
+
+const lineupMaterialSchema = z.object({
+  gameId: z.string().uuid(),
+  playId: z.string().uuid().optional().or(z.literal("")),
+  videoUrl: z.string().trim().url("Link de vídeo inválido.").optional().or(z.literal("")),
+});
+
+export async function updateLineupMaterial(formData: FormData): Promise<ActionResult> {
+  const coach = await requireCoach();
+  const parsed = lineupMaterialSchema.safeParse({
+    gameId: formData.get("gameId"),
+    playId: formData.get("playId") ?? "",
+    videoUrl: formData.get("videoUrl") ?? "",
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("games")
+    .update({
+      lineup_play_id: parsed.data.playId || null,
+      lineup_video_url: parsed.data.videoUrl || null,
+    })
+    .eq("id", parsed.data.gameId)
+    .eq("club_id", coach.clubId);
+  if (error) return { error: error.message };
+
+  lineupPaths(parsed.data.gameId);
+  return { success: true };
+}
+
+export async function publishLineup(gameId: string): Promise<ActionResult> {
+  const coach = await requireCoach();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("games")
+    .update({ lineup_published_at: new Date().toISOString() })
+    .eq("id", gameId)
+    .eq("club_id", coach.clubId);
+  if (error) return { error: error.message };
+
+  lineupPaths(gameId);
+  return { success: true };
+}
+
+export async function unpublishLineup(gameId: string): Promise<ActionResult> {
+  const coach = await requireCoach();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("games")
+    .update({ lineup_published_at: null })
+    .eq("id", gameId)
+    .eq("club_id", coach.clubId);
+  if (error) return { error: error.message };
+
+  lineupPaths(gameId);
+  return { success: true };
+}

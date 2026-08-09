@@ -18,7 +18,7 @@ export default async function GameSumulaPage({
   const { data: game } = await supabase
     .from("games")
     .select(
-      "id, opponent, scheduled_date, scheduled_time, location, target_type, target_athlete_id, target_team, target_category, our_score, opponent_score, competitions(name)",
+      "id, opponent, scheduled_date, scheduled_time, location, target_type, target_athlete_id, target_team, target_category, our_score, opponent_score, lineup_published_at, competitions(name)",
     )
     .eq("id", gameId)
     .eq("club_id", profile!.clubId)
@@ -69,11 +69,19 @@ export default async function GameSumulaPage({
               {game.location ? ` · ${game.location}` : ""}
             </div>
           </div>
-          <Badge tone={game.target_type === "team" ? "sky" : "amber"}>
-            {game.target_type === "team"
-              ? `${game.target_team} · ${game.target_category ?? "—"}`
-              : "Individual"}
-          </Badge>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge tone={game.target_type === "team" ? "sky" : "amber"}>
+              {game.target_type === "team"
+                ? `${game.target_team} · ${game.target_category ?? "—"}`
+                : "Individual"}
+            </Badge>
+            <Link
+              href={`/jogos/${game.id}/escalacao`}
+              className="text-xs font-semibold border border-line rounded-sm px-2.5 py-1.5 hover:border-pitch-dark"
+            >
+              📋 Escalação{game.lineup_published_at ? " · publicada" : ""}
+            </Link>
+          </div>
         </div>
       </div>
 

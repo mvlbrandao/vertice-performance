@@ -579,6 +579,9 @@ export interface Database {
           notes: string | null;
           our_score: number | null;
           opponent_score: number | null;
+          lineup_play_id: string | null;
+          lineup_video_url: string | null;
+          lineup_published_at: string | null;
           created_at: string;
         };
         Insert: {
@@ -597,9 +600,34 @@ export interface Database {
           notes?: string | null;
           our_score?: number | null;
           opponent_score?: number | null;
+          lineup_play_id?: string | null;
+          lineup_video_url?: string | null;
+          lineup_published_at?: string | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["games"]["Insert"]>;
+        Relationships: [];
+      };
+      game_lineups: {
+        Row: {
+          id: string;
+          club_id: string;
+          game_id: string;
+          athlete_id: string;
+          status: "Titular" | "Reserva" | "Convocado";
+          notes: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          club_id: string;
+          game_id: string;
+          athlete_id: string;
+          status?: "Titular" | "Reserva" | "Convocado";
+          notes?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["game_lineups"]["Insert"]>;
         Relationships: [];
       };
       game_events: {

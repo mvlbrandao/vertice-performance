@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getSessionProfile } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { resolveSignedUrl } from "@/lib/storage/resolveSignedUrl";
@@ -38,11 +39,33 @@ export default async function AthletePerfilPage() {
 
   if (!athlete) return null;
 
-  const [signedPhotoUrl, score] = await Promise.all([
+  const [signedPhotoUrl, score, { data: lineupRows }] = await Promise.all([
     resolveSignedUrl("athlete-photos", athlete.photo_url),
     computePlayerScore(supabase, athlete.id),
+    supabase
+      .from("game_lineups")
+      .select(
+        "status, notes, games(id, opponent, scheduled_date, scheduled_time, lineup_video_url, plays(name))",
+      )
+      .eq("athlete_id", athlete.id),
   ]);
   const hasPain = athlete.current_pain && athlete.current_pain !== "Nenhuma";
+  const today = new Date().toISOString().slice(0, 10);
+  const upcomingConvocations = (lineupRows ?? [])
+    .map((l) => ({
+      status: l.status,
+      notes: l.notes,
+      game: l.games as unknown as {
+        id: string;
+        opponent: string;
+        scheduled_date: string;
+        scheduled_time: string | null;
+        lineup_video_url: string | null;
+        plays: { name: string } | null;
+      } | null,
+    }))
+    .filter((l) => l.game && l.game.scheduled_date >= today)
+    .sort((a, b) => a.game!.scheduled_date.localeCompare(b.game!.scheduled_date));
 
   return (
     <div>
@@ -93,6 +116,50 @@ export default async function AthletePerfilPage() {
           </div>
         </div>
       </Card>
+
+      {upcomingConvocations.length > 0 && (
+        <div className="flex flex-col gap-2.5 mb-4">
+          {upcomingConvocations.map((l) => (
+            <Card key={l.game!.id} className="border-l-4 border-l-pitch-dark">
+              <div className="flex items-center justify-between flex-wrap gap-2 mb-1.5">
+                <b className="text-sm">📣 Convocado — vs. {l.game!.opponent}</b>
+                <Badge tone={l.status === "Titular" ? "green" : l.status === "Reserva" ? "sky" : "amber"}>
+                  {l.status}
+                </Badge>
+              </div>
+              <p className="text-xs text-ink-faint m-0 mb-1.5">
+                {l.game!.scheduled_date}
+                {l.game!.scheduled_time ? ` às ${l.game!.scheduled_time.slice(0, 5)}` : ""}
+              </p>
+              {l.notes && (
+                <p className="text-[12.5px] bg-chalk border border-line rounded-sm px-2.5 py-2 m-0 mb-1.5">
+                  {l.notes}
+                </p>
+              )}
+              <div className="flex gap-2 flex-wrap">
+                {l.game!.plays?.name && (
+                  <Link
+                    href="/mesa-tatica"
+                    className="text-xs font-semibold border border-line rounded-sm px-2.5 py-1.5 hover:border-pitch-dark"
+                  >
+                    🎯 Jogada: {l.game!.plays.name}
+                  </Link>
+                )}
+                {l.game!.lineup_video_url && (
+                  <a
+                    href={l.game!.lineup_video_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-semibold border border-line rounded-sm px-2.5 py-1.5 hover:border-pitch-dark"
+                  >
+                    ▶ Ver vídeo
+                  </a>
+                )}
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
 
       <div className="mb-4">
         <PlayerScoreCard

@@ -76,6 +76,27 @@ export default async function DashboardPage() {
       .in("status", ["Pendente", "Atrasado"]),
   ]);
 
+  // Jogos das equipes sob gestão (não de qualquer clube só cadastrado como
+  // referência) — mesmo critério do toggle "Sob sua gestão" em /clube.
+  const { data: managedClubs } = await supabase
+    .from("partner_clubs")
+    .select("name")
+    .eq("club_id", clubId)
+    .eq("is_managed", true);
+  const managedNames = (managedClubs ?? []).map((c) => c.name);
+  const { data: upcomingGames } =
+    managedNames.length > 0
+      ? await supabase
+          .from("games")
+          .select("id, opponent, scheduled_date, scheduled_time, target_team, competitions(name)")
+          .eq("club_id", clubId)
+          .in("target_team", managedNames)
+          .gte("scheduled_date", today)
+          .order("scheduled_date", { ascending: true })
+          .order("scheduled_time", { ascending: true })
+          .limit(5)
+      : { data: [] };
+
   const total = athletesCount ?? 0;
   const charges = openCharges ?? [];
   const openTotalCents = charges.reduce((sum, c) => sum + c.amount_cents, 0);
@@ -87,6 +108,7 @@ export default async function DashboardPage() {
   const overdueCharges = charges.filter(isOverdue);
   const overdueCents = overdueCharges.reduce((sum, c) => sum + c.amount_cents, 0);
   const overdueCount = overdueCharges.length;
+  const overduePct = openTotalCents > 0 ? Math.round((overdueCents / openTotalCents) * 100) : 0;
   const dueTodayCents = charges
     .filter((c) => c.status === "Pendente" && c.due_date === today)
     .reduce((sum, c) => sum + c.amount_cents, 0);
@@ -165,7 +187,8 @@ export default async function DashboardPage() {
         <Card>
           <span className="text-xs font-semibold text-ink-soft">Inadimplência</span>
           <b className="block font-display text-2xl leading-none mt-1 truncate text-clay">
-            {formatCents(overdueCents)}
+            {formatCents(overdueCents)}{" "}
+            <span className="text-base font-semibold">({overduePct}%)</span>
           </b>
           {overdueCount > 0 && (
             <span className="text-[11px] text-clay font-semibold mt-1 block">
@@ -258,6 +281,43 @@ export default async function DashboardPage() {
           )}
         </Card>
       </div>
+
+      <Card shadow className="mt-4">
+        <div className="flex items-center justify-between mb-3.5">
+          <div>
+            <h2 className="text-[22px] m-0">Próximos jogos</h2>
+            <div className="text-xs text-ink-faint mt-0.5">Equipes sob sua gestão</div>
+          </div>
+          <Link href="/jogos" className="text-xs font-semibold text-pitch-dark hover:underline">
+            Ver todos
+          </Link>
+        </div>
+        {!upcomingGames || upcomingGames.length === 0 ? (
+          <EmptyState icon="🏆" message="Nenhum jogo agendado pras suas equipes." />
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {upcomingGames.map((g) => (
+              <Link
+                key={g.id}
+                href={`/jogos/${g.id}`}
+                className="border border-line rounded-md px-3.5 py-3 hover:border-pitch-dark hover:shadow-card block"
+              >
+                <div className="flex items-center gap-1.5 flex-wrap mb-1.5">
+                  <Badge tone="dark">{g.target_team}</Badge>
+                  <span className="text-[11px] text-ink-faint">
+                    {(g.competitions as unknown as { name: string } | null)?.name ?? "—"}
+                  </span>
+                </div>
+                <b className="text-sm block">vs. {g.opponent}</b>
+                <span className="text-xs text-ink-faint">
+                  {g.scheduled_date}
+                  {g.scheduled_time ? ` às ${g.scheduled_time.slice(0, 5)}` : ""}
+                </span>
+              </Link>
+            ))}
+          </div>
+        )}
+      </Card>
 
       <div className="flex gap-2 items-start bg-[#FDE8E8] border border-[#F5AAAA] text-[#8B0000] rounded-md px-3.5 py-3 text-[12.5px] mt-4.5">
         <span>🛡️</span>

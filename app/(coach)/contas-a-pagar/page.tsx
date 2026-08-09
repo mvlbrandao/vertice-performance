@@ -20,7 +20,7 @@ export default async function ContasAPagarPage() {
   const [{ data: expenses }, { data: categories }] = await Promise.all([
     supabase
       .from("expenses")
-      .select("id, description, amount_cents, due_date, status, expense_categories(name)")
+      .select("id, description, amount_cents, due_date, status, category_id, notes, expense_categories(name)")
       .eq("club_id", profile!.clubId)
       .order("due_date", { ascending: true }),
     supabase
@@ -83,10 +83,13 @@ export default async function ContasAPagarPage() {
               key={e.id}
               id={e.id}
               description={e.description}
+              categoryId={e.category_id}
               categoryName={
                 (e.expense_categories as unknown as { name: string } | null)?.name ?? null
               }
+              categories={categories ?? []}
               amountCents={e.amount_cents}
+              notes={e.notes}
               dueDate={e.due_date}
               status={e.status}
             />

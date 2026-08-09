@@ -906,6 +906,32 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["expenses"]["Insert"]>;
         Relationships: [];
       };
+      financial_audit_log: {
+        Row: {
+          id: string;
+          club_id: string;
+          entity_type: "charge" | "expense";
+          entity_id: string;
+          action: "status_change" | "due_date_change" | "edit" | "delete";
+          details: Record<string, unknown>;
+          performed_by: string;
+          performed_by_name: string;
+          performed_at: string;
+        };
+        Insert: {
+          id?: string;
+          club_id: string;
+          entity_type: "charge" | "expense";
+          entity_id: string;
+          action: "status_change" | "due_date_change" | "edit" | "delete";
+          details?: Record<string, unknown>;
+          performed_by: string;
+          performed_by_name: string;
+          performed_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["financial_audit_log"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {

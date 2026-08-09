@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/Badge";
 import { setExpenseStatus, deleteExpense, updateExpenseDueDate } from "@/lib/actions/expenses";
+import { EditExpenseModal } from "@/components/expenses/EditExpenseModal";
 import type { ChargeStatus } from "@/lib/types/database";
 
 const STATUS_TONE: Record<ChargeStatus, "green" | "amber" | "clay" | "dark"> = {
@@ -24,21 +25,28 @@ function todayISO() {
 export function ExpenseRow({
   id,
   description,
+  categoryId,
   categoryName,
+  categories,
   amountCents,
+  notes,
   dueDate,
   status,
 }: {
   id: string;
   description: string;
+  categoryId: string | null;
   categoryName: string | null;
+  categories: { id: string; name: string }[];
   amountCents: number;
+  notes: string | null;
   dueDate: string;
   status: ChargeStatus;
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [editingDate, setEditingDate] = useState(false);
+  const [editingExpense, setEditingExpense] = useState(false);
   const [dateValue, setDateValue] = useState(dueDate);
   const isOverdue = status === "Atrasado" || (status === "Pendente" && dueDate < todayISO());
 
@@ -84,7 +92,24 @@ export function ExpenseRow({
         <div className="flex items-center gap-1.5 flex-wrap">
           <b className="text-sm">{description}</b>
           {categoryName && <Badge tone="sky">{categoryName}</Badge>}
+          <button
+            type="button"
+            onClick={() => setEditingExpense(true)}
+            className="text-[11px] font-semibold text-pitch-dark hover:underline"
+          >
+            editar
+          </button>
         </div>
+        <EditExpenseModal
+          id={id}
+          categories={categories}
+          categoryId={categoryId}
+          description={description}
+          amountCents={amountCents}
+          notes={notes}
+          open={editingExpense}
+          onClose={() => setEditingExpense(false)}
+        />
         {editingDate ? (
           <span className="inline-flex items-center gap-1.5 mt-1">
             <input

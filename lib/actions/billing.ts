@@ -13,6 +13,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requireCoach } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
+import { logFinancialAudit } from "@/lib/actions/auditLog";
 import type { ActionResult } from "@/lib/actions/athletes";
 import type { ChargeStatus } from "@/lib/types/database";
 
@@ -112,6 +113,12 @@ export async function setChargeStatus(
 ): Promise<ActionResult> {
   const coach = await requireCoach();
   const supabase = await createClient();
+  const { data: previous } = await supabase
+    .from("athlete_charges")
+    .select("status")
+    .eq("id", chargeId)
+    .eq("club_id", coach.clubId)
+    .single();
   const { error } = await supabase
     .from("athlete_charges")
     .update({
@@ -121,6 +128,16 @@ export async function setChargeStatus(
     .eq("id", chargeId)
     .eq("club_id", coach.clubId);
   if (error) return { error: error.message };
+
+  await logFinancialAudit({
+    clubId: coach.clubId,
+    entityType: "charge",
+    entityId: chargeId,
+    action: "status_change",
+    details: { from: previous?.status ?? null, to: status },
+    performedBy: coach.userId,
+    performedByName: coach.fullName,
+  });
 
   paths(athleteId);
   return { success: true };
@@ -134,12 +151,28 @@ export async function updateChargeDueDate(
   const coach = await requireCoach();
   if (!dueDate) return { error: "Informe uma data válida." };
   const supabase = await createClient();
+  const { data: previous } = await supabase
+    .from("athlete_charges")
+    .select("due_date")
+    .eq("id", chargeId)
+    .eq("club_id", coach.clubId)
+    .single();
   const { error } = await supabase
     .from("athlete_charges")
     .update({ due_date: dueDate })
     .eq("id", chargeId)
     .eq("club_id", coach.clubId);
   if (error) return { error: error.message };
+
+  await logFinancialAudit({
+    clubId: coach.clubId,
+    entityType: "charge",
+    entityId: chargeId,
+    action: "due_date_change",
+    details: { from: previous?.due_date ?? null, to: dueDate },
+    performedBy: coach.userId,
+    performedByName: coach.fullName,
+  });
 
   paths(athleteId);
   return { success: true };

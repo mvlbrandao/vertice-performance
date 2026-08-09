@@ -92,10 +92,25 @@ export function NewExpenseModal({
           <Field label="Descrição">
             <Input name="description" required placeholder="Ex: Aluguel do campo — agosto" />
           </Field>
-          <Field label="Valor (R$)">
-            <Input name="amount" required inputMode="decimal" placeholder="Ex: 800,00" />
-          </Field>
-          <Field label="Vencimento">
+          <div className="grid grid-cols-2 gap-2.5">
+            <Field label="Valor (R$)">
+              <Input name="amount" required inputMode="decimal" placeholder="Ex: 800,00" />
+            </Field>
+            <Field label="Parcelas">
+              <select
+                name="installments"
+                defaultValue="1"
+                className="w-full px-3 py-2.5 border border-line rounded-sm bg-white text-sm"
+              >
+                {[1, 2, 3, 4, 5, 6, 10, 12, 18, 24].map((n) => (
+                  <option key={n} value={n}>
+                    {n}x{n > 1 ? " (mensal)" : ""}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
+          <Field label="Vencimento (1ª parcela)">
             <Input name="dueDate" type="date" required />
           </Field>
           <Field label="Observações (opcional)">

@@ -14,6 +14,7 @@ const navItems: NavItem[] = [
       { href: "/contas-a-receber", icon: "💳", label: "Contas a Receber" },
       { href: "/contas-a-pagar", icon: "💸", label: "Contas a Pagar" },
       { href: "/relatorios", icon: "📈", label: "Relatórios" },
+      { href: "/auditoria", icon: "🕵️", label: "Auditoria" },
     ],
   },
   { href: "/plays", icon: "🎯", label: "Mesa Tática" },

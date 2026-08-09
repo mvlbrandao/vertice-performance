@@ -1,5 +1,8 @@
+import Link from "next/link";
 import { getSessionProfile } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
+import { resolveSignedUrl } from "@/lib/storage/resolveSignedUrl";
+import { initials } from "@/lib/utils/initials";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { NewPartnerClubModal } from "@/components/partnerClubs/NewPartnerClubModal";
@@ -12,25 +15,45 @@ export default async function ClubPage() {
   const profile = await getSessionProfile();
   const supabase = await createClient();
 
-  const [{ data: club }, { data: partnerClubs }, { data: categories }] = await Promise.all([
-    supabase.from("clubs").select("name, created_at").eq("id", profile!.clubId).single(),
-    supabase
-      .from("partner_clubs")
-      .select("id, name, color_1, color_2, color_3")
-      .eq("club_id", profile!.clubId)
-      .order("name", { ascending: true }),
-    supabase
-      .from("partner_club_categories")
-      .select("id, name, partner_club_id")
-      .eq("club_id", profile!.clubId)
-      .order("name", { ascending: true }),
-  ]);
+  const [{ data: club }, { data: partnerClubs }, { data: categories }, { data: athletes }] =
+    await Promise.all([
+      supabase.from("clubs").select("name, created_at").eq("id", profile!.clubId).single(),
+      supabase
+        .from("partner_clubs")
+        .select("id, name, color_1, color_2, color_3")
+        .eq("club_id", profile!.clubId)
+        .order("name", { ascending: true }),
+      supabase
+        .from("partner_club_categories")
+        .select("id, name, partner_club_id")
+        .eq("club_id", profile!.clubId)
+        .order("name", { ascending: true }),
+      supabase
+        .from("athletes")
+        .select("id, full_name, team, category, photo_url, photo_color")
+        .eq("club_id", profile!.clubId)
+        .order("full_name", { ascending: true }),
+    ]);
 
   const categoriesByClub = new Map<string, { id: string; name: string }[]>();
   for (const c of categories ?? []) {
     const list = categoriesByClub.get(c.partner_club_id) ?? [];
     list.push({ id: c.id, name: c.name });
     categoriesByClub.set(c.partner_club_id, list);
+  }
+
+  const athletesWithPhotos = await Promise.all(
+    (athletes ?? []).map(async (a) => ({
+      ...a,
+      signedPhotoUrl: await resolveSignedUrl("athlete-photos", a.photo_url),
+    })),
+  );
+  const athletesByClub = new Map<string, typeof athletesWithPhotos>();
+  for (const a of athletesWithPhotos) {
+    if (!a.team) continue;
+    const list = athletesByClub.get(a.team) ?? [];
+    list.push(a);
+    athletesByClub.set(a.team, list);
   }
 
   return (
@@ -59,6 +82,7 @@ export default async function ClubPage() {
           <div className="flex flex-col gap-3">
             {partnerClubs.map((pc) => {
               const clubCategories = categoriesByClub.get(pc.id) ?? [];
+              const clubAthletes = athletesByClub.get(pc.name) ?? [];
               return (
                 <div key={pc.id} className="border border-line rounded-md p-3.5">
                   <div className="flex items-center justify-between gap-2 flex-wrap mb-2.5">
@@ -92,6 +116,45 @@ export default async function ClubPage() {
                       ))}
                     </div>
                   )}
+
+                  <div className="mt-3 pt-3 border-t border-line">
+                    <div className="text-[11px] font-semibold text-ink-faint uppercase tracking-wide mb-2">
+                      Atletas · {clubAthletes.length}
+                    </div>
+                    {clubAthletes.length === 0 ? (
+                      <p className="text-xs text-ink-faint m-0">Nenhum atleta neste clube.</p>
+                    ) : (
+                      <div className="flex flex-col gap-1">
+                        {clubAthletes.map((a) => (
+                          <Link
+                            key={a.id}
+                            href={`/athletes/${a.id}/dados`}
+                            className="flex items-center gap-2 px-1.5 py-1 rounded-sm hover:bg-chalk"
+                          >
+                            {a.signedPhotoUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={a.signedPhotoUrl}
+                                alt={a.full_name}
+                                className="w-6 h-6 rounded-md object-cover shrink-0"
+                              />
+                            ) : (
+                              <div
+                                className="w-6 h-6 rounded-md flex items-center justify-center font-display text-[10px] shrink-0"
+                                style={{ background: a.photo_color ?? "#111", color: "#FFD600" }}
+                              >
+                                {initials(a.full_name)}
+                              </div>
+                            )}
+                            <span className="text-xs font-semibold truncate">{a.full_name}</span>
+                            {a.category && (
+                              <span className="text-[11px] text-ink-faint">· {a.category}</span>
+                            )}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })}

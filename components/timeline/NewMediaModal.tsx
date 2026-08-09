@@ -8,7 +8,15 @@ import { Field, Input } from "@/components/ui/Field";
 import { uploadMediaItem } from "@/lib/storage/upload";
 import { createMediaItemRecord } from "@/lib/actions/media";
 
-export function NewMediaModal({ clubId, athleteId }: { clubId: string; athleteId: string }) {
+export function NewMediaModal({
+  clubId,
+  athleteId,
+  openSwotItems = [],
+}: {
+  clubId: string;
+  athleteId: string;
+  openSwotItems?: { id: string; category: string; description: string }[];
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
@@ -20,6 +28,7 @@ export function NewMediaModal({ clubId, athleteId }: { clubId: string; athleteId
     const form = new FormData(e.currentTarget);
     const label = String(form.get("label") ?? "").trim();
     const entryDate = String(form.get("entryDate") ?? "");
+    const swotItemId = String(form.get("swotItemId") ?? "");
     const file = form.get("file") as File | null;
 
     if (!label) {
@@ -48,6 +57,7 @@ export function NewMediaModal({ clubId, athleteId }: { clubId: string; athleteId
       mediaType,
       storagePath: path,
       entryDate: entryDate || undefined,
+      swotItemId: swotItemId || undefined,
     });
     setPending(false);
     if (result.error) {
@@ -85,6 +95,22 @@ export function NewMediaModal({ clubId, athleteId }: { clubId: string; athleteId
               className="text-sm"
             />
           </Field>
+          {openSwotItems.length > 0 && (
+            <Field label="Vincular a um ponto da anamnese (opcional)">
+              <select
+                name="swotItemId"
+                defaultValue=""
+                className="w-full px-3 py-2.5 border border-line rounded-sm bg-white text-sm"
+              >
+                <option value="">Nenhum</option>
+                {openSwotItems.map((it) => (
+                  <option key={it.id} value={it.id}>
+                    {it.category} — {it.description}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
           {error && <div className="text-clay text-[12.5px] font-medium">{error}</div>}
           <div className="flex justify-end gap-2.5 mt-2">
             <Button type="button" variant="ghost" onClick={() => setOpen(false)}>

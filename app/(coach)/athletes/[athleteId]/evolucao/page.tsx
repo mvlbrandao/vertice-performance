@@ -101,6 +101,21 @@ export default async function AthleteEvolucaoPage({
     .eq("id", athleteId)
     .single();
 
+  const { data: openCycle } = await supabase
+    .from("athlete_swot_cycles")
+    .select("id")
+    .eq("athlete_id", athleteId)
+    .eq("status", "Aberto")
+    .maybeSingle();
+  const { data: openSwotItems } = openCycle
+    ? await supabase
+        .from("athlete_swot_items")
+        .select("id, category, description")
+        .eq("cycle_id", openCycle.id)
+        .eq("status", "Aberto")
+        .order("created_at", { ascending: true })
+    : { data: null };
+
   const [
     { data: gameReports },
     { data: mentalNotes },
@@ -261,9 +276,13 @@ export default async function AthleteEvolucaoPage({
           </div>
         </div>
         <div className="flex gap-2">
-          <NewMediaModal clubId={profile!.clubId} athleteId={athleteId} />
-          <NewMentalNoteModal athleteId={athleteId} />
-          <NewGameReportModal athleteId={athleteId} />
+          <NewMediaModal
+            clubId={profile!.clubId}
+            athleteId={athleteId}
+            openSwotItems={openSwotItems ?? []}
+          />
+          <NewMentalNoteModal athleteId={athleteId} openSwotItems={openSwotItems ?? []} />
+          <NewGameReportModal athleteId={athleteId} openSwotItems={openSwotItems ?? []} />
         </div>
       </div>
 

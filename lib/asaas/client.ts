@@ -104,3 +104,39 @@ export async function getSubscriptionPaymentLink(subscriptionId: string) {
   );
   return res.data[0]?.invoiceUrl ?? null;
 }
+
+export type AsaasFinancialTransaction = {
+  id: string;
+  type: string;
+  value: number;
+  date: string;
+  description: string;
+};
+
+const FEE_TYPES = new Set([
+  "TRANSFER_FEE",
+  "PAYMENT_FEE",
+  "PIX_TRANSACTION_DEBIT_FEE",
+  "BILL_PAYMENT_FEE",
+  "INVOICE_FEE",
+  "POSTAL_SERVICE_FEE",
+]);
+
+/** Busca todas as páginas de extrato do período (limit máximo do Asaas é 100/página). */
+export async function listFinancialTransactions(startDate: string, finishDate: string) {
+  const all: AsaasFinancialTransaction[] = [];
+  let offset = 0;
+  for (;;) {
+    const res = await asaasFetch<{ data: AsaasFinancialTransaction[]; hasMore: boolean }>(
+      `/financialTransactions?startDate=${startDate}&finishDate=${finishDate}&limit=100&offset=${offset}`,
+    );
+    all.push(...res.data);
+    if (!res.hasMore) break;
+    offset += 100;
+  }
+  return all;
+}
+
+export function isAsaasFeeTransaction(type: string) {
+  return FEE_TYPES.has(type);
+}

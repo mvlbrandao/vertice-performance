@@ -208,6 +208,7 @@ export interface Database {
           body: string;
           confidence_score: number | null;
           video_url: string | null;
+          swot_item_id: string | null;
           entry_date: string;
           created_at: string;
         };
@@ -220,6 +221,7 @@ export interface Database {
           body: string;
           confidence_score?: number | null;
           video_url?: string | null;
+          swot_item_id?: string | null;
           entry_date?: string;
           created_at?: string;
         };
@@ -237,6 +239,7 @@ export interface Database {
           opponent: string;
           strengths: string | null;
           improve: string | null;
+          swot_item_id: string | null;
           entry_date: string;
           created_at: string;
         };
@@ -248,6 +251,7 @@ export interface Database {
           opponent: string;
           strengths?: string | null;
           improve?: string | null;
+          swot_item_id?: string | null;
           entry_date?: string;
           created_at?: string;
         };
@@ -266,6 +270,7 @@ export interface Database {
           media_type: MediaType;
           storage_path: string | null;
           thumbnail_color: string | null;
+          swot_item_id: string | null;
           entry_date: string;
           created_at: string;
         };
@@ -278,6 +283,7 @@ export interface Database {
           media_type: MediaType;
           storage_path?: string | null;
           thumbnail_color?: string | null;
+          swot_item_id?: string | null;
           entry_date?: string;
           created_at?: string;
         };

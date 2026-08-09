@@ -11,6 +11,7 @@ const gameReportSchema = z.object({
   opponent: z.string().trim().min(1, "Informe o jogo/adversário."),
   strengths: z.string().trim().optional(),
   improve: z.string().trim().optional(),
+  swotItemId: z.string().uuid().optional().or(z.literal("")),
 });
 
 export async function createGameReport(formData: FormData): Promise<ActionResult> {
@@ -20,6 +21,7 @@ export async function createGameReport(formData: FormData): Promise<ActionResult
     opponent: formData.get("opponent"),
     strengths: formData.get("strengths"),
     improve: formData.get("improve"),
+    swotItemId: formData.get("swotItemId") ?? "",
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
@@ -33,6 +35,7 @@ export async function createGameReport(formData: FormData): Promise<ActionResult
     opponent: parsed.data.opponent,
     strengths: parsed.data.strengths || null,
     improve: parsed.data.improve || null,
+    swot_item_id: parsed.data.swotItemId || null,
   });
 
   if (error) return { error: error.message };
@@ -47,6 +50,7 @@ const mentalNoteSchema = z.object({
   score: z.coerce.number().min(0).max(10).default(7),
   videoUrl: z.string().trim().optional(),
   entryDate: z.string().optional(),
+  swotItemId: z.string().uuid().optional().or(z.literal("")),
 });
 
 export async function createMentalNote(formData: FormData): Promise<ActionResult> {
@@ -58,6 +62,7 @@ export async function createMentalNote(formData: FormData): Promise<ActionResult
     score: formData.get("score"),
     videoUrl: formData.get("videoUrl"),
     entryDate: formData.get("entryDate"),
+    swotItemId: formData.get("swotItemId") ?? "",
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
@@ -72,6 +77,7 @@ export async function createMentalNote(formData: FormData): Promise<ActionResult
     body: parsed.data.body || "—",
     confidence_score: parsed.data.score,
     video_url: parsed.data.videoUrl || null,
+    swot_item_id: parsed.data.swotItemId || null,
     entry_date: parsed.data.entryDate || undefined,
   });
 

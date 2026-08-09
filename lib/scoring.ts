@@ -9,6 +9,7 @@ export interface PlayerScore {
   physical: number;
   mental: number;
   commitment: number;
+  development: number;
 }
 
 function clamp(n: number, min = 0, max = 99) {
@@ -26,6 +27,9 @@ function clamp(n: number, min = 0, max = 99) {
  * - Físico: % de treinos prescritos concluídos.
  * - Mental: média da nota de confiança dos registros mentais (0-10 → 0-99).
  * - Compromisso: % de encontros confirmados pelo atleta.
+ * - Desenvolvimento: % dos pontos de Fraqueza/Ameaça da análise SWOT (todos
+ *   os ciclos) que já foram concluídos — mede se o plano de evolução está
+ *   sendo executado, não só registrado.
  *
  * Categoria sem nenhum dado ainda fica em 50 (neutro) pra não penalizar um
  * atleta recém-cadastrado.
@@ -34,7 +38,7 @@ export async function computePlayerScore(
   supabase: Awaited<ReturnType<typeof createClient>>,
   athleteId: string,
 ): Promise<PlayerScore> {
-  const [{ data: events }, { data: exercises }, { data: meetings }, { data: mentalNotes }] =
+  const [{ data: events }, { data: exercises }, { data: meetings }, { data: mentalNotes }, { data: swotItems }] =
     await Promise.all([
       supabase
         .from("game_events")
@@ -51,6 +55,11 @@ export async function computePlayerScore(
         .select("confidence_score")
         .eq("athlete_id", athleteId)
         .not("confidence_score", "is", null),
+      supabase
+        .from("athlete_swot_items")
+        .select("status")
+        .eq("athlete_id", athleteId)
+        .in("category", ["Fraqueza", "Ameaça"]),
     ]);
 
   const count = (type: string) => (events ?? []).filter((e) => e.event_type === type).length;
@@ -89,7 +98,14 @@ export async function computePlayerScore(
     ? clamp(30 + (meetings!.filter((m) => m.athlete_confirmed).length / totalMeetings) * 69)
     : 50;
 
-  const overall = clamp((attack + defense + discipline + physical + mental + commitment) / 6);
+  const totalSwotIssues = swotItems?.length ?? 0;
+  const development = totalSwotIssues
+    ? clamp(30 + (swotItems!.filter((s) => s.status === "Concluído").length / totalSwotIssues) * 69)
+    : 50;
 
-  return { overall, attack, defense, discipline, physical, mental, commitment };
+  const overall = clamp(
+    (attack + defense + discipline + physical + mental + commitment + development) / 7,
+  );
+
+  return { overall, attack, defense, discipline, physical, mental, commitment, development };
 }

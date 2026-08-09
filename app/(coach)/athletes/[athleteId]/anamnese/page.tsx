@@ -39,6 +39,20 @@ export default async function AthleteAnamnesePage({
         .order("created_at", { ascending: true })
     : { data: null };
 
+  const itemIds = (items ?? []).map((it) => it.id);
+  const evidenceCount = new Map<string, number>();
+  if (itemIds.length > 0) {
+    const [{ data: mentalNotes }, { data: gameReports }, { data: mediaItems }] = await Promise.all([
+      supabase.from("mental_notes").select("swot_item_id").in("swot_item_id", itemIds),
+      supabase.from("game_reports").select("swot_item_id").in("swot_item_id", itemIds),
+      supabase.from("media_items").select("swot_item_id").in("swot_item_id", itemIds),
+    ]);
+    for (const row of [...(mentalNotes ?? []), ...(gameReports ?? []), ...(mediaItems ?? [])]) {
+      if (!row.swot_item_id) continue;
+      evidenceCount.set(row.swot_item_id, (evidenceCount.get(row.swot_item_id) ?? 0) + 1);
+    }
+  }
+
   const itemsByCategory = new Map<string, NonNullable<typeof items>>();
   for (const it of items ?? []) {
     const list = itemsByCategory.get(it.category) ?? [];
@@ -110,6 +124,7 @@ export default async function AthleteAnamnesePage({
                         targetTrainings={it.target_trainings}
                         meetingsDone={it.meetings_done}
                         trainingsDone={it.trainings_done}
+                        evidenceCount={evidenceCount.get(it.id) ?? 0}
                         canManage
                       />
                     ))}

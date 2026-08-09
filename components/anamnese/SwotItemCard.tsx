@@ -34,6 +34,7 @@ export function SwotItemCard({
   targetTrainings,
   meetingsDone,
   trainingsDone,
+  evidenceCount = 0,
   canManage,
 }: {
   id: string;
@@ -45,6 +46,7 @@ export function SwotItemCard({
   targetTrainings: number;
   meetingsDone: number;
   trainingsDone: number;
+  evidenceCount?: number;
   canManage: boolean;
 }) {
   const router = useRouter();
@@ -88,6 +90,11 @@ export function SwotItemCard({
         {status === "Concluído" && <Badge tone="green">✅ Concluído</Badge>}
         {status === "Aberto" && metaReached && (
           <Badge tone="amber">🎯 Meta atingida — reavaliar</Badge>
+        )}
+        {evidenceCount > 0 && (
+          <Badge tone="sky">
+            📎 {evidenceCount} {evidenceCount === 1 ? "evidência vinculada" : "evidências vinculadas"}
+          </Badge>
         )}
       </div>
       {hasTargets && (

@@ -7,6 +7,7 @@ const ATTRIBUTES: { key: keyof Omit<PlayerScore, "overall">; abbr: string; label
   { key: "mental", abbr: "MEN", label: "Mental" },
   { key: "discipline", abbr: "DIS", label: "Disciplina" },
   { key: "commitment", abbr: "COM", label: "Compromisso" },
+  { key: "development", abbr: "DES", label: "Desenvolvimento" },
 ];
 
 function overallColor(v: number) {

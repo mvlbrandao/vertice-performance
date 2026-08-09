@@ -10,7 +10,7 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
-export type UserRole = "coach" | "athlete";
+export type UserRole = "coach" | "athlete" | "staff";
 export type MediaType = "video" | "image";
 export type ExerciseVideoStatus = "Pendente" | "Avaliado";
 export type MeetingType = "Presencial" | "Videochamada";
@@ -72,6 +72,7 @@ export interface Database {
           role: UserRole;
           full_name: string;
           athlete_id: string | null;
+          title: string | null;
           created_at: string;
         };
         Insert: {
@@ -80,9 +81,32 @@ export interface Database {
           role: UserRole;
           full_name: string;
           athlete_id?: string | null;
+          title?: string | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;
+        Relationships: [];
+      };
+      athlete_staff_access: {
+        Row: {
+          id: string;
+          club_id: string;
+          athlete_id: string;
+          staff_profile_id: string;
+          access_level: "view" | "manage";
+          granted_by: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          club_id: string;
+          athlete_id: string;
+          staff_profile_id: string;
+          access_level?: "view" | "manage";
+          granted_by: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["athlete_staff_access"]["Insert"]>;
         Relationships: [];
       };
       athletes: {

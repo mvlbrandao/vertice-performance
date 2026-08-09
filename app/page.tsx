@@ -6,5 +6,6 @@ export default async function Home() {
 
   if (!profile) redirect("/login");
   if (profile.role === "coach") redirect("/dashboard");
+  if (profile.role === "staff") redirect("/meus-atletas");
   redirect("/perfil");
 }

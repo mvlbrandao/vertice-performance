@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/Card";
 import { InviteAthleteModal } from "@/components/athletes/InviteAthleteModal";
+import { EditAthleteModal } from "@/components/athletes/EditAthleteModal";
 
 function Row({ k, v }: { k: string; v: string }) {
   return (
@@ -60,21 +61,43 @@ export default async function AthleteDadosPage({
   return (
     <div className="grid lg:grid-cols-2 gap-4">
       <Card>
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
           <h3 className="m-0">Dados pessoais</h3>
-          <InviteAthleteModal
-            athleteId={athlete.id}
-            fullName={athlete.full_name}
-            alreadyProvisioned={!!existingProfile}
-          />
+          <div className="flex items-center gap-2">
+            <EditAthleteModal
+              athleteId={athlete.id}
+              athlete={{
+                fullName: athlete.full_name,
+                birthDate: athlete.birth_date,
+                category: athlete.category,
+                position: athlete.position,
+                team: athlete.team,
+                guardianName: athlete.guardian_name,
+                guardianPhone: athlete.guardian_phone,
+                athletePhone: athlete.athlete_phone,
+                instagram: athlete.instagram,
+                heightCm: athlete.height_cm,
+                weightKg: athlete.weight_kg,
+              }}
+            />
+            <InviteAthleteModal
+              athleteId={athlete.id}
+              fullName={athlete.full_name}
+              alreadyProvisioned={!!existingProfile}
+            />
+          </div>
         </div>
         <Row k="Nascimento" v={athlete.birth_date ?? "—"} />
         <Row k="Responsável" v={athlete.guardian_name ?? "—"} />
         <Row k="Cel. do responsável" v={athlete.guardian_phone ?? "—"} />
+        <Row k="Cel. do atleta" v={athlete.athlete_phone ?? "—"} />
         <Row k="Instagram" v={athlete.instagram ?? "—"} />
         <Row k="Categoria" v={athlete.category ?? "—"} />
         <Row k="Posição" v={athlete.position ?? "—"} />
         <Row k="Time" v={athlete.team ?? "—"} />
+        <Row k="Altura" v={athlete.height_cm ? `${athlete.height_cm}cm` : "—"} />
+        <Row k="Peso" v={athlete.weight_kg ? `${athlete.weight_kg}kg` : "—"} />
+        <Row k="IMC" v={athlete.bmi ? String(athlete.bmi) : "—"} />
         <Row k="Na plataforma desde" v={athlete.joined_at ?? "—"} />
       </Card>
 

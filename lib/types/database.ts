@@ -377,7 +377,10 @@ export interface Database {
           target_team: string | null;
           svg_content: string | null;
           frames: Json;
+          video_url: string | null;
+          description: string | null;
           created_at: string;
+          updated_at: string;
         };
         Insert: {
           id?: string;
@@ -389,7 +392,10 @@ export interface Database {
           target_team?: string | null;
           svg_content?: string | null;
           frames?: Json;
+          video_url?: string | null;
+          description?: string | null;
           created_at?: string;
+          updated_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["plays"]["Insert"]>;
         Relationships: [];

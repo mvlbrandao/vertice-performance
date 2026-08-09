@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { requireCoach } from "@/lib/auth/guards";
+import { requireCoach, requireAthlete } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionResult } from "@/lib/actions/athletes";
 
@@ -63,5 +63,33 @@ export async function cancelMeeting(meetingId: string): Promise<ActionResult> {
   if (error) return { error: error.message };
   revalidatePath("/agenda");
   revalidatePath("/dashboard");
+  return { success: true };
+}
+
+export async function completeMeeting(meetingId: string): Promise<ActionResult> {
+  await requireCoach();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("meetings")
+    .update({ status: "Concluído" })
+    .eq("id", meetingId);
+  if (error) return { error: error.message };
+  revalidatePath("/agenda");
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
+export async function confirmMeetingAttendance(meetingId: string): Promise<ActionResult> {
+  const athlete = await requireAthlete();
+  if (!athlete.athleteId) return { error: "Conta não vinculada a um atleta." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("meetings")
+    .update({ athlete_confirmed: true })
+    .eq("id", meetingId)
+    .eq("athlete_id", athlete.athleteId);
+  if (error) return { error: error.message };
+  revalidatePath("/minha-agenda");
   return { success: true };
 }

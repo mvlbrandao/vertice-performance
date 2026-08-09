@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getSessionProfile } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/Card";
@@ -5,10 +6,40 @@ import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { NewMeetingModal } from "@/components/agenda/NewMeetingModal";
 import { ManageMeetingModal } from "@/components/agenda/ManageMeetingModal";
+import { cn } from "@/lib/utils/cn";
+import type { MeetingStatus } from "@/lib/types/database";
 
-export default async function CoachAgendaPage() {
+const STATUS_FILTERS: { value: string; label: string; status: MeetingStatus | null }[] = [
+  { value: "agendados", label: "Agendados", status: "Agendado" },
+  { value: "concluidos", label: "Concluídos", status: "Concluído" },
+  { value: "cancelados", label: "Cancelados", status: "Cancelado" },
+  { value: "todos", label: "Todos", status: null },
+];
+
+export default async function CoachAgendaPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string }>;
+}) {
+  const { status: statusParam } = await searchParams;
+  const activeFilter =
+    STATUS_FILTERS.find((f) => f.value === statusParam) ?? STATUS_FILTERS[0];
+
   const profile = await getSessionProfile();
   const supabase = await createClient();
+
+  let meetingsQuery = supabase
+    .from("meetings")
+    .select(
+      "id, title, scheduled_date, scheduled_time, meeting_type, notes, status, athlete_confirmed, athletes(full_name)",
+    )
+    .eq("club_id", profile!.clubId)
+    .order("scheduled_date", { ascending: true })
+    .order("scheduled_time", { ascending: true });
+
+  if (activeFilter.status) {
+    meetingsQuery = meetingsQuery.eq("status", activeFilter.status);
+  }
 
   const [{ data: athletes }, { data: meetings }] = await Promise.all([
     supabase
@@ -16,18 +47,12 @@ export default async function CoachAgendaPage() {
       .select("id, full_name")
       .eq("club_id", profile!.clubId)
       .order("full_name", { ascending: true }),
-    supabase
-      .from("meetings")
-      .select("id, title, scheduled_date, scheduled_time, meeting_type, notes, status, athletes(full_name)")
-      .eq("club_id", profile!.clubId)
-      .neq("status", "Cancelado")
-      .order("scheduled_date", { ascending: true })
-      .order("scheduled_time", { ascending: true }),
+    meetingsQuery,
   ]);
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <div>
           <h2 className="text-[28px] m-0">Encontros agendados</h2>
           <div className="text-xs text-ink-faint mt-0.5">
@@ -37,9 +62,26 @@ export default async function CoachAgendaPage() {
         {athletes && athletes.length > 0 && <NewMeetingModal athletes={athletes} />}
       </div>
 
+      <div className="flex gap-1.5 mb-4">
+        {STATUS_FILTERS.map((f) => (
+          <Link
+            key={f.value}
+            href={f.value === "agendados" ? "/agenda" : `/agenda?status=${f.value}`}
+            className={cn(
+              "px-3 py-1.5 rounded-sm text-[12.5px] font-semibold border",
+              activeFilter.value === f.value
+                ? "bg-pitch-dark text-chalk border-pitch-dark"
+                : "border-line text-ink-soft hover:border-pitch-dark",
+            )}
+          >
+            {f.label}
+          </Link>
+        ))}
+      </div>
+
       <Card>
         {!meetings || meetings.length === 0 ? (
-          <EmptyState icon="🗓️" message="Nenhum encontro agendado." />
+          <EmptyState icon="🗓️" message="Nenhum encontro nessa visão." />
         ) : (
           meetings.map((m) => (
             <div
@@ -60,6 +102,12 @@ export default async function CoachAgendaPage() {
                   {m.notes ? " · Notas registradas" : ""}
                 </p>
               </div>
+              {m.status !== "Agendado" && (
+                <Badge tone={m.status === "Concluído" ? "green" : "clay"}>{m.status}</Badge>
+              )}
+              <Badge tone={m.athlete_confirmed ? "green" : "amber"}>
+                {m.athlete_confirmed ? "✅ Confirmado" : "⏳ Aguardando"}
+              </Badge>
               <Badge tone={m.meeting_type === "Videochamada" ? "sky" : "green"}>
                 {m.meeting_type === "Videochamada" ? "🎥 Vídeo" : "📍 Presencial"}
               </Badge>
@@ -71,6 +119,7 @@ export default async function CoachAgendaPage() {
                 time={m.scheduled_time}
                 type={m.meeting_type}
                 initialNotes={m.notes ?? ""}
+                athleteConfirmed={m.athlete_confirmed}
               />
             </div>
           ))

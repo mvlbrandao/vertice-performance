@@ -31,6 +31,16 @@ export function NewExerciseModal({ athleteId }: { athleteId: string }) {
           <Field label="Foco (deficiência trabalhada)">
             <Input name="focus" placeholder="Ex: Equilíbrio no jogo de campo" />
           </Field>
+          <Field label="Data">
+            <Input
+              name="scheduledDate"
+              type="date"
+              defaultValue={new Date().toISOString().slice(0, 10)}
+            />
+          </Field>
+          <Field label="Link do vídeo (opcional)">
+            <Input name="videoUrl" placeholder="Cole o link do vídeo (YouTube, Drive...)" />
+          </Field>
           {error && <div className="text-clay text-[12.5px] font-medium">{error}</div>}
           <div className="flex justify-end gap-2.5 mt-2">
             <Button type="button" variant="ghost" onClick={() => setOpen(false)}>

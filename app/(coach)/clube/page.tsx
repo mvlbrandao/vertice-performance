@@ -6,6 +6,7 @@ import { NewPartnerClubModal } from "@/components/partnerClubs/NewPartnerClubMod
 import { DeletePartnerClubButton } from "@/components/partnerClubs/DeletePartnerClubButton";
 import { NewPartnerClubCategoryModal } from "@/components/partnerClubs/NewPartnerClubCategoryModal";
 import { DeletePartnerClubCategoryButton } from "@/components/partnerClubs/DeletePartnerClubCategoryButton";
+import { EditPartnerClubColorsModal } from "@/components/partnerClubs/EditPartnerClubColorsModal";
 
 export default async function ClubPage() {
   const profile = await getSessionProfile();
@@ -15,7 +16,7 @@ export default async function ClubPage() {
     supabase.from("clubs").select("name, created_at").eq("id", profile!.clubId).single(),
     supabase
       .from("partner_clubs")
-      .select("id, name")
+      .select("id, name, color_1, color_2, color_3")
       .eq("club_id", profile!.clubId)
       .order("name", { ascending: true }),
     supabase
@@ -61,7 +62,16 @@ export default async function ClubPage() {
               return (
                 <div key={pc.id} className="border border-line rounded-md p-3.5">
                   <div className="flex items-center justify-between gap-2 flex-wrap mb-2.5">
-                    <b className="text-sm">{pc.name}</b>
+                    <div className="flex items-center gap-2">
+                      <b className="text-sm">{pc.name}</b>
+                      <EditPartnerClubColorsModal
+                        partnerClubId={pc.id}
+                        clubName={pc.name}
+                        color1={pc.color_1}
+                        color2={pc.color_2}
+                        color3={pc.color_3}
+                      />
+                    </div>
                     <div className="flex items-center gap-1.5">
                       <NewPartnerClubCategoryModal partnerClubId={pc.id} clubName={pc.name} />
                       <DeletePartnerClubButton partnerClubId={pc.id} />

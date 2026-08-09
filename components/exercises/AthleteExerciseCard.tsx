@@ -21,7 +21,14 @@ export function AthleteExerciseCard({
   athleteId,
   clubId,
 }: {
-  exercise: { id: string; name: string; description: string | null; focus: string | null; done: boolean };
+  exercise: {
+    id: string;
+    name: string;
+    description: string | null;
+    focus: string | null;
+    done: boolean;
+    video_url: string | null;
+  };
   videos: VideoRow[];
   athleteId: string;
   clubId: string;
@@ -88,6 +95,16 @@ export function AthleteExerciseCard({
             {exercise.focus && <Badge tone="sky">{exercise.focus}</Badge>}
           </div>
           <p className="text-[12.5px] text-ink-faint m-0">{exercise.description}</p>
+          {exercise.video_url && (
+            <a
+              href={exercise.video_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex mt-2 text-xs font-semibold border border-line rounded-sm px-2.5 py-1.5 hover:border-pitch-dark"
+            >
+              ▶ Ver vídeo do treino
+            </a>
+          )}
         </div>
       </div>
 

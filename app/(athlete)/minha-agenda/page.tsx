@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ConfirmMeetingButton } from "@/components/agenda/ConfirmMeetingButton";
 
 export default async function AthleteAgendaPage() {
   const profile = await getSessionProfile();
@@ -11,7 +12,9 @@ export default async function AthleteAgendaPage() {
   const { data: meetings } = profile?.athleteId
     ? await supabase
         .from("meetings")
-        .select("id, title, scheduled_date, scheduled_time, meeting_type, notes, status")
+        .select(
+          "id, title, scheduled_date, scheduled_time, meeting_type, notes, status, athlete_confirmed",
+        )
         .eq("athlete_id", profile.athleteId)
         .neq("status", "Cancelado")
         .order("scheduled_date", { ascending: true })
@@ -46,6 +49,11 @@ export default async function AthleteAgendaPage() {
               <Badge tone={m.meeting_type === "Videochamada" ? "sky" : "green"}>
                 {m.meeting_type === "Videochamada" ? "🎥 Vídeo" : "📍 Presencial"}
               </Badge>
+              {m.athlete_confirmed ? (
+                <Badge tone="green">✅ Confirmado</Badge>
+              ) : (
+                <ConfirmMeetingButton meetingId={m.id} />
+              )}
             </div>
           ))
         )}

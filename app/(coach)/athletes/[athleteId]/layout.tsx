@@ -7,7 +7,6 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { AthleteTabs } from "@/components/athletes/AthleteTabs";
 import { AthletePhotoUploader } from "@/components/athletes/AthletePhotoUploader";
-import { NewGameReportModal } from "@/components/timeline/NewGameReportModal";
 
 export default async function AthleteDetailLayout({
   children,
@@ -72,7 +71,6 @@ export default async function AthleteDetailLayout({
             <span className="text-[11px] text-ink-faint">IMC</span>
           </div>
         </div>
-        <NewGameReportModal athleteId={athlete.id} />
       </Card>
 
       <AthleteTabs athleteId={athlete.id} />

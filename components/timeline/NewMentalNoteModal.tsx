@@ -21,6 +21,13 @@ export function NewMentalNoteModal({ athleteId }: { athleteId: string }) {
           <Field label="Título">
             <Input name="title" required placeholder="Ex: Confiança em duelos 1x1" />
           </Field>
+          <Field label="Data">
+            <Input
+              name="entryDate"
+              type="date"
+              defaultValue={new Date().toISOString().slice(0, 10)}
+            />
+          </Field>
           <Field label="Observações">
             <textarea
               name="body"

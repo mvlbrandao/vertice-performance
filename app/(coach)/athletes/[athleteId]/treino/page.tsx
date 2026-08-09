@@ -15,7 +15,7 @@ export default async function AthleteTreinoPage({
   const [{ data: exercises }, { data: videos }] = await Promise.all([
     supabase
       .from("exercises")
-      .select("id, name, description, focus, done")
+      .select("id, name, description, focus, done, video_url")
       .eq("athlete_id", athleteId)
       .order("created_at", { ascending: false }),
     supabase
@@ -68,6 +68,16 @@ export default async function AthleteTreinoPage({
                     {pending > 0 && <Badge tone="amber">🎥 {pending} aguardando avaliação</Badge>}
                   </div>
                   <p className="text-[12.5px] text-ink-faint m-0">{ex.description}</p>
+                  {ex.video_url && (
+                    <a
+                      href={ex.video_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex mt-2 text-xs font-semibold border border-line rounded-sm px-2.5 py-1.5 hover:border-pitch-dark"
+                    >
+                      ▶ Ver vídeo do treino
+                    </a>
+                  )}
                 </div>
               </div>
               <div className="mt-3 pt-3 border-t border-line">

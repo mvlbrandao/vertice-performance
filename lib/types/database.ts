@@ -19,6 +19,7 @@ export type DataRequestType = "export" | "deletion";
 export type DataRequestStatus = "Pendente" | "Em andamento" | "Concluído";
 export type PlayTargetType = "athlete" | "team";
 export type AthleteSex = "M" | "F";
+export type GameTargetType = "athlete" | "team";
 
 export interface Database {
   public: {
@@ -215,6 +216,8 @@ export interface Database {
           description: string | null;
           focus: string | null;
           done: boolean;
+          scheduled_date: string;
+          video_url: string | null;
           created_at: string;
         };
         Insert: {
@@ -226,6 +229,8 @@ export interface Database {
           description?: string | null;
           focus?: string | null;
           done?: boolean;
+          scheduled_date?: string;
+          video_url?: string | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["exercises"]["Insert"]>;
@@ -325,6 +330,7 @@ export interface Database {
           scheduled_time: string;
           notes: string | null;
           status: MeetingStatus;
+          athlete_confirmed: boolean;
           created_at: string;
         };
         Insert: {
@@ -338,6 +344,7 @@ export interface Database {
           scheduled_time: string;
           notes?: string | null;
           status?: MeetingStatus;
+          athlete_confirmed?: boolean;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["meetings"]["Insert"]>;
@@ -374,12 +381,18 @@ export interface Database {
           id: string;
           club_id: string;
           name: string;
+          color_1: string | null;
+          color_2: string | null;
+          color_3: string | null;
           created_at: string;
         };
         Insert: {
           id?: string;
           club_id: string;
           name: string;
+          color_1?: string | null;
+          color_2?: string | null;
+          color_3?: string | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["partner_clubs"]["Insert"]>;
@@ -437,6 +450,86 @@ export interface Database {
           updated_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["plays"]["Insert"]>;
+        Relationships: [];
+      };
+      competitions: {
+        Row: {
+          id: string;
+          club_id: string;
+          name: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          club_id: string;
+          name: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["competitions"]["Insert"]>;
+        Relationships: [];
+      };
+      games: {
+        Row: {
+          id: string;
+          club_id: string;
+          competition_id: string;
+          created_by: string;
+          opponent: string;
+          scheduled_date: string;
+          scheduled_time: string | null;
+          location: string | null;
+          target_type: GameTargetType;
+          target_athlete_id: string | null;
+          target_team: string | null;
+          notes: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          club_id: string;
+          competition_id: string;
+          created_by: string;
+          opponent: string;
+          scheduled_date: string;
+          scheduled_time?: string | null;
+          location?: string | null;
+          target_type: GameTargetType;
+          target_athlete_id?: string | null;
+          target_team?: string | null;
+          notes?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["games"]["Insert"]>;
+        Relationships: [];
+      };
+      athlete_club_transfers: {
+        Row: {
+          id: string;
+          athlete_id: string;
+          club_id: string;
+          from_partner_club_id: string | null;
+          from_category: string | null;
+          to_partner_club_id: string;
+          to_category: string | null;
+          transferred_at: string;
+          created_by: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          athlete_id: string;
+          club_id: string;
+          from_partner_club_id?: string | null;
+          from_category?: string | null;
+          to_partner_club_id: string;
+          to_category?: string | null;
+          transferred_at?: string;
+          created_by: string;
+          created_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["athlete_club_transfers"]["Insert"]
+        >;
         Relationships: [];
       };
     };

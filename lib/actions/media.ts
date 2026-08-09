@@ -11,6 +11,7 @@ const mediaSchema = z.object({
   label: z.string().trim().min(1, "Informe uma descrição."),
   mediaType: z.enum(["video", "image"]),
   storagePath: z.string().trim().min(1, "Anexe um arquivo."),
+  entryDate: z.string().optional(),
 });
 
 export async function createMediaItemRecord(input: {
@@ -18,6 +19,7 @@ export async function createMediaItemRecord(input: {
   label: string;
   mediaType: "video" | "image";
   storagePath: string;
+  entryDate?: string;
 }): Promise<ActionResult> {
   const coach = await requireCoach();
   const parsed = mediaSchema.safeParse(input);
@@ -34,6 +36,7 @@ export async function createMediaItemRecord(input: {
     media_type: parsed.data.mediaType,
     storage_path: parsed.data.storagePath,
     thumbnail_color: parsed.data.mediaType === "video" ? "#C1432B" : "#3D7EA6",
+    entry_date: parsed.data.entryDate || undefined,
   });
 
   if (error) return { error: error.message };

@@ -22,7 +22,7 @@ export default async function AthleteTreinoPage() {
   const [{ data: exercises }, { data: videos }] = await Promise.all([
     supabase
       .from("exercises")
-      .select("id, name, description, focus, done")
+      .select("id, name, description, focus, done, video_url")
       .eq("athlete_id", athleteId)
       .order("created_at", { ascending: false }),
     supabase

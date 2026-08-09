@@ -9,7 +9,7 @@ export async function getPartnerClubOptions(
   const [{ data: partnerClubs }, { data: categories }] = await Promise.all([
     supabase
       .from("partner_clubs")
-      .select("id, name")
+      .select("id, name, color_1, color_2, color_3")
       .eq("club_id", clubId)
       .order("name", { ascending: true }),
     supabase
@@ -30,5 +30,8 @@ export async function getPartnerClubOptions(
     id: pc.id,
     name: pc.name,
     categories: categoriesByClub.get(pc.id) ?? [],
+    color1: pc.color_1,
+    color2: pc.color_2,
+    color3: pc.color_3,
   }));
 }

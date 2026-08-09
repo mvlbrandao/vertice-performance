@@ -12,7 +12,8 @@ import type { PartnerClubOption } from "@/lib/types/partnerClubs";
 export function NewAthleteModal({ partnerClubs }: { partnerClubs: PartnerClubOption[] }) {
   const { open, setOpen, pending, error, formRef, handleSubmit } = useFormModal(createAthlete);
   const [selectedClub, setSelectedClub] = useState("");
-  const availableCategories = partnerClubs.find((c) => c.name === selectedClub)?.categories ?? [];
+  const selectedClubOption = partnerClubs.find((c) => c.name === selectedClub);
+  const availableCategories = selectedClubOption?.categories ?? [];
 
   return (
     <>
@@ -21,6 +22,7 @@ export function NewAthleteModal({ partnerClubs }: { partnerClubs: PartnerClubOpt
       </Button>
       <Modal open={open} onClose={() => setOpen(false)} title="Novo atleta">
         <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-3">
+          <input type="hidden" name="clubColor" value={selectedClubOption?.color1 ?? ""} />
           <Field label="Nome completo">
             <Input name="fullName" required placeholder="Nome do atleta" />
           </Field>

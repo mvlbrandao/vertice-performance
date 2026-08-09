@@ -19,6 +19,7 @@ export function NewMediaModal({ clubId, athleteId }: { clubId: string; athleteId
     e.preventDefault();
     const form = new FormData(e.currentTarget);
     const label = String(form.get("label") ?? "").trim();
+    const entryDate = String(form.get("entryDate") ?? "");
     const file = form.get("file") as File | null;
 
     if (!label) {
@@ -41,7 +42,13 @@ export function NewMediaModal({ clubId, athleteId }: { clubId: string; athleteId
     }
 
     const mediaType = file.type.startsWith("video/") ? "video" : "image";
-    const result = await createMediaItemRecord({ athleteId, label, mediaType, storagePath: path });
+    const result = await createMediaItemRecord({
+      athleteId,
+      label,
+      mediaType,
+      storagePath: path,
+      entryDate: entryDate || undefined,
+    });
     setPending(false);
     if (result.error) {
       setError(result.error);
@@ -61,6 +68,13 @@ export function NewMediaModal({ clubId, athleteId }: { clubId: string; athleteId
         <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-3">
           <Field label="Descrição">
             <Input name="label" required placeholder="Ex: Lance da finalização aos 12min" />
+          </Field>
+          <Field label="Data">
+            <Input
+              name="entryDate"
+              type="date"
+              defaultValue={new Date().toISOString().slice(0, 10)}
+            />
           </Field>
           <Field label="Arquivo (foto ou vídeo)">
             <input

@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/Card";
 import { InviteAthleteModal } from "@/components/athletes/InviteAthleteModal";
 import { EditAthleteModal } from "@/components/athletes/EditAthleteModal";
+import { TransferClubModal } from "@/components/athletes/TransferClubModal";
 import { getPartnerClubOptions } from "@/lib/data/partnerClubs";
 import { classifyBmi } from "@/lib/utils/bmiReference";
 
@@ -71,13 +72,10 @@ export default async function AthleteDadosPage({
           <div className="flex items-center gap-2">
             <EditAthleteModal
               athleteId={athlete.id}
-              partnerClubs={partnerClubs}
               athlete={{
                 fullName: athlete.full_name,
                 birthDate: athlete.birth_date,
-                category: athlete.category,
                 position: athlete.position,
-                team: athlete.team,
                 sex: athlete.sex,
                 guardianName: athlete.guardian_name,
                 guardianPhone: athlete.guardian_phone,
@@ -86,6 +84,11 @@ export default async function AthleteDadosPage({
                 heightCm: athlete.height_cm,
                 weightKg: athlete.weight_kg,
               }}
+            />
+            <TransferClubModal
+              athleteId={athlete.id}
+              currentTeam={athlete.team}
+              partnerClubs={partnerClubs}
             />
             <InviteAthleteModal
               athleteId={athlete.id}

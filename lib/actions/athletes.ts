@@ -16,6 +16,7 @@ const athleteSchema = z.object({
   instagram: z.string().trim().optional(),
   heightCm: z.string().optional(),
   weightKg: z.string().optional(),
+  clubColor: z.string().trim().optional(),
 });
 
 export interface ActionResult {
@@ -70,6 +71,7 @@ export async function createAthlete(formData: FormData): Promise<ActionResult> {
     instagram: formData.get("instagram"),
     heightCm: formData.get("heightCm"),
     weightKg: formData.get("weightKg"),
+    clubColor: formData.get("clubColor"),
   });
 
   if (!parsed.success) {
@@ -80,8 +82,9 @@ export async function createAthlete(formData: FormData): Promise<ActionResult> {
   const weightKg = parseDecimal(parsed.data.weightKg);
 
   const supabase = await createClient();
-  const colors = ["#111111", "#D72B2B", "#E6C000", "#1A1A1A", "#C0392B"];
-  const photoColor = colors[Math.floor(Math.random() * colors.length)];
+  const fallbackColors = ["#111111", "#D72B2B", "#E6C000", "#1A1A1A", "#C0392B"];
+  const photoColor =
+    parsed.data.clubColor || fallbackColors[Math.floor(Math.random() * fallbackColors.length)];
 
   const { error } = await supabase.from("athletes").insert({
     club_id: coach.clubId,
@@ -113,8 +116,6 @@ export async function createAthlete(formData: FormData): Promise<ActionResult> {
 const athleteUpdateSchema = z.object({
   fullName: z.string().trim().min(1, "Nome é obrigatório."),
   birthDate: z.string().optional(),
-  category: z.string().trim().optional(),
-  team: z.string().trim().optional(),
   sex: z.string().trim().optional(),
   guardianName: z.string().trim().optional(),
   guardianPhone: z.string().trim().optional(),
@@ -133,8 +134,6 @@ export async function updateAthlete(
   const parsed = athleteUpdateSchema.safeParse({
     fullName: formData.get("fullName"),
     birthDate: formData.get("birthDate"),
-    category: formData.get("category"),
-    team: formData.get("team"),
     sex: formData.get("sex"),
     guardianName: formData.get("guardianName"),
     guardianPhone: formData.get("guardianPhone"),
@@ -156,9 +155,7 @@ export async function updateAthlete(
     .update({
       full_name: parsed.data.fullName,
       birth_date: parsed.data.birthDate || null,
-      category: parsed.data.category || null,
       position: parsePositions(formData),
-      team: parsed.data.team || null,
       sex: parseSex(parsed.data.sex),
       guardian_name: parsed.data.guardianName || null,
       guardian_phone: parsed.data.guardianPhone || null,

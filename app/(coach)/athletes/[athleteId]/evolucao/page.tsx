@@ -6,11 +6,58 @@ import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { NewMentalNoteModal } from "@/components/timeline/NewMentalNoteModal";
 import { NewMediaModal } from "@/components/timeline/NewMediaModal";
+import { NewGameReportModal } from "@/components/timeline/NewGameReportModal";
 
 type TimelineEntry =
   | { type: "tactical"; date: string; title: string; strengths: string | null; improve: string | null }
   | { type: "mental"; date: string; title: string; body: string; score: number | null; video: string | null }
-  | { type: "media"; date: string; items: { label: string; media_type: string; url: string | null }[] };
+  | { type: "media"; date: string; items: { label: string; media_type: string; url: string | null }[] }
+  | {
+      type: "meeting";
+      date: string;
+      title: string;
+      time: string;
+      meetingType: string;
+      status: string;
+      confirmed: boolean;
+      hasCheckin: boolean;
+    }
+  | {
+      type: "exercise";
+      date: string;
+      name: string;
+      description: string | null;
+      focus: string | null;
+      done: boolean;
+      videoUrl: string | null;
+      hasCheckin: boolean;
+    }
+  | {
+      type: "game";
+      date: string;
+      opponent: string;
+      competitionName: string;
+      time: string | null;
+      location: string | null;
+    }
+  | {
+      type: "transfer";
+      date: string;
+      fromClub: string | null;
+      toClub: string;
+      fromCategory: string | null;
+      toCategory: string | null;
+    };
+
+const DOT_COLOR: Record<TimelineEntry["type"], string> = {
+  tactical: "#111111",
+  mental: "#C0392B",
+  media: "#FFD600",
+  meeting: "#3D7EA6",
+  exercise: "#1A6B3C",
+  game: "#6B21A8",
+  transfer: "#555555",
+};
 
 export default async function AthleteEvolucaoPage({
   params,
@@ -21,7 +68,23 @@ export default async function AthleteEvolucaoPage({
   const profile = await getSessionProfile();
   const supabase = await createClient();
 
-  const [{ data: gameReports }, { data: mentalNotes }, { data: media }] = await Promise.all([
+  const { data: athlete } = await supabase
+    .from("athletes")
+    .select("team")
+    .eq("id", athleteId)
+    .single();
+
+  const [
+    { data: gameReports },
+    { data: mentalNotes },
+    { data: media },
+    { data: meetings },
+    { data: exercises },
+    { data: checkins },
+    { data: games },
+    { data: transfers },
+    { data: partnerClubs },
+  ] = await Promise.all([
     supabase
       .from("game_reports")
       .select("entry_date, opponent, strengths, improve")
@@ -34,7 +97,32 @@ export default async function AthleteEvolucaoPage({
       .from("media_items")
       .select("entry_date, label, media_type, storage_path")
       .eq("athlete_id", athleteId),
+    supabase
+      .from("meetings")
+      .select("scheduled_date, scheduled_time, title, meeting_type, status, athlete_confirmed")
+      .eq("athlete_id", athleteId)
+      .neq("status", "Cancelado"),
+    supabase
+      .from("exercises")
+      .select("scheduled_date, name, description, focus, done, video_url")
+      .eq("athlete_id", athleteId),
+    supabase.from("checkins").select("checkin_date").eq("athlete_id", athleteId),
+    supabase
+      .from("games")
+      .select("scheduled_date, scheduled_time, location, opponent, competitions(name)")
+      .eq("club_id", profile!.clubId)
+      .or(
+        `target_athlete_id.eq.${athleteId}${athlete?.team ? `,target_team.eq.${athlete.team}` : ""}`,
+      ),
+    supabase
+      .from("athlete_club_transfers")
+      .select("transferred_at, from_partner_club_id, from_category, to_partner_club_id, to_category")
+      .eq("athlete_id", athleteId),
+    supabase.from("partner_clubs").select("id, name").eq("club_id", profile!.clubId),
   ]);
+
+  const clubNameById = new Map((partnerClubs ?? []).map((c) => [c.id, c.name]));
+  const checkinDates = new Set((checkins ?? []).map((c) => c.checkin_date));
 
   const entries: TimelineEntry[] = [];
   (gameReports ?? []).forEach((g) =>
@@ -64,6 +152,50 @@ export default async function AthleteEvolucaoPage({
     mediaByDate.set(m.entry_date, list);
   }
   mediaByDate.forEach((items, date) => entries.push({ type: "media", date, items }));
+  (meetings ?? []).forEach((m) =>
+    entries.push({
+      type: "meeting",
+      date: m.scheduled_date,
+      title: m.title,
+      time: m.scheduled_time,
+      meetingType: m.meeting_type,
+      status: m.status,
+      confirmed: m.athlete_confirmed,
+      hasCheckin: checkinDates.has(m.scheduled_date),
+    }),
+  );
+  (exercises ?? []).forEach((e) =>
+    entries.push({
+      type: "exercise",
+      date: e.scheduled_date,
+      name: e.name,
+      description: e.description,
+      focus: e.focus,
+      done: e.done,
+      videoUrl: e.video_url,
+      hasCheckin: checkinDates.has(e.scheduled_date),
+    }),
+  );
+  (games ?? []).forEach((g) =>
+    entries.push({
+      type: "game",
+      date: g.scheduled_date,
+      opponent: g.opponent,
+      competitionName: (g.competitions as unknown as { name: string } | null)?.name ?? "—",
+      time: g.scheduled_time,
+      location: g.location,
+    }),
+  );
+  (transfers ?? []).forEach((t) =>
+    entries.push({
+      type: "transfer",
+      date: t.transferred_at,
+      fromClub: t.from_partner_club_id ? clubNameById.get(t.from_partner_club_id) ?? null : null,
+      toClub: clubNameById.get(t.to_partner_club_id) ?? "—",
+      fromCategory: t.from_category,
+      toCategory: t.to_category,
+    }),
+  );
 
   entries.sort((a, b) => (a.date < b.date ? 1 : -1));
 
@@ -73,12 +205,13 @@ export default async function AthleteEvolucaoPage({
         <div>
           <h2 className="text-[19px] m-0">Linha do tempo de evolução</h2>
           <div className="text-xs text-ink-faint mt-0.5">
-            Cruzamento de análises táticas, mentais e de mídia
+            Cruzamento de análises táticas, mentais, mídia, agenda e treinos
           </div>
         </div>
         <div className="flex gap-2">
           <NewMediaModal clubId={profile!.clubId} athleteId={athleteId} />
           <NewMentalNoteModal athleteId={athleteId} />
+          <NewGameReportModal athleteId={athleteId} />
         </div>
       </div>
 
@@ -93,10 +226,7 @@ export default async function AthleteEvolucaoPage({
             <div key={i} className="relative pb-5.5">
               <div
                 className="absolute -left-6.5 top-0 w-[18px] h-[18px] rounded-full border-[3px] border-chalk"
-                style={{
-                  background:
-                    e.type === "mental" ? "#C0392B" : e.type === "media" ? "#FFD600" : "#111",
-                }}
+                style={{ background: DOT_COLOR[e.type] }}
               />
               <div className="bg-white border border-line rounded-md px-4 py-3.5">
                 {e.type === "tactical" && (
@@ -168,6 +298,90 @@ export default async function AthleteEvolucaoPage({
                         ),
                       )}
                     </div>
+                  </>
+                )}
+                {e.type === "meeting" && (
+                  <>
+                    <div className="flex gap-2 items-center mb-1.5 text-[11px] flex-wrap">
+                      <Badge tone="sky">
+                        {e.meetingType === "Videochamada" ? "🎥 Encontro" : "📍 Encontro"}
+                      </Badge>
+                      <span className="font-mono text-ink-faint">
+                        {e.date} às {e.time?.slice(0, 5)}
+                      </span>
+                      <Badge tone={e.confirmed ? "green" : "amber"}>
+                        {e.confirmed ? "✅ Confirmado" : "⏳ Aguardando confirmação"}
+                      </Badge>
+                      {e.status !== "Agendado" && <Badge tone="dark">{e.status}</Badge>}
+                      {e.hasCheckin && <Badge tone="green">☑️ Check-in do dia</Badge>}
+                    </div>
+                    <h4 className="m-0 text-[15px] font-bold">{e.title}</h4>
+                  </>
+                )}
+                {e.type === "exercise" && (
+                  <>
+                    <div className="flex gap-2 items-center mb-1.5 text-[11px] flex-wrap">
+                      <Badge tone="green">🏋️ Treino prescrito</Badge>
+                      <span className="font-mono text-ink-faint">{e.date}</span>
+                      <Badge tone={e.done ? "green" : "amber"}>
+                        {e.done ? "✅ Concluído" : "⏳ Pendente"}
+                      </Badge>
+                      {e.hasCheckin && <Badge tone="green">☑️ Check-in do dia</Badge>}
+                    </div>
+                    <h4 className="m-0 mb-1.5 text-[15px] font-bold">{e.name}</h4>
+                    {e.focus && (
+                      <p className="m-0 text-[13.5px] text-ink-soft leading-relaxed">
+                        <b>Foco:</b> {e.focus}
+                      </p>
+                    )}
+                    {e.description && (
+                      <p className="mt-1.5 text-[13.5px] text-ink-soft leading-relaxed">
+                        {e.description}
+                      </p>
+                    )}
+                    {e.videoUrl && (
+                      <a
+                        href={e.videoUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex mt-2.5 text-xs font-semibold border border-line rounded-sm px-2.5 py-1.5 hover:border-pitch-dark"
+                      >
+                        ▶ Ver vídeo do treino
+                      </a>
+                    )}
+                  </>
+                )}
+                {e.type === "game" && (
+                  <>
+                    <div className="flex gap-2 items-center mb-1.5 text-[11px] flex-wrap">
+                      <Badge tone="dark">🏆 Jogo — {e.competitionName}</Badge>
+                      <span className="font-mono text-ink-faint">
+                        {e.date}
+                        {e.time ? ` às ${e.time.slice(0, 5)}` : ""}
+                      </span>
+                    </div>
+                    <h4 className="m-0 text-[15px] font-bold">vs. {e.opponent}</h4>
+                    {e.location && (
+                      <p className="mt-1.5 text-[13.5px] text-ink-soft leading-relaxed">
+                        📍 {e.location}
+                      </p>
+                    )}
+                  </>
+                )}
+                {e.type === "transfer" && (
+                  <>
+                    <div className="flex gap-2 items-center mb-1.5 text-[11px]">
+                      <Badge tone="dark">🔁 Transferência</Badge>
+                      <span className="font-mono text-ink-faint">{e.date}</span>
+                    </div>
+                    <h4 className="m-0 text-[15px] font-bold">
+                      {e.fromClub ?? "—"} → {e.toClub}
+                    </h4>
+                    {(e.fromCategory || e.toCategory) && (
+                      <p className="mt-1.5 text-[13.5px] text-ink-soft leading-relaxed">
+                        {e.fromCategory ?? "—"} → {e.toCategory ?? "—"}
+                      </p>
+                    )}
                   </>
                 )}
               </div>

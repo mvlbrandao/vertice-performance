@@ -11,6 +11,8 @@ const exerciseSchema = z.object({
   name: z.string().trim().min(1, "Informe o nome do exercício."),
   description: z.string().trim().optional(),
   focus: z.string().trim().optional(),
+  scheduledDate: z.string().optional(),
+  videoUrl: z.string().trim().optional(),
 });
 
 export async function createExercise(formData: FormData): Promise<ActionResult> {
@@ -20,6 +22,8 @@ export async function createExercise(formData: FormData): Promise<ActionResult> 
     name: formData.get("name"),
     description: formData.get("description"),
     focus: formData.get("focus"),
+    scheduledDate: formData.get("scheduledDate"),
+    videoUrl: formData.get("videoUrl"),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
@@ -33,6 +37,8 @@ export async function createExercise(formData: FormData): Promise<ActionResult> 
     name: parsed.data.name,
     description: parsed.data.description || null,
     focus: parsed.data.focus || null,
+    scheduled_date: parsed.data.scheduledDate || undefined,
+    video_url: parsed.data.videoUrl || null,
   });
 
   if (error) return { error: error.message };

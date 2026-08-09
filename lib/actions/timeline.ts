@@ -46,6 +46,7 @@ const mentalNoteSchema = z.object({
   body: z.string().trim().optional(),
   score: z.coerce.number().min(0).max(10).default(7),
   videoUrl: z.string().trim().optional(),
+  entryDate: z.string().optional(),
 });
 
 export async function createMentalNote(formData: FormData): Promise<ActionResult> {
@@ -56,6 +57,7 @@ export async function createMentalNote(formData: FormData): Promise<ActionResult
     body: formData.get("body"),
     score: formData.get("score"),
     videoUrl: formData.get("videoUrl"),
+    entryDate: formData.get("entryDate"),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
@@ -70,6 +72,7 @@ export async function createMentalNote(formData: FormData): Promise<ActionResult
     body: parsed.data.body || "—",
     confidence_score: parsed.data.score,
     video_url: parsed.data.videoUrl || null,
+    entry_date: parsed.data.entryDate || undefined,
   });
 
   if (error) return { error: error.message };

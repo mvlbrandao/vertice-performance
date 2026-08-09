@@ -1,21 +1,17 @@
 "use client";
 
-import { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Field";
 import { TagInput } from "@/components/ui/TagInput";
 import { updateAthlete } from "@/lib/actions/athletes";
 import { useFormModal } from "@/lib/utils/useFormModal";
-import type { PartnerClubOption } from "@/lib/types/partnerClubs";
 import type { AthleteSex } from "@/lib/types/database";
 
 type AthleteEditableData = {
   fullName: string;
   birthDate: string | null;
-  category: string | null;
   position: string[] | null;
-  team: string | null;
   sex: AthleteSex | null;
   guardianName: string | null;
   guardianPhone: string | null;
@@ -28,20 +24,10 @@ type AthleteEditableData = {
 export function EditAthleteModal({
   athleteId,
   athlete,
-  partnerClubs,
 }: {
   athleteId: string;
   athlete: AthleteEditableData;
-  partnerClubs: PartnerClubOption[];
 }) {
-  const [selectedClub, setSelectedClub] = useState(athlete.team ?? "");
-  const availableCategories = partnerClubs.find((c) => c.name === selectedClub)?.categories ?? [];
-  // se o atleta já tinha uma categoria fora da lista do time atual (dado legado), mantém como opção
-  const categoryOptions =
-    athlete.category && !availableCategories.includes(athlete.category)
-      ? [athlete.category, ...availableCategories]
-      : availableCategories;
-
   const { open, setOpen, pending, error, formRef, handleSubmit } = useFormModal((formData) =>
     updateAthlete(athleteId, formData),
   );
@@ -73,50 +59,6 @@ export function EditAthleteModal({
                 <option value="M">Masculino</option>
                 <option value="F">Feminino</option>
               </select>
-            </Field>
-            <Field label="Time">
-              {partnerClubs.length > 0 ? (
-                <select
-                  name="team"
-                  value={selectedClub}
-                  onChange={(e) => setSelectedClub(e.target.value)}
-                  className="w-full px-3 py-2.5 border border-line rounded-sm bg-white text-sm"
-                >
-                  <option value="">Selecione…</option>
-                  {(athlete.team && !partnerClubs.some((c) => c.name === athlete.team)
-                    ? [{ id: "legacy", name: athlete.team, categories: [] }, ...partnerClubs]
-                    : partnerClubs
-                  ).map((c) => (
-                    <option key={c.id} value={c.name}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <Input name="team" defaultValue={athlete.team ?? ""} />
-              )}
-            </Field>
-            <Field label="Categoria">
-              {partnerClubs.length > 0 ? (
-                <select
-                  key={selectedClub}
-                  name="category"
-                  defaultValue={athlete.category ?? ""}
-                  disabled={!selectedClub || categoryOptions.length === 0}
-                  className="w-full px-3 py-2.5 border border-line rounded-sm bg-white text-sm disabled:opacity-50"
-                >
-                  <option value="">
-                    {selectedClub ? "Selecione…" : "Escolha o time primeiro"}
-                  </option>
-                  {categoryOptions.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <Input name="category" defaultValue={athlete.category ?? ""} />
-              )}
             </Field>
             <Field label="Altura (m)">
               <Input

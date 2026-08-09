@@ -104,22 +104,26 @@ export function EditAthleteModal({
                 <Input name="category" defaultValue={athlete.category ?? ""} />
               )}
             </Field>
-            <Field label="Altura (cm)">
+            <Field label="Altura (m)">
               <Input
                 name="heightCm"
-                type="number"
-                step="0.1"
-                min="0"
-                defaultValue={athlete.heightCm ?? ""}
+                inputMode="decimal"
+                placeholder="Ex: 1,64"
+                defaultValue={
+                  athlete.heightCm != null
+                    ? (athlete.heightCm / 100).toFixed(2).replace(".", ",")
+                    : ""
+                }
               />
             </Field>
             <Field label="Peso (kg)">
               <Input
                 name="weightKg"
-                type="number"
-                step="0.1"
-                min="0"
-                defaultValue={athlete.weightKg ?? ""}
+                inputMode="decimal"
+                placeholder="Ex: 55,5"
+                defaultValue={
+                  athlete.weightKg != null ? String(athlete.weightKg).replace(".", ",") : ""
+                }
               />
             </Field>
           </div>

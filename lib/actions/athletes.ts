@@ -14,11 +14,34 @@ const athleteSchema = z.object({
   guardianName: z.string().trim().optional(),
   guardianPhone: z.string().trim().optional(),
   instagram: z.string().trim().optional(),
+  heightCm: z.string().optional(),
+  weightKg: z.string().optional(),
 });
 
 export interface ActionResult {
   error?: string;
   success?: boolean;
+}
+
+// Aceita tanto vírgula quanto ponto como separador decimal (ex: "1,64" ou "1.64").
+function parseDecimal(raw: string | null | undefined): number | null {
+  if (!raw) return null;
+  const normalized = raw.trim().replace(",", ".");
+  if (!normalized) return null;
+  const value = Number(normalized);
+  return Number.isFinite(value) ? value : null;
+}
+
+// Aceita altura em metros (ex: "1,64") ou já em centímetros (ex: "164").
+function parseHeightCm(raw: string | null | undefined): number | null {
+  const value = parseDecimal(raw);
+  if (value == null) return null;
+  return Math.round(value <= 3 ? value * 100 : value);
+}
+
+function computeBmi(heightCm: number | null, weightKg: number | null): number | null {
+  if (!heightCm || !weightKg) return null;
+  return Math.round((weightKg / (heightCm / 100) ** 2) * 10) / 10;
 }
 
 export async function createAthlete(formData: FormData): Promise<ActionResult> {
@@ -33,11 +56,16 @@ export async function createAthlete(formData: FormData): Promise<ActionResult> {
     guardianName: formData.get("guardianName"),
     guardianPhone: formData.get("guardianPhone"),
     instagram: formData.get("instagram"),
+    heightCm: formData.get("heightCm"),
+    weightKg: formData.get("weightKg"),
   });
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
+
+  const heightCm = parseHeightCm(parsed.data.heightCm);
+  const weightKg = parseDecimal(parsed.data.weightKg);
 
   const supabase = await createClient();
   const colors = ["#111111", "#D72B2B", "#E6C000", "#1A1A1A", "#C0392B"];
@@ -55,6 +83,9 @@ export async function createAthlete(formData: FormData): Promise<ActionResult> {
     guardian_phone: parsed.data.guardianPhone || null,
     instagram: parsed.data.instagram || null,
     photo_color: photoColor,
+    height_cm: heightCm,
+    weight_kg: weightKg,
+    bmi: computeBmi(heightCm, weightKg),
   });
 
   if (error) {
@@ -103,12 +134,8 @@ export async function updateAthlete(
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
-  const heightCm = parsed.data.heightCm ? Number(parsed.data.heightCm) : null;
-  const weightKg = parsed.data.weightKg ? Number(parsed.data.weightKg) : null;
-  const bmi =
-    heightCm && weightKg
-      ? Math.round((weightKg / (heightCm / 100) ** 2) * 10) / 10
-      : null;
+  const heightCm = parseHeightCm(parsed.data.heightCm);
+  const weightKg = parseDecimal(parsed.data.weightKg);
 
   const supabase = await createClient();
   const { error } = await supabase
@@ -125,7 +152,7 @@ export async function updateAthlete(
       instagram: parsed.data.instagram || null,
       height_cm: heightCm,
       weight_kg: weightKg,
-      bmi,
+      bmi: computeBmi(heightCm, weightKg),
     })
     .eq("id", athleteId)
     .eq("club_id", coach.clubId);

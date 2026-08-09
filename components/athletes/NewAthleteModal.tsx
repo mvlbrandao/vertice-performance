@@ -71,6 +71,12 @@ export function NewAthleteModal({ partnerClubs }: { partnerClubs: PartnerClubOpt
                 <Input name="category" placeholder="Ex: Futsal Sub-12" />
               )}
             </Field>
+            <Field label="Altura (m)">
+              <Input name="heightCm" inputMode="decimal" placeholder="Ex: 1,64" />
+            </Field>
+            <Field label="Peso (kg)">
+              <Input name="weightKg" inputMode="decimal" placeholder="Ex: 55,5" />
+            </Field>
           </div>
           <Field label="Responsável legal">
             <Input name="guardianName" placeholder="Nome do responsável" />

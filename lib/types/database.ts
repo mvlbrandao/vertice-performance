@@ -850,6 +850,54 @@ export interface Database {
         >;
         Relationships: [];
       };
+      expense_categories: {
+        Row: {
+          id: string;
+          club_id: string;
+          name: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          club_id: string;
+          name: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["expense_categories"]["Insert"]>;
+        Relationships: [];
+      };
+      expenses: {
+        Row: {
+          id: string;
+          club_id: string;
+          category_id: string | null;
+          description: string;
+          amount_cents: number;
+          due_date: string;
+          status: "Pendente" | "Pago" | "Atrasado" | "Cancelado";
+          paid_at: string | null;
+          payment_method: string | null;
+          notes: string | null;
+          created_by: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          club_id: string;
+          category_id?: string | null;
+          description: string;
+          amount_cents: number;
+          due_date: string;
+          status?: "Pendente" | "Pago" | "Atrasado" | "Cancelado";
+          paid_at?: string | null;
+          payment_method?: string | null;
+          notes?: string | null;
+          created_by: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["expenses"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {

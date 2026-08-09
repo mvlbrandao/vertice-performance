@@ -10,6 +10,7 @@ const navItems: NavItem[] = [
   { href: "/jogos", icon: "🏆", label: "Jogos" },
   { href: "/clube", icon: "🏟️", label: "Clubes" },
   { href: "/equipe", icon: "🧑‍⚕️", label: "Equipe" },
+  { href: "/configuracoes", icon: "⚙️", label: "Configurações" },
   { href: "/config", icon: "🔒", label: "Segurança & Privacidade" },
 ];
 

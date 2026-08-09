@@ -3,6 +3,9 @@ import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { NewChargeModal } from "@/components/billing/NewChargeModal";
 import { ChargeRow } from "@/components/billing/ChargeRow";
+import { GuardianBillingForm } from "@/components/billing/GuardianBillingForm";
+import { NewRecurringBillingModal } from "@/components/billing/NewRecurringBillingModal";
+import { RecurringBillingCard } from "@/components/billing/RecurringBillingCard";
 
 function formatCents(cents: number) {
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -16,11 +19,23 @@ export default async function AthleteFinanceiroPage({
   const { athleteId } = await params;
   const supabase = await createClient();
 
-  const { data: charges } = await supabase
-    .from("athlete_charges")
-    .select("*")
-    .eq("athlete_id", athleteId)
-    .order("due_date", { ascending: false });
+  const [{ data: charges }, { data: athlete }, { data: subscriptions }] = await Promise.all([
+    supabase
+      .from("athlete_charges")
+      .select("*")
+      .eq("athlete_id", athleteId)
+      .order("due_date", { ascending: false }),
+    supabase
+      .from("athletes")
+      .select("guardian_cpf, guardian_email")
+      .eq("id", athleteId)
+      .single(),
+    supabase
+      .from("athlete_billing_subscriptions")
+      .select("id, asaas_subscription_id, billing_type, amount_cents, description, status, checkout_url")
+      .eq("athlete_id", athleteId)
+      .order("created_at", { ascending: false }),
+  ]);
 
   const pendingTotal = (charges ?? [])
     .filter((c) => c.status === "Pendente" || c.status === "Atrasado")
@@ -38,8 +53,26 @@ export default async function AthleteFinanceiroPage({
             Lançamentos de mensalidade e pagamentos do atleta.
           </div>
         </div>
-        <NewChargeModal athleteId={athleteId} />
+        <div className="flex gap-2">
+          {athlete?.guardian_cpf && athlete?.guardian_email && (
+            <NewRecurringBillingModal athleteId={athleteId} />
+          )}
+          <NewChargeModal athleteId={athleteId} />
+        </div>
       </div>
+
+      <RecurringBillingCard
+        athleteId={athleteId}
+        subscriptions={(subscriptions ?? []).map((s) => ({
+          id: s.id,
+          asaasSubscriptionId: s.asaas_subscription_id,
+          billingType: s.billing_type,
+          amountCents: s.amount_cents,
+          description: s.description,
+          status: s.status,
+          checkoutUrl: s.checkout_url,
+        }))}
+      />
 
       <div className="grid grid-cols-2 gap-3 mb-4">
         <Card>
@@ -77,12 +110,12 @@ export default async function AthleteFinanceiroPage({
         )}
       </Card>
 
-      <div className="mt-4 text-[12.5px] text-ink-soft bg-chalk border border-line rounded-md px-3.5 py-3">
-        💡 Cobrança recorrente com cartão/PIX automático ainda não está ligada — isso exige uma
-        conta em um gateway de pagamento (recomendação: Asaas, que cobre PIX, boleto e cartão com
-        régua de cobrança pra clube/assinatura no Brasil). Assim que o clube tiver a conta, dá pra
-        conectar aqui sem mudar como os lançamentos manuais funcionam.
-      </div>
+      {(!athlete?.guardian_cpf || !athlete?.guardian_email) && (
+        <Card className="mt-4">
+          <h4 className="mt-0 mb-2 text-sm">Cobrança recorrente (cartão/PIX/boleto)</h4>
+          <GuardianBillingForm athleteId={athleteId} />
+        </Card>
+      )}
     </div>
   );
 }

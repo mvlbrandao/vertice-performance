@@ -139,6 +139,9 @@ export interface Database {
           bmi: number | null;
           current_pain: string | null;
           guardian_consent_at: string | null;
+          guardian_cpf: string | null;
+          guardian_email: string | null;
+          asaas_customer_id: string | null;
           created_by: string | null;
           created_at: string;
           updated_at: string;
@@ -165,6 +168,9 @@ export interface Database {
           bmi?: number | null;
           current_pain?: string | null;
           guardian_consent_at?: string | null;
+          guardian_cpf?: string | null;
+          guardian_email?: string | null;
+          asaas_customer_id?: string | null;
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -762,6 +768,8 @@ export interface Database {
           paid_at: string | null;
           payment_method: string | null;
           notes: string | null;
+          asaas_payment_id: string | null;
+          asaas_subscription_id: string | null;
           created_by: string;
           created_at: string;
         };
@@ -778,10 +786,46 @@ export interface Database {
           paid_at?: string | null;
           payment_method?: string | null;
           notes?: string | null;
+          asaas_payment_id?: string | null;
+          asaas_subscription_id?: string | null;
           created_by: string;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["athlete_charges"]["Insert"]>;
+        Relationships: [];
+      };
+      athlete_billing_subscriptions: {
+        Row: {
+          id: string;
+          club_id: string;
+          athlete_id: string;
+          asaas_subscription_id: string;
+          billing_type: "CREDIT_CARD" | "PIX" | "BOLETO" | "UNDEFINED";
+          amount_cents: number;
+          cycle: string;
+          description: string;
+          status: "ACTIVE" | "INACTIVE";
+          checkout_url: string | null;
+          created_by: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          club_id: string;
+          athlete_id: string;
+          asaas_subscription_id: string;
+          billing_type: "CREDIT_CARD" | "PIX" | "BOLETO" | "UNDEFINED";
+          amount_cents: number;
+          cycle?: string;
+          description: string;
+          status?: "ACTIVE" | "INACTIVE";
+          checkout_url?: string | null;
+          created_by: string;
+          created_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["athlete_billing_subscriptions"]["Insert"]
+        >;
         Relationships: [];
       };
     };

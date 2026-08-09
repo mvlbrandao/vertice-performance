@@ -8,6 +8,7 @@ const navItems: NavItem[] = [
   { href: "/minha-agenda", icon: "🗓️", label: "Minha Agenda" },
   { href: "/evolucao", icon: "📈", label: "Minha Evolução" },
   { href: "/anamnese", icon: "🧭", label: "Anamnese" },
+  { href: "/financeiro", icon: "💳", label: "Financeiro" },
   { href: "/treino", icon: "🏋️", label: "Treinos" },
   { href: "/mesa-tatica", icon: "🎯", label: "Mesa Tática" },
   { href: "/checkin", icon: "✅", label: "Check-in Diário" },

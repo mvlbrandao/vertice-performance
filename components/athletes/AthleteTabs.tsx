@@ -12,6 +12,7 @@ export function AthleteTabs({ athleteId }: { athleteId: string }) {
     { href: `/athletes/${athleteId}/treino`, label: "Treinos" },
     { href: `/athletes/${athleteId}/checkin`, label: "Check-ins" },
     { href: `/athletes/${athleteId}/anamnese`, label: "Anamnese" },
+    { href: `/athletes/${athleteId}/financeiro`, label: "Financeiro" },
   ];
 
   return (

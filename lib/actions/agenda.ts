@@ -14,6 +14,7 @@ const meetingSchema = z.object({
   date: z.string().min(1, "Informe a data."),
   time: z.string().min(1, "Informe o horário."),
   type: z.enum(["Presencial", "Videochamada"]),
+  purpose: z.enum(["Treino", "Específico"]),
   playId: z.string().uuid().optional().or(z.literal("")),
   materialVideoUrl: z.string().trim().url("Link de vídeo inválido.").optional().or(z.literal("")),
 });
@@ -28,6 +29,7 @@ export async function createMeeting(formData: FormData): Promise<ActionResult> {
     date: formData.get("date"),
     time: formData.get("time"),
     type: formData.get("type"),
+    purpose: formData.get("purpose") ?? "Específico",
     playId: formData.get("playId") ?? "",
     materialVideoUrl: formData.get("materialVideoUrl") ?? "",
   });
@@ -48,6 +50,7 @@ export async function createMeeting(formData: FormData): Promise<ActionResult> {
     created_by: coach.userId,
     title: parsed.data.title,
     meeting_type: parsed.data.type,
+    purpose: parsed.data.purpose,
     scheduled_date: parsed.data.date,
     scheduled_time: parsed.data.time,
     play_id: parsed.data.playId || null,

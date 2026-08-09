@@ -13,7 +13,7 @@ export default async function AthleteAgendaPage() {
     ? await supabase
         .from("meetings")
         .select(
-          "id, title, scheduled_date, scheduled_time, meeting_type, notes, status, athlete_confirmed, material_video_url, plays(name)",
+          "id, title, scheduled_date, scheduled_time, meeting_type, notes, status, athlete_confirmed, material_video_url, purpose, plays(name)",
         )
         .eq("athlete_id", profile.athleteId)
         .neq("status", "Cancelado")
@@ -65,6 +65,9 @@ export default async function AthleteAgendaPage() {
                   </p>
                 )}
               </div>
+              <Badge tone={m.purpose === "Treino" ? "sky" : "amber"}>
+                {m.purpose === "Treino" ? "🏋️ Treino" : "🎯 Específico"}
+              </Badge>
               <Badge tone={m.meeting_type === "Videochamada" ? "sky" : "green"}>
                 {m.meeting_type === "Videochamada" ? "🎥 Vídeo" : "📍 Presencial"}
               </Badge>

@@ -15,6 +15,7 @@ export type MediaType = "video" | "image";
 export type ExerciseVideoStatus = "Pendente" | "Avaliado";
 export type MeetingType = "Presencial" | "Videochamada";
 export type MeetingStatus = "Agendado" | "Concluído" | "Cancelado";
+export type MeetingPurpose = "Treino" | "Específico";
 export type DataRequestType = "export" | "deletion";
 export type DataRequestStatus = "Pendente" | "Em andamento" | "Concluído";
 export type PlayTargetType = "athlete" | "team";
@@ -356,6 +357,7 @@ export interface Database {
           batch_id: string | null;
           play_id: string | null;
           material_video_url: string | null;
+          purpose: MeetingPurpose;
           created_at: string;
         };
         Insert: {
@@ -373,6 +375,7 @@ export interface Database {
           batch_id?: string | null;
           play_id?: string | null;
           material_video_url?: string | null;
+          purpose?: MeetingPurpose;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["meetings"]["Insert"]>;

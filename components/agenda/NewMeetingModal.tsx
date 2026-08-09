@@ -91,6 +91,17 @@ export function NewMeetingModal({
               <option value="Videochamada">Videochamada</option>
             </select>
           </Field>
+          <Field label="Classificação">
+            <select
+              key={targetType}
+              name="purpose"
+              defaultValue={targetType === "team" ? "Treino" : "Específico"}
+              className="w-full px-3 py-2.5 border border-line rounded-sm bg-white text-sm"
+            >
+              <option value="Treino">Treino coletivo</option>
+              <option value="Específico">Atendimento específico</option>
+            </select>
+          </Field>
           <Field label="Material de preparo (opcional)">
             <select
               name="playId"

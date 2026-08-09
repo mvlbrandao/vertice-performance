@@ -32,7 +32,7 @@ export default async function CoachAgendaPage({
   let meetingsQuery = supabase
     .from("meetings")
     .select(
-      "id, title, scheduled_date, scheduled_time, meeting_type, notes, status, athlete_confirmed, play_id, material_video_url, athletes(full_name)",
+      "id, title, scheduled_date, scheduled_time, meeting_type, notes, status, athlete_confirmed, play_id, material_video_url, purpose, athletes(full_name)",
     )
     .eq("club_id", profile!.clubId)
     .order("scheduled_date", { ascending: true })
@@ -113,6 +113,9 @@ export default async function CoachAgendaPage({
                   {m.notes ? " · Notas registradas" : ""}
                 </p>
               </div>
+              <Badge tone={m.purpose === "Treino" ? "sky" : "amber"}>
+                {m.purpose === "Treino" ? "🏋️ Treino" : "🎯 Específico"}
+              </Badge>
               {(m.play_id || m.material_video_url) && <Badge tone="dark">📎 Material</Badge>}
               {m.status !== "Agendado" && (
                 <Badge tone={m.status === "Concluído" ? "green" : "clay"}>{m.status}</Badge>

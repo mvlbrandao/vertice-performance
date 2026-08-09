@@ -21,6 +21,7 @@ type TimelineEntry =
       status: string;
       confirmed: boolean;
       hasCheckin: boolean;
+      purpose: string;
     }
   | {
       type: "exercise";
@@ -126,7 +127,7 @@ export default async function AthleteEvolucaoPage({
       .eq("athlete_id", athleteId),
     supabase
       .from("meetings")
-      .select("scheduled_date, scheduled_time, title, meeting_type, status, athlete_confirmed")
+      .select("scheduled_date, scheduled_time, title, meeting_type, status, athlete_confirmed, purpose")
       .eq("athlete_id", athleteId)
       .neq("status", "Cancelado"),
     supabase
@@ -202,6 +203,7 @@ export default async function AthleteEvolucaoPage({
       meetingType: m.meeting_type,
       status: m.status,
       confirmed: m.athlete_confirmed,
+      purpose: m.purpose,
       hasCheckin: checkinDates.has(m.scheduled_date),
     }),
   );
@@ -355,6 +357,9 @@ export default async function AthleteEvolucaoPage({
                     <div className="flex gap-2 items-center mb-1.5 text-[11px] flex-wrap">
                       <Badge tone="sky">
                         {e.meetingType === "Videochamada" ? "🎥 Encontro" : "📍 Encontro"}
+                      </Badge>
+                      <Badge tone={e.purpose === "Treino" ? "green" : "amber"}>
+                        {e.purpose === "Treino" ? "🏋️ Treino" : "🎯 Específico"}
                       </Badge>
                       <span className="font-mono text-ink-faint">
                         {e.date} às {e.time?.slice(0, 5)}

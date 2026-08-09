@@ -6,7 +6,13 @@ import { Field, Input } from "@/components/ui/Field";
 import { createExercise } from "@/lib/actions/exercises";
 import { useFormModal } from "@/lib/utils/useFormModal";
 
-export function NewExerciseModal({ athleteId }: { athleteId: string }) {
+export function NewExerciseModal({
+  athleteId,
+  openSwotItems = [],
+}: {
+  athleteId: string;
+  openSwotItems?: { id: string; category: string; description: string }[];
+}) {
   const { open, setOpen, pending, error, formRef, handleSubmit } =
     useFormModal(createExercise);
 
@@ -21,6 +27,22 @@ export function NewExerciseModal({ athleteId }: { athleteId: string }) {
           <Field label="Nome do exercício">
             <Input name="name" required placeholder="Ex: Equilíbrio unipodal com bola" />
           </Field>
+          {openSwotItems.length > 0 && (
+            <Field label="Vincular a um ponto da anamnese (opcional)">
+              <select
+                name="swotItemId"
+                defaultValue=""
+                className="w-full px-3 py-2.5 border border-line rounded-sm bg-white text-sm"
+              >
+                <option value="">Nenhum</option>
+                {openSwotItems.map((it) => (
+                  <option key={it.id} value={it.id}>
+                    {it.category} — {it.description}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
           <Field label="Descrição / séries">
             <textarea
               name="description"

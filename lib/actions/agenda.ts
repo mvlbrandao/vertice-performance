@@ -17,6 +17,7 @@ const meetingSchema = z.object({
   purpose: z.enum(["Treino", "Específico"]),
   playId: z.string().uuid().optional().or(z.literal("")),
   materialVideoUrl: z.string().trim().url("Link de vídeo inválido.").optional().or(z.literal("")),
+  swotItemId: z.string().uuid().optional().or(z.literal("")),
 });
 
 export async function createMeeting(formData: FormData): Promise<ActionResult> {
@@ -32,6 +33,7 @@ export async function createMeeting(formData: FormData): Promise<ActionResult> {
     purpose: formData.get("purpose") ?? "Específico",
     playId: formData.get("playId") ?? "",
     materialVideoUrl: formData.get("materialVideoUrl") ?? "",
+    swotItemId: formData.get("swotItemId") ?? "",
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
@@ -61,8 +63,10 @@ export async function createMeeting(formData: FormData): Promise<ActionResult> {
     const { error } = await supabase.from("meetings").insert({
       ...base,
       athlete_id: parsed.data.athleteId!,
+      swot_item_id: parsed.data.swotItemId || null,
     });
     if (error) return { error: error.message };
+    if (parsed.data.swotItemId) revalidatePath(`/athletes/${parsed.data.athleteId}/anamnese`);
   } else {
     const { data: teamAthletes, error: athletesError } = await supabase
       .from("athletes")

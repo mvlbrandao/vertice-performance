@@ -16,6 +16,10 @@ export type ExerciseVideoStatus = "Pendente" | "Avaliado";
 export type MeetingType = "Presencial" | "Videochamada";
 export type MeetingStatus = "Agendado" | "Concluído" | "Cancelado";
 export type MeetingPurpose = "Treino" | "Específico";
+export type SwotCategory = "Força" | "Fraqueza" | "Oportunidade" | "Ameaça";
+export type SwotAuthorRole = "coach" | "athlete";
+export type SwotItemStatus = "Aberto" | "Concluído";
+export type SwotCycleStatus = "Aberto" | "Fechado";
 export type DataRequestType = "export" | "deletion";
 export type DataRequestStatus = "Pendente" | "Em andamento" | "Concluído";
 export type PlayTargetType = "athlete" | "team";
@@ -265,6 +269,7 @@ export interface Database {
           done: boolean;
           scheduled_date: string;
           video_url: string | null;
+          swot_item_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -278,6 +283,7 @@ export interface Database {
           done?: boolean;
           scheduled_date?: string;
           video_url?: string | null;
+          swot_item_id?: string | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["exercises"]["Insert"]>;
@@ -382,6 +388,7 @@ export interface Database {
           play_id: string | null;
           material_video_url: string | null;
           purpose: MeetingPurpose;
+          swot_item_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -400,6 +407,7 @@ export interface Database {
           play_id?: string | null;
           material_video_url?: string | null;
           purpose?: MeetingPurpose;
+          swot_item_id?: string | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["meetings"]["Insert"]>;
@@ -623,6 +631,66 @@ export interface Database {
         Update: Partial<
           Database["public"]["Tables"]["athlete_club_transfers"]["Insert"]
         >;
+        Relationships: [];
+      };
+      athlete_swot_cycles: {
+        Row: {
+          id: string;
+          club_id: string;
+          athlete_id: string;
+          cycle_number: number;
+          status: SwotCycleStatus;
+          opened_at: string;
+          closed_at: string | null;
+          created_by: string;
+        };
+        Insert: {
+          id?: string;
+          club_id: string;
+          athlete_id: string;
+          cycle_number: number;
+          status?: SwotCycleStatus;
+          opened_at?: string;
+          closed_at?: string | null;
+          created_by: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["athlete_swot_cycles"]["Insert"]>;
+        Relationships: [];
+      };
+      athlete_swot_items: {
+        Row: {
+          id: string;
+          cycle_id: string;
+          club_id: string;
+          athlete_id: string;
+          category: SwotCategory;
+          author_role: SwotAuthorRole;
+          description: string;
+          target_meetings: number;
+          target_trainings: number;
+          meetings_done: number;
+          trainings_done: number;
+          status: SwotItemStatus;
+          created_by: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          cycle_id: string;
+          club_id: string;
+          athlete_id: string;
+          category: SwotCategory;
+          author_role: SwotAuthorRole;
+          description: string;
+          target_meetings?: number;
+          target_trainings?: number;
+          meetings_done?: number;
+          trainings_done?: number;
+          status?: SwotItemStatus;
+          created_by: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["athlete_swot_items"]["Insert"]>;
         Relationships: [];
       };
     };

@@ -42,22 +42,48 @@ export default async function CoachAgendaPage({
     meetingsQuery = meetingsQuery.eq("status", activeFilter.status);
   }
 
-  const [{ data: athletes }, { data: meetings }, partnerClubs, { data: plays }] = await Promise.all([
-    supabase
-      .from("athletes")
-      .select("id, full_name")
-      .eq("club_id", profile!.clubId)
-      .order("full_name", { ascending: true }),
-    meetingsQuery,
-    getPartnerClubOptions(supabase, profile!.clubId),
-    supabase
-      .from("plays")
-      .select("id, name")
-      .eq("club_id", profile!.clubId)
-      .order("name", { ascending: true }),
-  ]);
+  const [{ data: athletes }, { data: meetings }, partnerClubs, { data: plays }, { data: openCycles }] =
+    await Promise.all([
+      supabase
+        .from("athletes")
+        .select("id, full_name")
+        .eq("club_id", profile!.clubId)
+        .order("full_name", { ascending: true }),
+      meetingsQuery,
+      getPartnerClubOptions(supabase, profile!.clubId),
+      supabase
+        .from("plays")
+        .select("id, name")
+        .eq("club_id", profile!.clubId)
+        .order("name", { ascending: true }),
+      supabase
+        .from("athlete_swot_cycles")
+        .select("id")
+        .eq("club_id", profile!.clubId)
+        .eq("status", "Aberto"),
+    ]);
 
   const teams = partnerClubs.map((c) => c.name);
+
+  const openCycleIds = (openCycles ?? []).map((c) => c.id);
+  const { data: openSwotItemRows } =
+    openCycleIds.length > 0
+      ? await supabase
+          .from("athlete_swot_items")
+          .select("id, athlete_id, category, description")
+          .in("cycle_id", openCycleIds)
+          .eq("status", "Aberto")
+      : { data: [] };
+
+  const openSwotItemsByAthlete: Record<
+    string,
+    { id: string; category: string; description: string }[]
+  > = {};
+  for (const it of openSwotItemRows ?? []) {
+    const list = openSwotItemsByAthlete[it.athlete_id] ?? [];
+    list.push({ id: it.id, category: it.category, description: it.description });
+    openSwotItemsByAthlete[it.athlete_id] = list;
+  }
 
   return (
     <div>
@@ -69,7 +95,12 @@ export default async function CoachAgendaPage({
           </div>
         </div>
         {athletes && athletes.length > 0 && (
-          <NewMeetingModal athletes={athletes} teams={teams} plays={plays ?? []} />
+          <NewMeetingModal
+            athletes={athletes}
+            teams={teams}
+            plays={plays ?? []}
+            openSwotItemsByAthlete={openSwotItemsByAthlete}
+          />
         )}
       </div>
 

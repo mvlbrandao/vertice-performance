@@ -11,13 +11,17 @@ export function NewMeetingModal({
   athletes,
   teams,
   plays,
+  openSwotItemsByAthlete = {},
 }: {
   athletes: { id: string; full_name: string }[];
   teams: string[];
   plays: { id: string; name: string }[];
+  openSwotItemsByAthlete?: Record<string, { id: string; category: string; description: string }[]>;
 }) {
   const { open, setOpen, pending, error, formRef, handleSubmit } = useFormModal(createMeeting);
   const [targetType, setTargetType] = useState<"athlete" | "team">("athlete");
+  const [athleteId, setAthleteId] = useState(athletes[0]?.id ?? "");
+  const athleteSwotItems = openSwotItemsByAthlete[athleteId] ?? [];
 
   return (
     <>
@@ -42,6 +46,8 @@ export function NewMeetingModal({
               <select
                 name="athleteId"
                 required
+                value={athleteId}
+                onChange={(e) => setAthleteId(e.target.value)}
                 className="w-full px-3 py-2.5 border border-line rounded-sm bg-white text-sm"
               >
                 {athletes.map((a) => (
@@ -119,6 +125,22 @@ export function NewMeetingModal({
           <Field label="Link de vídeo (opcional)">
             <Input name="materialVideoUrl" placeholder="https://..." />
           </Field>
+          {targetType === "athlete" && athleteSwotItems.length > 0 && (
+            <Field label="Vincular a um ponto da anamnese (opcional)">
+              <select
+                name="swotItemId"
+                defaultValue=""
+                className="w-full px-3 py-2.5 border border-line rounded-sm bg-white text-sm"
+              >
+                <option value="">Nenhum</option>
+                {athleteSwotItems.map((it) => (
+                  <option key={it.id} value={it.id}>
+                    {it.category} — {it.description}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
           {error && <div className="text-clay text-[12.5px] font-medium">{error}</div>}
           <div className="flex justify-end gap-2.5 mt-2">
             <Button type="button" variant="ghost" onClick={() => setOpen(false)}>

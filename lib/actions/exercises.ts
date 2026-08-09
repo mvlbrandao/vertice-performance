@@ -13,6 +13,7 @@ const exerciseSchema = z.object({
   focus: z.string().trim().optional(),
   scheduledDate: z.string().optional(),
   videoUrl: z.string().trim().optional(),
+  swotItemId: z.string().uuid().optional().or(z.literal("")),
 });
 
 export async function createExercise(formData: FormData): Promise<ActionResult> {
@@ -24,6 +25,7 @@ export async function createExercise(formData: FormData): Promise<ActionResult> 
     focus: formData.get("focus"),
     scheduledDate: formData.get("scheduledDate"),
     videoUrl: formData.get("videoUrl"),
+    swotItemId: formData.get("swotItemId") ?? "",
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
@@ -39,10 +41,14 @@ export async function createExercise(formData: FormData): Promise<ActionResult> 
     focus: parsed.data.focus || null,
     scheduled_date: parsed.data.scheduledDate || undefined,
     video_url: parsed.data.videoUrl || null,
+    swot_item_id: parsed.data.swotItemId || null,
   });
 
   if (error) return { error: error.message };
   revalidatePath(`/athletes/${parsed.data.athleteId}/treino`);
+  if (parsed.data.swotItemId) {
+    revalidatePath(`/athletes/${parsed.data.athleteId}/anamnese`);
+  }
   return { success: true };
 }
 

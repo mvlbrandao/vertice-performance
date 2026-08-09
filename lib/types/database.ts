@@ -463,6 +463,7 @@ export interface Database {
           video_url: string | null;
           description: string | null;
           sport_type: "futsal" | "campo" | "fut7";
+          tags: string[];
           created_at: string;
           updated_at: string;
         };
@@ -479,6 +480,7 @@ export interface Database {
           video_url?: string | null;
           description?: string | null;
           sport_type?: "futsal" | "campo" | "fut7";
+          tags?: string[];
           created_at?: string;
           updated_at?: string;
         };

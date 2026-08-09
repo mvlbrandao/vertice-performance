@@ -47,6 +47,7 @@ export default async function EditPlayPage({
           videoUrl: play.video_url,
           description: play.description,
           sportType: play.sport_type,
+          tags: play.tags ?? [],
           frames: frames.length > 0 ? frames : [defaultFrame()],
         }}
       />

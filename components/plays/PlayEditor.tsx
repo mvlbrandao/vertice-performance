@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Field";
+import { TagInput } from "@/components/ui/TagInput";
 import { PlayCourtSVG, type SvgPoint } from "@/components/plays/PlayCourtSVG";
 import { createPlay, updatePlay } from "@/lib/actions/plays";
 import {
@@ -26,8 +27,22 @@ export interface PlayEditorInitial {
   videoUrl: string | null;
   description: string | null;
   sportType: PlaySportType;
+  tags: string[];
   frames: PlayFrame[];
 }
+
+const PLAY_TAG_SUGGESTIONS = [
+  "Ataque posicionado",
+  "Contra-ataque",
+  "Escanteio ofensivo",
+  "Escanteio defensivo",
+  "Lateral",
+  "Saída de bola",
+  "Transição defensiva",
+  "Bola parada",
+  "Marcação",
+  "Pressão alta",
+];
 
 export function PlayEditor({
   editMode,
@@ -54,6 +69,7 @@ export function PlayEditor({
   const [targetTeam, setTargetTeam] = useState(initialPlay?.targetTeam ?? teams[0] ?? "");
   const [videoUrl, setVideoUrl] = useState(initialPlay?.videoUrl ?? "");
   const [description, setDescription] = useState(initialPlay?.description ?? "");
+  const [tags, setTags] = useState<string[]>(initialPlay?.tags ?? []);
   const [sportType, setSportType] = useState<PlaySportType>(initialPlay?.sportType ?? "futsal");
   const formationNames = Object.keys(FORMATIONS[sportType]);
   const [formation, setFormation] = useState(formationNames[0]);
@@ -219,6 +235,7 @@ export function PlayEditor({
     formData.set("videoUrl", videoUrl);
     formData.set("description", description);
     formData.set("sportType", sportType);
+    tags.forEach((t) => formData.append("tags", t));
     formData.set("frames", JSON.stringify(frames));
 
     const result =
@@ -317,6 +334,15 @@ export function PlayEditor({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Contexto rápido sobre quando usar essa jogada"
+            />
+          </Field>
+          <Field label="Tags (opcional)" className="md:col-span-2">
+            <TagInput
+              name="tags"
+              value={tags}
+              onChange={setTags}
+              suggestions={PLAY_TAG_SUGGESTIONS}
+              placeholder="Ex: Escanteio ofensivo"
             />
           </Field>
         </div>

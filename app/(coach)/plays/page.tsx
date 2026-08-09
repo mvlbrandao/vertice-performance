@@ -13,7 +13,9 @@ export default async function PlaysPage() {
 
   const { data: plays } = await supabase
     .from("plays")
-    .select("id, name, target_type, target_team, video_url, frames, sport_type, athletes(full_name)")
+    .select(
+      "id, name, target_type, target_team, video_url, frames, sport_type, tags, athletes(full_name)",
+    )
     .eq("club_id", profile!.clubId)
     .order("created_at", { ascending: false });
 
@@ -53,9 +55,18 @@ export default async function PlaysPage() {
                     <Badge tone={p.target_type === "team" ? "sky" : "amber"}>{target ?? "—"}</Badge>
                   </div>
                 </div>
-                <p className="text-xs text-ink-faint m-0 mb-3">
+                <p className="text-xs text-ink-faint m-0 mb-2">
                   {frames.length} {frames.length === 1 ? "quadro" : "quadros"}
                 </p>
+                {p.tags && p.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mb-3">
+                    {p.tags.map((t: string) => (
+                      <Badge key={t} tone="amber">
+                        {t}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
                 <div className="flex items-center gap-2 flex-wrap">
                   <Link
                     href={`/plays/${p.id}`}

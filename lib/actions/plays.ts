@@ -19,6 +19,10 @@ const playSchema = z.object({
 });
 
 function parsePlayForm(formData: FormData) {
+  const tags = formData
+    .getAll("tags")
+    .map((t) => String(t).trim())
+    .filter(Boolean);
   const parsed = playSchema.safeParse({
     name: formData.get("name"),
     targetType: formData.get("targetType"),
@@ -53,6 +57,7 @@ function parsePlayForm(formData: FormData) {
       video_url: parsed.data.videoUrl || null,
       description: parsed.data.description || null,
       sport_type: parsed.data.sportType ?? "futsal",
+      tags,
       frames,
     },
   } as const;

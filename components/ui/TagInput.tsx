@@ -17,15 +17,25 @@ const POSITION_SUGGESTIONS = [
 export function TagInput({
   name,
   defaultValue = [],
+  value: controlledValue,
+  onChange,
   placeholder,
   suggestions = POSITION_SUGGESTIONS,
 }: {
   name: string;
   defaultValue?: string[];
+  value?: string[];
+  onChange?: (tags: string[]) => void;
   placeholder?: string;
   suggestions?: string[];
 }) {
-  const [tags, setTags] = useState<string[]>(defaultValue);
+  const [internalTags, setInternalTags] = useState<string[]>(defaultValue);
+  const tags = controlledValue ?? internalTags;
+  const setTags = (updater: (prev: string[]) => string[]) => {
+    const next = updater(tags);
+    if (onChange) onChange(next);
+    else setInternalTags(next);
+  };
   const [inputValue, setInputValue] = useState("");
 
   function addTag(raw: string) {

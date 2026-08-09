@@ -37,12 +37,14 @@ export default async function AthleteFinanceiroPage({
       .order("created_at", { ascending: false }),
   ]);
 
+  // Soma o valor líquido (amount_cents - discount_cents) — o desconto já
+  // reduz o que realmente entra, então os totais têm que refletir isso.
   const pendingTotal = (charges ?? [])
     .filter((c) => c.status === "Pendente" || c.status === "Atrasado")
-    .reduce((sum, c) => sum + c.amount_cents, 0);
+    .reduce((sum, c) => sum + (c.amount_cents - c.discount_cents), 0);
   const paidTotal = (charges ?? [])
     .filter((c) => c.status === "Pago")
-    .reduce((sum, c) => sum + c.amount_cents, 0);
+    .reduce((sum, c) => sum + (c.amount_cents - c.discount_cents), 0);
 
   return (
     <div>
@@ -100,6 +102,7 @@ export default async function AthleteFinanceiroPage({
               athleteId={athleteId}
               description={c.description}
               amountCents={c.amount_cents}
+              discountCents={c.discount_cents}
               competenceMonth={c.competence_month}
               competenceYear={c.competence_year}
               dueDate={c.due_date}

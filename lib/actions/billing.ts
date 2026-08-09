@@ -25,6 +25,7 @@ const chargeSchema = z.object({
   athleteId: z.string().uuid(),
   description: z.string().trim().min(1, "Informe a descrição."),
   amount: z.string().min(1, "Informe o valor."),
+  discount: z.string().optional(),
   competenceMonth: z.string().min(1),
   competenceYear: z.string().min(1),
   dueDate: z.string().min(1, "Informe o vencimento."),
@@ -48,6 +49,7 @@ export async function createCharge(formData: FormData): Promise<ActionResult> {
     athleteId: formData.get("athleteId"),
     description: formData.get("description"),
     amount: formData.get("amount"),
+    discount: formData.get("discount") || "",
     competenceMonth: formData.get("competenceMonth"),
     competenceYear: formData.get("competenceYear"),
     dueDate: formData.get("dueDate"),
@@ -60,6 +62,15 @@ export async function createCharge(formData: FormData): Promise<ActionResult> {
   const amountValue = Number(parsed.data.amount.replace(",", "."));
   if (!Number.isFinite(amountValue) || amountValue <= 0) {
     return { error: "Valor inválido." };
+  }
+  const discountValue = parsed.data.discount
+    ? Number(parsed.data.discount.replace(",", "."))
+    : 0;
+  if (!Number.isFinite(discountValue) || discountValue < 0) {
+    return { error: "Desconto inválido." };
+  }
+  if (discountValue >= amountValue) {
+    return { error: "O desconto não pode ser maior ou igual ao valor do lançamento." };
   }
 
   const installmentsCount = Math.min(Math.max(Number(parsed.data.installments) || 1, 1), 36);
@@ -76,6 +87,7 @@ export async function createCharge(formData: FormData): Promise<ActionResult> {
           ? `${parsed.data.description} (${i + 1}/${installmentsCount})`
           : parsed.data.description,
       amount_cents: Math.round(amountValue * 100),
+      discount_cents: Math.round(discountValue * 100),
       competence_month: competence.month,
       competence_year: competence.year,
       due_date: addMonthsToISODate(parsed.data.dueDate, i),

@@ -41,7 +41,7 @@ export default async function RelatoriosPage({
   const [{ data: charges }, { data: expenses }] = await Promise.all([
     supabase
       .from("athlete_charges")
-      .select("amount_cents, paid_at")
+      .select("amount_cents, discount_cents, paid_at")
       .eq("club_id", profile!.clubId)
       .eq("status", "Pago")
       .gte("paid_at", start)
@@ -55,7 +55,10 @@ export default async function RelatoriosPage({
       .lte("paid_at", `${end}T23:59:59`),
   ]);
 
-  const revenueCents = (charges ?? []).reduce((sum, c) => sum + c.amount_cents, 0);
+  const revenueCents = (charges ?? []).reduce(
+    (sum, c) => sum + (c.amount_cents - c.discount_cents),
+    0,
+  );
   const expenseCents = (expenses ?? []).reduce((sum, e) => sum + e.amount_cents, 0);
   const balanceCents = revenueCents - expenseCents;
 

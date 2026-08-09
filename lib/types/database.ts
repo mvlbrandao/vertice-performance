@@ -789,6 +789,7 @@ export interface Database {
           athlete_id: string;
           description: string;
           amount_cents: number;
+          discount_cents: number;
           competence_month: number;
           competence_year: number;
           due_date: string;
@@ -807,6 +808,7 @@ export interface Database {
           athlete_id: string;
           description: string;
           amount_cents: number;
+          discount_cents?: number;
           competence_month: number;
           competence_year: number;
           due_date: string;

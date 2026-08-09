@@ -71,7 +71,7 @@ export default async function DashboardPage() {
       .limit(6),
     supabase
       .from("athlete_charges")
-      .select("amount_cents, status, due_date")
+      .select("amount_cents, discount_cents, status, due_date")
       .eq("club_id", clubId)
       .in("status", ["Pendente", "Atrasado"]),
   ]);
@@ -99,22 +99,24 @@ export default async function DashboardPage() {
 
   const total = athletesCount ?? 0;
   const charges = openCharges ?? [];
-  const openTotalCents = charges.reduce((sum, c) => sum + c.amount_cents, 0);
+  const netCents = (c: { amount_cents: number; discount_cents: number }) =>
+    c.amount_cents - c.discount_cents;
+  const openTotalCents = charges.reduce((sum, c) => sum + netCents(c), 0);
   // Inadimplência conta por data de vencimento, não só pelo status "Atrasado" —
   // nada muda esse status sozinho quando a data passa, então confiar só nele
   // subestimaria a inadimplência real.
   const isOverdue = (c: { status: string; due_date: string }) =>
     c.status === "Atrasado" || (c.status === "Pendente" && c.due_date < today);
   const overdueCharges = charges.filter(isOverdue);
-  const overdueCents = overdueCharges.reduce((sum, c) => sum + c.amount_cents, 0);
+  const overdueCents = overdueCharges.reduce((sum, c) => sum + netCents(c), 0);
   const overdueCount = overdueCharges.length;
   const overduePct = openTotalCents > 0 ? Math.round((overdueCents / openTotalCents) * 100) : 0;
   const dueTodayCents = charges
     .filter((c) => c.status === "Pendente" && c.due_date === today)
-    .reduce((sum, c) => sum + c.amount_cents, 0);
+    .reduce((sum, c) => sum + netCents(c), 0);
   const due7DaysCents = charges
     .filter((c) => c.status === "Pendente" && c.due_date >= today && c.due_date <= weekAhead)
-    .reduce((sum, c) => sum + c.amount_cents, 0);
+    .reduce((sum, c) => sum + netCents(c), 0);
   const formatCents = (cents: number) =>
     (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const openTotalFormatted = formatCents(openTotalCents);

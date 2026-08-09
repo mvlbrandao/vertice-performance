@@ -36,9 +36,14 @@ export function NewChargeModal({ athleteId }: { athleteId: string }) {
           <Field label="Descrição">
             <Input name="description" required placeholder="Ex: Mensalidade" />
           </Field>
-          <Field label="Valor (R$)">
-            <Input name="amount" required inputMode="decimal" placeholder="Ex: 150,00" />
-          </Field>
+          <div className="grid grid-cols-2 gap-2.5">
+            <Field label="Valor (R$)">
+              <Input name="amount" required inputMode="decimal" placeholder="Ex: 150,00" />
+            </Field>
+            <Field label="Desconto (R$, opcional)">
+              <Input name="discount" inputMode="decimal" placeholder="Ex: 20,00" />
+            </Field>
+          </div>
           <div className="grid grid-cols-2 gap-2.5">
             <Field label="Mês de referência">
               <select

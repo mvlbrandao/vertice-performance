@@ -70,8 +70,17 @@ export default async function AthleteFinanceiroPage() {
                   {MONTHS[c.competence_month - 1]}/{c.competence_year} · vence {c.due_date}
                 </span>
               </div>
-              <span className="font-mono text-sm font-semibold">
-                {formatCents(c.amount_cents)}
+              <span className="font-mono text-sm font-semibold text-right">
+                {c.discount_cents > 0 ? (
+                  <span className="block">
+                    <span className="text-ink-faint line-through text-xs block">
+                      {formatCents(c.amount_cents)}
+                    </span>
+                    {formatCents(c.amount_cents - c.discount_cents)}
+                  </span>
+                ) : (
+                  formatCents(c.amount_cents)
+                )}
               </span>
               <Badge tone={STATUS_TONE[c.status]}>{c.status}</Badge>
             </div>

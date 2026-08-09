@@ -41,6 +41,7 @@ export function ChargeRow({
   athleteId,
   description,
   amountCents,
+  discountCents = 0,
   competenceMonth,
   competenceYear,
   dueDate,
@@ -51,12 +52,14 @@ export function ChargeRow({
   athleteId: string;
   description: string;
   amountCents: number;
+  discountCents?: number;
   competenceMonth: number;
   competenceYear: number;
   dueDate: string;
   status: ChargeStatus;
   canManage: boolean;
 }) {
+  const netCents = amountCents - discountCents;
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [editingDate, setEditingDate] = useState(false);
@@ -145,7 +148,18 @@ export function ChargeRow({
           </span>
         )}
       </div>
-      <span className="font-mono text-sm font-semibold">{formatCents(amountCents)}</span>
+      <span className="font-mono text-sm font-semibold text-right">
+        {discountCents > 0 ? (
+          <span className="block">
+            <span className="text-ink-faint line-through text-xs block">
+              {formatCents(amountCents)}
+            </span>
+            {formatCents(netCents)}
+          </span>
+        ) : (
+          formatCents(amountCents)
+        )}
+      </span>
       <Badge tone={isOverdue ? "clay" : STATUS_TONE[status]}>
         {isOverdue ? "Atrasado" : status}
       </Badge>

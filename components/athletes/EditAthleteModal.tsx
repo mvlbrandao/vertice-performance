@@ -4,16 +4,19 @@ import { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Field";
+import { TagInput } from "@/components/ui/TagInput";
 import { updateAthlete } from "@/lib/actions/athletes";
 import { useFormModal } from "@/lib/utils/useFormModal";
 import type { PartnerClubOption } from "@/lib/types/partnerClubs";
+import type { AthleteSex } from "@/lib/types/database";
 
 type AthleteEditableData = {
   fullName: string;
   birthDate: string | null;
   category: string | null;
-  position: string | null;
+  position: string[] | null;
   team: string | null;
+  sex: AthleteSex | null;
   guardianName: string | null;
   guardianPhone: string | null;
   athletePhone: string | null;
@@ -57,8 +60,19 @@ export function EditAthleteModal({
             <Field label="Data de nascimento">
               <Input name="birthDate" type="date" defaultValue={athlete.birthDate ?? ""} />
             </Field>
-            <Field label="Posição">
-              <Input name="position" defaultValue={athlete.position ?? ""} />
+            <Field label="Sexo (usado no IMC por idade)">
+              <select
+                name="sex"
+                required
+                defaultValue={athlete.sex ?? ""}
+                className="w-full px-3 py-2.5 border border-line rounded-sm bg-white text-sm"
+              >
+                <option value="" disabled>
+                  Selecione…
+                </option>
+                <option value="M">Masculino</option>
+                <option value="F">Feminino</option>
+              </select>
             </Field>
             <Field label="Time">
               {partnerClubs.length > 0 ? (
@@ -127,6 +141,9 @@ export function EditAthleteModal({
               />
             </Field>
           </div>
+          <Field label="Posições (o atleta pode ter mais de uma)">
+            <TagInput name="position" defaultValue={athlete.position ?? []} placeholder="Ex: Pivô, Atacante" />
+          </Field>
           <Field label="Celular do atleta">
             <Input name="athletePhone" type="tel" defaultValue={athlete.athletePhone ?? ""} />
           </Field>

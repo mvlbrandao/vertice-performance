@@ -61,7 +61,11 @@ export default async function AthletePerfilPage() {
           <h2 className="m-0 mb-1 font-sans text-xl font-extrabold">{athlete.full_name}</h2>
           <div className="flex gap-1.5 flex-wrap">
             {athlete.category && <Badge tone="green">{athlete.category}</Badge>}
-            {athlete.position && <Badge tone="amber">{athlete.position}</Badge>}
+            {athlete.position?.map((p) => (
+              <Badge key={p} tone="amber">
+                {p}
+              </Badge>
+            ))}
             {athlete.team && <Badge tone="sky">{athlete.team}</Badge>}
           </div>
         </div>
@@ -91,7 +95,7 @@ export default async function AthletePerfilPage() {
           <Row k="Nascimento" v={athlete.birth_date ?? "—"} />
           <Row k="Responsável" v={athlete.guardian_name ?? "—"} />
           <Row k="Categoria" v={athlete.category ?? "—"} />
-          <Row k="Posição" v={athlete.position ?? "—"} />
+          <Row k="Posição" v={athlete.position?.join(", ") || "—"} />
           <Row k="Time" v={athlete.team ?? "—"} />
           <Row k="Na plataforma desde" v={athlete.joined_at ?? "—"} />
         </Card>

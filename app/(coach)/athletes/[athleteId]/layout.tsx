@@ -45,7 +45,11 @@ export default async function AthleteDetailLayout({
           <h2 className="m-0 mb-1 font-sans text-xl font-extrabold">{athlete.full_name}</h2>
           <div className="flex gap-1.5 flex-wrap">
             {athlete.category && <Badge tone="green">{athlete.category}</Badge>}
-            {athlete.position && <Badge tone="amber">{athlete.position}</Badge>}
+            {athlete.position?.map((p) => (
+              <Badge key={p} tone="amber">
+                {p}
+              </Badge>
+            ))}
             {athlete.team && <Badge tone="sky">{athlete.team}</Badge>}
             {athlete.instagram && <Badge tone="dark">📸 {athlete.instagram}</Badge>}
           </div>

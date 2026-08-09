@@ -9,8 +9,8 @@ const athleteSchema = z.object({
   fullName: z.string().trim().min(1, "Nome é obrigatório."),
   birthDate: z.string().optional(),
   category: z.string().trim().optional(),
-  position: z.string().trim().optional(),
   team: z.string().trim().optional(),
+  sex: z.string().trim().optional(),
   guardianName: z.string().trim().optional(),
   guardianPhone: z.string().trim().optional(),
   instagram: z.string().trim().optional(),
@@ -44,6 +44,18 @@ function computeBmi(heightCm: number | null, weightKg: number | null): number | 
   return Math.round((weightKg / (heightCm / 100) ** 2) * 10) / 10;
 }
 
+function parsePositions(formData: FormData): string[] | null {
+  const positions = formData
+    .getAll("position")
+    .map((p) => String(p).trim())
+    .filter(Boolean);
+  return positions.length > 0 ? positions : null;
+}
+
+function parseSex(raw: string | undefined): "M" | "F" | null {
+  return raw === "M" || raw === "F" ? raw : null;
+}
+
 export async function createAthlete(formData: FormData): Promise<ActionResult> {
   const coach = await requireCoach();
 
@@ -51,8 +63,8 @@ export async function createAthlete(formData: FormData): Promise<ActionResult> {
     fullName: formData.get("fullName"),
     birthDate: formData.get("birthDate"),
     category: formData.get("category"),
-    position: formData.get("position"),
     team: formData.get("team"),
+    sex: formData.get("sex"),
     guardianName: formData.get("guardianName"),
     guardianPhone: formData.get("guardianPhone"),
     instagram: formData.get("instagram"),
@@ -77,8 +89,9 @@ export async function createAthlete(formData: FormData): Promise<ActionResult> {
     full_name: parsed.data.fullName,
     birth_date: parsed.data.birthDate || null,
     category: parsed.data.category || null,
-    position: parsed.data.position || null,
+    position: parsePositions(formData),
     team: parsed.data.team || null,
+    sex: parseSex(parsed.data.sex),
     guardian_name: parsed.data.guardianName || null,
     guardian_phone: parsed.data.guardianPhone || null,
     instagram: parsed.data.instagram || null,
@@ -101,8 +114,8 @@ const athleteUpdateSchema = z.object({
   fullName: z.string().trim().min(1, "Nome é obrigatório."),
   birthDate: z.string().optional(),
   category: z.string().trim().optional(),
-  position: z.string().trim().optional(),
   team: z.string().trim().optional(),
+  sex: z.string().trim().optional(),
   guardianName: z.string().trim().optional(),
   guardianPhone: z.string().trim().optional(),
   athletePhone: z.string().trim().optional(),
@@ -121,8 +134,8 @@ export async function updateAthlete(
     fullName: formData.get("fullName"),
     birthDate: formData.get("birthDate"),
     category: formData.get("category"),
-    position: formData.get("position"),
     team: formData.get("team"),
+    sex: formData.get("sex"),
     guardianName: formData.get("guardianName"),
     guardianPhone: formData.get("guardianPhone"),
     athletePhone: formData.get("athletePhone"),
@@ -144,8 +157,9 @@ export async function updateAthlete(
       full_name: parsed.data.fullName,
       birth_date: parsed.data.birthDate || null,
       category: parsed.data.category || null,
-      position: parsed.data.position || null,
+      position: parsePositions(formData),
       team: parsed.data.team || null,
+      sex: parseSex(parsed.data.sex),
       guardian_name: parsed.data.guardianName || null,
       guardian_phone: parsed.data.guardianPhone || null,
       athlete_phone: parsed.data.athletePhone || null,

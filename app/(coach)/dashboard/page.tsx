@@ -132,7 +132,7 @@ export default async function DashboardPage() {
                 <div className="flex-1 min-w-0">
                   <b className="block text-sm truncate">{a.full_name}</b>
                   <span className="text-xs text-ink-faint">
-                    {a.category} · {a.position}
+                    {a.category} · {a.position?.join(", ")}
                   </span>
                 </div>
                 <Badge tone={!a.current_pain || a.current_pain === "Nenhuma" ? "green" : "clay"}>

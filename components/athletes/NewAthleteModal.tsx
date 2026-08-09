@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Field";
+import { TagInput } from "@/components/ui/TagInput";
 import { createAthlete } from "@/lib/actions/athletes";
 import { useFormModal } from "@/lib/utils/useFormModal";
 import type { PartnerClubOption } from "@/lib/types/partnerClubs";
@@ -27,8 +28,19 @@ export function NewAthleteModal({ partnerClubs }: { partnerClubs: PartnerClubOpt
             <Field label="Data de nascimento">
               <Input name="birthDate" type="date" />
             </Field>
-            <Field label="Posição">
-              <Input name="position" placeholder="Ex: Pivô" />
+            <Field label="Sexo (usado no IMC por idade)">
+              <select
+                name="sex"
+                required
+                defaultValue=""
+                className="w-full px-3 py-2.5 border border-line rounded-sm bg-white text-sm"
+              >
+                <option value="" disabled>
+                  Selecione…
+                </option>
+                <option value="M">Masculino</option>
+                <option value="F">Feminino</option>
+              </select>
             </Field>
             <Field label="Time">
               {partnerClubs.length > 0 ? (
@@ -78,6 +90,9 @@ export function NewAthleteModal({ partnerClubs }: { partnerClubs: PartnerClubOpt
               <Input name="weightKg" inputMode="decimal" placeholder="Ex: 55,5" />
             </Field>
           </div>
+          <Field label="Posições (o atleta pode ter mais de uma)">
+            <TagInput name="position" placeholder="Ex: Pivô, Atacante" />
+          </Field>
           <Field label="Responsável legal">
             <Input name="guardianName" placeholder="Nome do responsável" />
           </Field>

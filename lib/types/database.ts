@@ -18,6 +18,7 @@ export type MeetingStatus = "Agendado" | "Concluído" | "Cancelado";
 export type DataRequestType = "export" | "deletion";
 export type DataRequestStatus = "Pendente" | "Em andamento" | "Concluído";
 export type PlayTargetType = "athlete" | "team";
+export type AthleteSex = "M" | "F";
 
 export interface Database {
   public: {
@@ -67,8 +68,9 @@ export interface Database {
           full_name: string;
           jersey_num: number | null;
           category: string | null;
-          position: string | null;
+          position: string[] | null;
           team: string | null;
+          sex: AthleteSex | null;
           birth_date: string | null;
           guardian_name: string | null;
           guardian_phone: string | null;
@@ -92,8 +94,9 @@ export interface Database {
           full_name: string;
           jersey_num?: number | null;
           category?: string | null;
-          position?: string | null;
+          position?: string[] | null;
           team?: string | null;
+          sex?: AthleteSex | null;
           birth_date?: string | null;
           guardian_name?: string | null;
           guardian_phone?: string | null;

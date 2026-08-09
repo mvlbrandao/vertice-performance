@@ -76,7 +76,11 @@ export default async function AthletesPage() {
                 </div>
                 <div className="flex gap-1.5 flex-wrap mb-2.5">
                   {a.category && <Badge tone="green">{a.category}</Badge>}
-                  {a.position && <Badge tone="amber">{a.position}</Badge>}
+                  {a.position?.map((p) => (
+                    <Badge key={p} tone="amber">
+                      {p}
+                    </Badge>
+                  ))}
                 </div>
                 <p className="text-[12.5px] text-ink-soft m-0">
                   {a.joined_at ? `Ingressou em ${a.joined_at}` : ""}

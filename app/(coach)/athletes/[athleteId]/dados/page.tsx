@@ -3,12 +3,13 @@ import { Card } from "@/components/ui/Card";
 import { InviteAthleteModal } from "@/components/athletes/InviteAthleteModal";
 import { EditAthleteModal } from "@/components/athletes/EditAthleteModal";
 import { getPartnerClubOptions } from "@/lib/data/partnerClubs";
+import { classifyBmi } from "@/lib/utils/bmiReference";
 
-function Row({ k, v }: { k: string; v: string }) {
+function Row({ k, v, danger }: { k: string; v: string; danger?: boolean }) {
   return (
     <div className="flex justify-between py-2.5 border-b border-line text-[13.5px] last:border-b-0">
       <span className="text-ink-faint">{k}</span>
-      <b>{v}</b>
+      <b className={danger ? "text-[#8B0000]" : undefined}>{v}</b>
     </div>
   );
 }
@@ -60,6 +61,7 @@ export default async function AthleteDadosPage({
     : 0;
 
   const hasPain = athlete.current_pain && athlete.current_pain !== "Nenhuma";
+  const bmiClass = classifyBmi(athlete.bmi, athlete.birth_date, athlete.sex);
 
   return (
     <div className="grid lg:grid-cols-2 gap-4">
@@ -76,6 +78,7 @@ export default async function AthleteDadosPage({
                 category: athlete.category,
                 position: athlete.position,
                 team: athlete.team,
+                sex: athlete.sex,
                 guardianName: athlete.guardian_name,
                 guardianPhone: athlete.guardian_phone,
                 athletePhone: athlete.athlete_phone,
@@ -97,11 +100,19 @@ export default async function AthleteDadosPage({
         <Row k="Cel. do atleta" v={athlete.athlete_phone ?? "—"} />
         <Row k="Instagram" v={athlete.instagram ?? "—"} />
         <Row k="Categoria" v={athlete.category ?? "—"} />
-        <Row k="Posição" v={athlete.position ?? "—"} />
+        <Row k="Posição" v={athlete.position?.join(", ") || "—"} />
         <Row k="Time" v={athlete.team ?? "—"} />
         <Row k="Altura" v={athlete.height_cm ? `${athlete.height_cm}cm` : "—"} />
         <Row k="Peso" v={athlete.weight_kg ? `${athlete.weight_kg}kg` : "—"} />
-        <Row k="IMC" v={athlete.bmi ? String(athlete.bmi) : "—"} />
+        <Row
+          k="IMC"
+          v={
+            athlete.bmi
+              ? `${athlete.bmi}${bmiClass.isUnderweight ? " ⚠️ abaixo do esperado p/ idade" : ""}`
+              : "—"
+          }
+          danger={bmiClass.isUnderweight}
+        />
         <Row k="Na plataforma desde" v={athlete.joined_at ?? "—"} />
       </Card>
 

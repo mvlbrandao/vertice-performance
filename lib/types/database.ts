@@ -70,6 +70,26 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["clubs"]["Insert"]>;
         Relationships: [];
       };
+      asaas_security_events: {
+        Row: {
+          id: string;
+          club_id: string;
+          event_type: string;
+          payload: Json;
+          decision: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          club_id: string;
+          event_type: string;
+          payload: Json;
+          decision?: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["asaas_security_events"]["Insert"]>;
+        Relationships: [];
+      };
       profiles: {
         Row: {
           id: string;

@@ -6,22 +6,28 @@ import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Field";
 import { createMeeting } from "@/lib/actions/agenda";
 import { useFormModal } from "@/lib/utils/useFormModal";
+import { getFocusTagSuggestions } from "@/lib/data/swotCatalog";
 
 export function NewMeetingModal({
   athletes,
   teams,
   plays,
   openSwotItemsByAthlete = {},
+  athletePositions = {},
 }: {
   athletes: { id: string; full_name: string }[];
   teams: string[];
   plays: { id: string; name: string }[];
   openSwotItemsByAthlete?: Record<string, { id: string; category: string; description: string }[]>;
+  athletePositions?: Record<string, string[]>;
 }) {
   const { open, setOpen, pending, error, formRef, handleSubmit } = useFormModal(createMeeting);
   const [targetType, setTargetType] = useState<"athlete" | "team">("athlete");
   const [athleteId, setAthleteId] = useState(athletes[0]?.id ?? "");
   const athleteSwotItems = openSwotItemsByAthlete[athleteId] ?? [];
+  const focusSuggestions = getFocusTagSuggestions(
+    targetType === "athlete" ? (athletePositions[athleteId] ?? []) : [],
+  );
 
   return (
     <>
@@ -124,6 +130,14 @@ export function NewMeetingModal({
           </Field>
           <Field label="Link de vídeo (opcional)">
             <Input name="materialVideoUrl" placeholder="https://..." />
+          </Field>
+          <Field label="Foco/Tema (opcional)">
+            <Input name="focusTag" list="focus-tag-suggestions" placeholder="Ex: Marcação individual firme" />
+            <datalist id="focus-tag-suggestions">
+              {focusSuggestions.map((s) => (
+                <option key={s} value={s} />
+              ))}
+            </datalist>
           </Field>
           {targetType === "athlete" && athleteSwotItems.length > 0 && (
             <Field label="Vincular a um ponto da anamnese (opcional)">

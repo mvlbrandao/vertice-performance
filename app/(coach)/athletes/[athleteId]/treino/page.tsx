@@ -12,23 +12,25 @@ export default async function AthleteTreinoPage({
   const { athleteId } = await params;
   const supabase = await createClient();
 
-  const [{ data: exercises }, { data: videos }, { data: openCycle }] = await Promise.all([
-    supabase
-      .from("exercises")
-      .select("id, name, description, focus, done, video_url")
-      .eq("athlete_id", athleteId)
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("exercise_videos")
-      .select("id, exercise_id, label, status, coach_comment, submitted_at")
-      .eq("athlete_id", athleteId),
-    supabase
-      .from("athlete_swot_cycles")
-      .select("id")
-      .eq("athlete_id", athleteId)
-      .eq("status", "Aberto")
-      .maybeSingle(),
-  ]);
+  const [{ data: athlete }, { data: exercises }, { data: videos }, { data: openCycle }] =
+    await Promise.all([
+      supabase.from("athletes").select("position").eq("id", athleteId).single(),
+      supabase
+        .from("exercises")
+        .select("id, name, description, focus, done, video_url")
+        .eq("athlete_id", athleteId)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("exercise_videos")
+        .select("id, exercise_id, label, status, coach_comment, submitted_at")
+        .eq("athlete_id", athleteId),
+      supabase
+        .from("athlete_swot_cycles")
+        .select("id")
+        .eq("athlete_id", athleteId)
+        .eq("status", "Aberto")
+        .maybeSingle(),
+    ]);
 
   const { data: openSwotItems } = openCycle
     ? await supabase
@@ -53,7 +55,11 @@ export default async function AthleteTreinoPage({
           <h2 className="text-[18px] m-0">Exercícios de aprimoramento</h2>
           <div className="text-xs text-ink-faint mt-0.5">Foco nas deficiências identificadas</div>
         </div>
-        <NewExerciseModal athleteId={athleteId} openSwotItems={openSwotItems ?? []} />
+        <NewExerciseModal
+          athleteId={athleteId}
+          openSwotItems={openSwotItems ?? []}
+          positions={athlete?.position}
+        />
       </div>
 
       {!exercises || exercises.length === 0 ? (

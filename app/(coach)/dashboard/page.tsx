@@ -30,6 +30,7 @@ export default async function DashboardPage() {
     { count: healthAlertsCount },
     { data: athletes },
     { data: upcomingMeetings },
+    { data: openCharges },
   ] = await Promise.all([
     supabase
       .from("athletes")
@@ -68,9 +69,20 @@ export default async function DashboardPage() {
       .order("scheduled_date", { ascending: true })
       .order("scheduled_time", { ascending: true })
       .limit(6),
+    supabase
+      .from("athlete_charges")
+      .select("amount_cents, status, due_date")
+      .eq("club_id", clubId)
+      .in("status", ["Pendente", "Atrasado"]),
   ]);
 
   const total = athletesCount ?? 0;
+  const openTotalCents = (openCharges ?? []).reduce((sum, c) => sum + c.amount_cents, 0);
+  const overdueCount = (openCharges ?? []).filter((c) => c.status === "Atrasado").length;
+  const openTotalFormatted = (openTotalCents / 100).toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
   const checkinPct =
     total > 0
       ? Math.round(
@@ -92,7 +104,7 @@ export default async function DashboardPage() {
       </div>
       <h1 className="text-[28px] mb-6">Olá, {profile!.fullName.split(" ")[0]} 👋</h1>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-5">
         <Card>
           <span className="text-xs font-semibold text-ink-soft">Atletas ativos</span>
           <b className="block font-display text-[34px] leading-none mt-1">{total}</b>
@@ -112,6 +124,17 @@ export default async function DashboardPage() {
           <b className="block font-display text-[34px] leading-none mt-1">
             {healthAlertsCount ?? 0}
           </b>
+        </Card>
+        <Card>
+          <span className="text-xs font-semibold text-ink-soft">Financeiro em aberto</span>
+          <b className="block font-display text-[26px] leading-none mt-1 truncate">
+            {openTotalFormatted}
+          </b>
+          {overdueCount > 0 && (
+            <span className="text-[11px] text-clay font-semibold mt-1 block">
+              {overdueCount} atrasado{overdueCount > 1 ? "s" : ""}
+            </span>
+          )}
         </Card>
       </div>
 
@@ -135,7 +158,7 @@ export default async function DashboardPage() {
               <Link
                 key={a.id}
                 href={`/athletes/${a.id}/dados`}
-                className="flex items-center gap-3 px-2.5 py-3 rounded-md hover:bg-white hover:border hover:border-line hover:shadow-card border border-transparent"
+                className="flex items-center gap-3 px-2.5 py-3 rounded-md hover:bg-white hover:border hover:border-line hover:shadow-card border border-transparent flex-wrap"
               >
                 {a.signedPhotoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -175,7 +198,10 @@ export default async function DashboardPage() {
             <EmptyState icon="🗓️" message="Nenhum encontro agendado." />
           ) : (
             upcomingMeetings.map((m) => (
-              <div key={m.id} className="flex items-center gap-3.5 py-3 border-b border-line last:border-b-0">
+              <div
+                key={m.id}
+                className="flex items-center gap-3.5 py-3 border-b border-line last:border-b-0 flex-wrap"
+              >
                 <div className="w-[34px] h-[34px] rounded-lg bg-amber text-pitch-dark flex items-center justify-center font-display text-[13px] shrink-0">
                   {m.scheduled_time?.slice(0, 5)}
                 </div>

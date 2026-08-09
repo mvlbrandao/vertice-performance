@@ -18,6 +18,7 @@ const meetingSchema = z.object({
   playId: z.string().uuid().optional().or(z.literal("")),
   materialVideoUrl: z.string().trim().url("Link de vídeo inválido.").optional().or(z.literal("")),
   swotItemId: z.string().uuid().optional().or(z.literal("")),
+  focusTag: z.string().trim().optional().or(z.literal("")),
 });
 
 export async function createMeeting(formData: FormData): Promise<ActionResult> {
@@ -34,6 +35,7 @@ export async function createMeeting(formData: FormData): Promise<ActionResult> {
     playId: formData.get("playId") ?? "",
     materialVideoUrl: formData.get("materialVideoUrl") ?? "",
     swotItemId: formData.get("swotItemId") ?? "",
+    focusTag: formData.get("focusTag") ?? "",
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
@@ -57,6 +59,7 @@ export async function createMeeting(formData: FormData): Promise<ActionResult> {
     scheduled_time: parsed.data.time,
     play_id: parsed.data.playId || null,
     material_video_url: parsed.data.materialVideoUrl || null,
+    focus_tag: parsed.data.focusTag || null,
   };
 
   if (parsed.data.targetType === "athlete") {

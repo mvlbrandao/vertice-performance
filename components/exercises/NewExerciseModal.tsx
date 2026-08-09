@@ -5,16 +5,20 @@ import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Field";
 import { createExercise } from "@/lib/actions/exercises";
 import { useFormModal } from "@/lib/utils/useFormModal";
+import { getFocusTagSuggestions } from "@/lib/data/swotCatalog";
 
 export function NewExerciseModal({
   athleteId,
   openSwotItems = [],
+  positions = [],
 }: {
   athleteId: string;
   openSwotItems?: { id: string; category: string; description: string }[];
+  positions?: string[] | null;
 }) {
   const { open, setOpen, pending, error, formRef, handleSubmit } =
     useFormModal(createExercise);
+  const focusSuggestions = getFocusTagSuggestions(positions ?? []);
 
   return (
     <>
@@ -51,7 +55,12 @@ export function NewExerciseModal({
             />
           </Field>
           <Field label="Foco (deficiência trabalhada)">
-            <Input name="focus" placeholder="Ex: Equilíbrio no jogo de campo" />
+            <Input name="focus" list="focus-suggestions" placeholder="Ex: Equilíbrio no jogo de campo" />
+            <datalist id="focus-suggestions">
+              {focusSuggestions.map((s) => (
+                <option key={s} value={s} />
+              ))}
+            </datalist>
           </Field>
           <Field label="Data">
             <Input

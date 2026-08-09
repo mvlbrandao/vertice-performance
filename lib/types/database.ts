@@ -390,6 +390,7 @@ export interface Database {
           material_video_url: string | null;
           purpose: MeetingPurpose;
           swot_item_id: string | null;
+          focus_tag: string | null;
           created_at: string;
         };
         Insert: {
@@ -409,6 +410,7 @@ export interface Database {
           material_video_url?: string | null;
           purpose?: MeetingPurpose;
           swot_item_id?: string | null;
+          focus_tag?: string | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["meetings"]["Insert"]>;

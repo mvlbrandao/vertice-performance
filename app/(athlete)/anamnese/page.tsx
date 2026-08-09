@@ -21,6 +21,11 @@ export default async function AthleteAnamnesePage() {
   }
 
   const supabase = await createClient();
+  const { data: athlete } = await supabase
+    .from("athletes")
+    .select("position")
+    .eq("id", profile.athleteId)
+    .single();
   const { data: cycles } = await supabase
     .from("athlete_swot_cycles")
     .select("id, cycle_number, status")
@@ -81,6 +86,7 @@ export default async function AthleteAnamnesePage() {
                     athleteId={profile.athleteId!}
                     category={category}
                     showTargets={false}
+                    positions={athlete?.position}
                   />
                 </div>
                 {categoryItems.length === 0 ? (

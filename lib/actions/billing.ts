@@ -28,7 +28,19 @@ const chargeSchema = z.object({
   competenceMonth: z.string().min(1),
   competenceYear: z.string().min(1),
   dueDate: z.string().min(1, "Informe o vencimento."),
+  installments: z.string().min(1),
 });
+
+function addMonthsToISODate(iso: string, months: number) {
+  const [y, m, d] = iso.split("-").map(Number);
+  const date = new Date(Date.UTC(y, m - 1 + months, d));
+  return date.toISOString().slice(0, 10);
+}
+
+function addMonthsToCompetence(month: number, year: number, months: number) {
+  const total = month - 1 + months;
+  return { month: (((total % 12) + 12) % 12) + 1, year: year + Math.floor(total / 12) };
+}
 
 export async function createCharge(formData: FormData): Promise<ActionResult> {
   const coach = await requireCoach();
@@ -39,6 +51,7 @@ export async function createCharge(formData: FormData): Promise<ActionResult> {
     competenceMonth: formData.get("competenceMonth"),
     competenceYear: formData.get("competenceYear"),
     dueDate: formData.get("dueDate"),
+    installments: formData.get("installments") || "1",
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
@@ -49,17 +62,29 @@ export async function createCharge(formData: FormData): Promise<ActionResult> {
     return { error: "Valor inválido." };
   }
 
-  const supabase = await createClient();
-  const { error } = await supabase.from("athlete_charges").insert({
-    club_id: coach.clubId,
-    athlete_id: parsed.data.athleteId,
-    description: parsed.data.description,
-    amount_cents: Math.round(amountValue * 100),
-    competence_month: Number(parsed.data.competenceMonth),
-    competence_year: Number(parsed.data.competenceYear),
-    due_date: parsed.data.dueDate,
-    created_by: coach.userId,
+  const installmentsCount = Math.min(Math.max(Number(parsed.data.installments) || 1, 1), 36);
+  const baseMonth = Number(parsed.data.competenceMonth);
+  const baseYear = Number(parsed.data.competenceYear);
+
+  const rows = Array.from({ length: installmentsCount }, (_, i) => {
+    const competence = addMonthsToCompetence(baseMonth, baseYear, i);
+    return {
+      club_id: coach.clubId,
+      athlete_id: parsed.data.athleteId,
+      description:
+        installmentsCount > 1
+          ? `${parsed.data.description} (${i + 1}/${installmentsCount})`
+          : parsed.data.description,
+      amount_cents: Math.round(amountValue * 100),
+      competence_month: competence.month,
+      competence_year: competence.year,
+      due_date: addMonthsToISODate(parsed.data.dueDate, i),
+      created_by: coach.userId,
+    };
   });
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("athlete_charges").insert(rows);
   if (error) return { error: error.message };
 
   paths(parsed.data.athleteId);

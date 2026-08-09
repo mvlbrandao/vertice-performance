@@ -57,9 +57,28 @@ export function NewChargeModal({ athleteId }: { athleteId: string }) {
               <Input name="competenceYear" type="number" defaultValue={now.getFullYear()} />
             </Field>
           </div>
-          <Field label="Vencimento">
-            <Input name="dueDate" type="date" required />
-          </Field>
+          <div className="grid grid-cols-2 gap-2.5">
+            <Field label="Vencimento (1ª parcela)">
+              <Input name="dueDate" type="date" required />
+            </Field>
+            <Field label="Parcelas">
+              <select
+                name="installments"
+                defaultValue="1"
+                className="w-full px-3 py-2.5 border border-line rounded-sm bg-white text-sm"
+              >
+                {[1, 2, 3, 4, 5, 6, 10, 12, 18, 24].map((n) => (
+                  <option key={n} value={n}>
+                    {n}x{n > 1 ? " (mensal)" : ""}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
+          <p className="text-[11.5px] text-ink-faint -mt-1.5">
+            Gera um lançamento por mês, mesmo valor, vencendo a cada 30 dias a partir da data
+            acima.
+          </p>
           {error && <div className="text-clay text-[12.5px] font-medium">{error}</div>}
           <div className="flex justify-end gap-2.5 mt-2">
             <Button type="button" variant="ghost" onClick={() => setOpen(false)}>

@@ -46,7 +46,7 @@ export default async function CoachAgendaPage({
     await Promise.all([
       supabase
         .from("athletes")
-        .select("id, full_name")
+        .select("id, full_name, position")
         .eq("club_id", profile!.clubId)
         .order("full_name", { ascending: true }),
       meetingsQuery,
@@ -64,6 +64,11 @@ export default async function CoachAgendaPage({
     ]);
 
   const teams = partnerClubs.map((c) => c.name);
+
+  const athletePositions: Record<string, string[]> = {};
+  for (const a of athletes ?? []) {
+    athletePositions[a.id] = a.position ?? [];
+  }
 
   const openCycleIds = (openCycles ?? []).map((c) => c.id);
   const { data: openSwotItemRows } =
@@ -100,6 +105,7 @@ export default async function CoachAgendaPage({
             teams={teams}
             plays={plays ?? []}
             openSwotItemsByAthlete={openSwotItemsByAthlete}
+            athletePositions={athletePositions}
           />
         )}
       </div>

@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { resolveSignedUrl } from "@/lib/storage/resolveSignedUrl";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { PlayerScoreCard } from "@/components/athletes/PlayerScoreCard";
+import { computePlayerScore } from "@/lib/scoring";
 import { initials } from "@/lib/utils/initials";
 
 function Row({ k, v }: { k: string; v: string }) {
@@ -36,7 +38,10 @@ export default async function AthletePerfilPage() {
 
   if (!athlete) return null;
 
-  const signedPhotoUrl = await resolveSignedUrl("athlete-photos", athlete.photo_url);
+  const [signedPhotoUrl, score] = await Promise.all([
+    resolveSignedUrl("athlete-photos", athlete.photo_url),
+    computePlayerScore(supabase, athlete.id),
+  ]);
   const hasPain = athlete.current_pain && athlete.current_pain !== "Nenhuma";
 
   return (
@@ -88,6 +93,17 @@ export default async function AthletePerfilPage() {
           </div>
         </div>
       </Card>
+
+      <div className="mb-4">
+        <PlayerScoreCard
+          score={score}
+          photoUrl={signedPhotoUrl}
+          photoColor={athlete.photo_color}
+          initials={initials(athlete.full_name)}
+          fullName={athlete.full_name}
+          position={athlete.position?.join(", ") || null}
+        />
+      </div>
 
       <div className="grid lg:grid-cols-2 gap-4">
         <Card>

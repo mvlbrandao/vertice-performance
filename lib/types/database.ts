@@ -78,6 +78,7 @@ export interface Database {
           full_name: string;
           athlete_id: string | null;
           title: string | null;
+          staff_areas: string[];
           created_at: string;
         };
         Insert: {
@@ -87,6 +88,7 @@ export interface Database {
           full_name: string;
           athlete_id?: string | null;
           title?: string | null;
+          staff_areas?: string[];
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;

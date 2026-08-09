@@ -13,7 +13,7 @@ export default async function EquipePage() {
   const [{ data: staffProfiles }, { data: athletes }, { data: grants }] = await Promise.all([
     supabase
       .from("profiles")
-      .select("id, full_name, title")
+      .select("id, full_name, title, staff_areas")
       .eq("club_id", profile!.clubId)
       .eq("role", "staff")
       .order("full_name", { ascending: true }),
@@ -78,6 +78,7 @@ export default async function EquipePage() {
                     staffName={s.full_name}
                     athletes={athletes ?? []}
                     grants={grantedList}
+                    areas={s.staff_areas ?? []}
                   />
                 </div>
               </Card>

@@ -74,6 +74,24 @@ export async function grantAthleteAccess(
   return { success: true };
 }
 
+export async function updateStaffAreas(
+  staffProfileId: string,
+  areas: string[],
+): Promise<ActionResult> {
+  const coach = await requireCoach();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("profiles")
+    .update({ staff_areas: areas })
+    .eq("id", staffProfileId)
+    .eq("club_id", coach.clubId)
+    .eq("role", "staff");
+  if (error) return { error: error.message };
+
+  revalidatePath("/equipe");
+  return { success: true };
+}
+
 export async function revokeAthleteAccess(
   staffProfileId: string,
   athleteId: string,

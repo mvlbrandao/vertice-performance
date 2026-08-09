@@ -2,7 +2,6 @@ import { getSessionProfile } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { EditClubNameModal } from "@/components/clubs/EditClubNameModal";
 import { NewPartnerClubModal } from "@/components/partnerClubs/NewPartnerClubModal";
 import { DeletePartnerClubButton } from "@/components/partnerClubs/DeletePartnerClubButton";
 import { NewPartnerClubCategoryModal } from "@/components/partnerClubs/NewPartnerClubCategoryModal";
@@ -35,10 +34,7 @@ export default async function ClubPage() {
 
   return (
     <div>
-      <div className="flex items-center gap-2.5 mb-1 flex-wrap">
-        <h2 className="text-[28px] m-0">{club?.name ?? "Clube"}</h2>
-        <EditClubNameModal currentName={club?.name ?? ""} />
-      </div>
+      <h2 className="text-[28px] m-0 mb-1">{club?.name ?? "Clube"}</h2>
       <div className="text-xs text-ink-faint mb-6">
         No sistema desde {club?.created_at ? new Date(club.created_at).toLocaleDateString("pt-BR") : "—"}
       </div>

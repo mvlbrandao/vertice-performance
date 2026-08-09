@@ -3,6 +3,7 @@
 import { requireCoach } from "@/lib/auth/guards";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { translateAuthError } from "@/lib/utils/authErrors";
 
 /**
  * Único ponto do app que usa a service_role key. Cria (ou convida) uma conta
@@ -44,7 +45,9 @@ export async function provisionAthleteAccount({
   );
 
   if (inviteError || !invited.user) {
-    return { error: inviteError?.message ?? "Não foi possível convidar o atleta." };
+    return {
+      error: inviteError ? translateAuthError(inviteError.message) : "Não foi possível convidar o atleta.",
+    };
   }
 
   const { error: profileError } = await admin.from("profiles").insert({

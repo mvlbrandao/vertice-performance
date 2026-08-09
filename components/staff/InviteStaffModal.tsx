@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Field";
 import { inviteStaff } from "@/lib/actions/staff";
 import { useFormModal } from "@/lib/utils/useFormModal";
+import { STAFF_ROLE_TITLES } from "@/lib/data/staffRoleTitles";
 
 export function InviteStaffModal() {
   const { open, setOpen, pending, error, formRef, handleSubmit } = useFormModal(inviteStaff);
@@ -27,7 +28,18 @@ export function InviteStaffModal() {
             <Input name="email" type="email" required placeholder="profissional@exemplo.com" />
           </Field>
           <Field label="Função (opcional)">
-            <Input name="title" placeholder="Ex: Preparador físico, Treinador de específicos" />
+            <select
+              name="title"
+              defaultValue=""
+              className="w-full px-3 py-2.5 border border-line rounded-sm bg-white text-sm"
+            >
+              <option value="">Sem função definida</option>
+              {STAFF_ROLE_TITLES.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
           </Field>
           {error && <div className="text-clay text-[12.5px] font-medium">{error}</div>}
           <div className="flex justify-end gap-2.5 mt-2">

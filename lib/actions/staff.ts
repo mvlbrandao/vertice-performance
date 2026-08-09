@@ -6,6 +6,7 @@ import { requireCoach } from "@/lib/auth/guards";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionResult } from "@/lib/actions/athletes";
+import { translateAuthError } from "@/lib/utils/authErrors";
 
 const inviteStaffSchema = z.object({
   fullName: z.string().trim().min(1, "Informe o nome."),
@@ -35,7 +36,11 @@ export async function inviteStaff(formData: FormData): Promise<ActionResult> {
     { data: { full_name: parsed.data.fullName } },
   );
   if (inviteError || !invited.user) {
-    return { error: inviteError?.message ?? "Não foi possível convidar o profissional." };
+    return {
+      error: inviteError
+        ? translateAuthError(inviteError.message)
+        : "Não foi possível convidar o profissional.",
+    };
   }
 
   const { error: profileError } = await admin.from("profiles").insert({

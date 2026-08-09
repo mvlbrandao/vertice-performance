@@ -9,12 +9,13 @@ import { NewCompetitionModal } from "@/components/games/NewCompetitionModal";
 import { DeleteCompetitionButton } from "@/components/games/DeleteCompetitionButton";
 import { NewGameModal } from "@/components/games/NewGameModal";
 import { DeleteGameButton } from "@/components/games/DeleteGameButton";
+import { getPartnerClubOptions } from "@/lib/data/partnerClubs";
 
 export default async function JogosPage() {
   const profile = await getSessionProfile();
   const supabase = await createClient();
 
-  const [{ data: competitions }, { data: games }, { data: athletes }, { data: partnerClubs }] =
+  const [{ data: competitions }, { data: games }, { data: athletes }, partnerClubs] =
     await Promise.all([
       supabase
         .from("competitions")
@@ -24,7 +25,7 @@ export default async function JogosPage() {
       supabase
         .from("games")
         .select(
-          "id, competition_id, opponent, scheduled_date, scheduled_time, location, target_type, target_team, our_score, opponent_score, athletes(full_name)",
+          "id, competition_id, opponent, scheduled_date, scheduled_time, location, target_type, target_team, target_category, our_score, opponent_score, athletes(full_name)",
         )
         .eq("club_id", profile!.clubId)
         .order("scheduled_date", { ascending: true }),
@@ -33,14 +34,8 @@ export default async function JogosPage() {
         .select("id, full_name")
         .eq("club_id", profile!.clubId)
         .order("full_name", { ascending: true }),
-      supabase
-        .from("partner_clubs")
-        .select("name")
-        .eq("club_id", profile!.clubId)
-        .order("name", { ascending: true }),
+      getPartnerClubOptions(supabase, profile!.clubId),
     ]);
-
-  const teams = (partnerClubs ?? []).map((c) => c.name);
 
   const gamesByCompetition = new Map<string, NonNullable<typeof games>>();
   for (const g of games ?? []) {
@@ -78,8 +73,7 @@ export default async function JogosPage() {
                       competitionId={c.id}
                       competitionName={c.name}
                       athletes={athletes ?? []}
-                      teams={teams}
-                      partnerClubNames={teams}
+                      partnerClubs={partnerClubs}
                     />
                     <DeleteCompetitionButton competitionId={c.id} />
                   </div>
@@ -109,7 +103,7 @@ export default async function JogosPage() {
                         </div>
                         <Badge tone={g.target_type === "team" ? "sky" : "amber"}>
                           {g.target_type === "team"
-                            ? g.target_team
+                            ? `${g.target_team} · ${g.target_category ?? "—"}`
                             : (g.athletes as unknown as { full_name: string } | null)?.full_name}
                         </Badge>
                         <Link href={`/jogos/${g.id}`}>

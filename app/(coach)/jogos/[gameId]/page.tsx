@@ -18,7 +18,7 @@ export default async function GameSumulaPage({
   const { data: game } = await supabase
     .from("games")
     .select(
-      "id, opponent, scheduled_date, scheduled_time, location, target_type, target_athlete_id, target_team, our_score, opponent_score, competitions(name)",
+      "id, opponent, scheduled_date, scheduled_time, location, target_type, target_athlete_id, target_team, target_category, our_score, opponent_score, competitions(name)",
     )
     .eq("id", gameId)
     .eq("club_id", profile!.clubId)
@@ -33,6 +33,7 @@ export default async function GameSumulaPage({
           .select("id, full_name, jersey_num, photo_color")
           .eq("club_id", profile!.clubId)
           .eq("team", game.target_team ?? "")
+          .eq("category", game.target_category ?? "")
           .order("full_name", { ascending: true })
       : supabase
           .from("athletes")
@@ -67,7 +68,9 @@ export default async function GameSumulaPage({
             </div>
           </div>
           <Badge tone={game.target_type === "team" ? "sky" : "amber"}>
-            {game.target_type === "team" ? game.target_team : "Individual"}
+            {game.target_type === "team"
+              ? `${game.target_team} · ${game.target_category ?? "—"}`
+              : "Individual"}
           </Badge>
         </div>
       </div>

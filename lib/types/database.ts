@@ -500,6 +500,7 @@ export interface Database {
           target_type: GameTargetType;
           target_athlete_id: string | null;
           target_team: string | null;
+          target_category: string | null;
           notes: string | null;
           our_score: number | null;
           opponent_score: number | null;
@@ -517,6 +518,7 @@ export interface Database {
           target_type: GameTargetType;
           target_athlete_id?: string | null;
           target_team?: string | null;
+          target_category?: string | null;
           notes?: string | null;
           our_score?: number | null;
           opponent_score?: number | null;

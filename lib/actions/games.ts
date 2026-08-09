@@ -51,6 +51,7 @@ const gameSchema = z.object({
   targetType: z.enum(["athlete", "team"]),
   targetAthleteId: z.string().uuid().optional().or(z.literal("")),
   targetTeam: z.string().trim().optional().or(z.literal("")),
+  targetCategory: z.string().trim().optional().or(z.literal("")),
   notes: z.string().trim().optional(),
 });
 
@@ -65,6 +66,7 @@ export async function createGame(formData: FormData): Promise<ActionResult> {
     targetType: formData.get("targetType"),
     targetAthleteId: formData.get("targetAthleteId") ?? "",
     targetTeam: formData.get("targetTeam") ?? "",
+    targetCategory: formData.get("targetCategory") ?? "",
     notes: formData.get("notes"),
   });
   if (!parsed.success) {
@@ -75,6 +77,9 @@ export async function createGame(formData: FormData): Promise<ActionResult> {
   }
   if (parsed.data.targetType === "team" && !parsed.data.targetTeam) {
     return { error: "Selecione o time alvo do jogo." };
+  }
+  if (parsed.data.targetType === "team" && !parsed.data.targetCategory) {
+    return { error: "Selecione o sub (categoria) do jogo." };
   }
 
   const supabase = await createClient();
@@ -89,6 +94,7 @@ export async function createGame(formData: FormData): Promise<ActionResult> {
     target_type: parsed.data.targetType,
     target_athlete_id: parsed.data.targetType === "athlete" ? parsed.data.targetAthleteId : null,
     target_team: parsed.data.targetType === "team" ? parsed.data.targetTeam : null,
+    target_category: parsed.data.targetType === "team" ? parsed.data.targetCategory : null,
     notes: parsed.data.notes || null,
   });
   if (error) return { error: error.message };

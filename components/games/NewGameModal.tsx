@@ -6,25 +6,26 @@ import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Field";
 import { createGame } from "@/lib/actions/games";
 import { useFormModal } from "@/lib/utils/useFormModal";
+import type { PartnerClubOption } from "@/lib/types/partnerClubs";
 
 export function NewGameModal({
   competitionId,
   competitionName,
   athletes,
-  teams,
-  partnerClubNames,
+  partnerClubs,
 }: {
   competitionId: string;
   competitionName: string;
   athletes: { id: string; full_name: string }[];
-  teams: string[];
-  partnerClubNames: string[];
+  partnerClubs: PartnerClubOption[];
 }) {
   const { open, setOpen, pending, error, formRef, handleSubmit } = useFormModal(createGame);
   const [targetType, setTargetType] = useState<"athlete" | "team">("team");
   const [opponentMode, setOpponentMode] = useState<"club" | "other">(
-    partnerClubNames.length > 0 ? "club" : "other",
+    partnerClubs.length > 0 ? "club" : "other",
   );
+  const [targetTeam, setTargetTeam] = useState(partnerClubs[0]?.name ?? "");
+  const targetCategories = partnerClubs.find((c) => c.name === targetTeam)?.categories ?? [];
 
   return (
     <>
@@ -34,7 +35,7 @@ export function NewGameModal({
       <Modal open={open} onClose={() => setOpen(false)} title={`Novo jogo — ${competitionName}`}>
         <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-3">
           <input type="hidden" name="competitionId" value={competitionId} />
-          {partnerClubNames.length > 0 && (
+          {partnerClubs.length > 0 && (
             <Field label="Adversário é">
               <select
                 value={opponentMode}
@@ -47,15 +48,15 @@ export function NewGameModal({
             </Field>
           )}
           <Field label="Adversário">
-            {opponentMode === "club" && partnerClubNames.length > 0 ? (
+            {opponentMode === "club" && partnerClubs.length > 0 ? (
               <select
                 name="opponent"
                 required
                 className="w-full px-3 py-2.5 border border-line rounded-sm bg-white text-sm"
               >
-                {partnerClubNames.map((n) => (
-                  <option key={n} value={n}>
-                    {n}
+                {partnerClubs.map((c) => (
+                  <option key={c.id} value={c.name}>
+                    {c.name}
                   </option>
                 ))}
               </select>
@@ -100,23 +101,53 @@ export function NewGameModal({
               </select>
             </Field>
           ) : (
-            <Field label="Time">
-              {teams.length > 0 ? (
-                <select
-                  name="targetTeam"
-                  required
-                  className="w-full px-3 py-2.5 border border-line rounded-sm bg-white text-sm"
-                >
-                  {teams.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <Input name="targetTeam" required placeholder="Ex: Sub-12 A" />
-              )}
-            </Field>
+            <>
+              <Field label="Time">
+                {partnerClubs.length > 0 ? (
+                  <select
+                    name="targetTeam"
+                    required
+                    value={targetTeam}
+                    onChange={(e) => setTargetTeam(e.target.value)}
+                    className="w-full px-3 py-2.5 border border-line rounded-sm bg-white text-sm"
+                  >
+                    {partnerClubs.map((c) => (
+                      <option key={c.id} value={c.name}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <Input
+                    name="targetTeam"
+                    required
+                    value={targetTeam}
+                    onChange={(e) => setTargetTeam(e.target.value)}
+                    placeholder="Ex: Sub-12 A"
+                  />
+                )}
+              </Field>
+              <Field label="Sub (categoria)">
+                {targetCategories.length > 0 ? (
+                  <select
+                    name="targetCategory"
+                    required
+                    className="w-full px-3 py-2.5 border border-line rounded-sm bg-white text-sm"
+                  >
+                    {targetCategories.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <Input name="targetCategory" required placeholder="Ex: SUB12" />
+                )}
+                <span className="text-[11px] text-ink-faint">
+                  Define quais atletas do time entram na súmula e na linha do tempo.
+                </span>
+              </Field>
+            </>
           )}
           <Field label="Notas (opcional)">
             <Input name="notes" placeholder="Observações sobre o jogo" />

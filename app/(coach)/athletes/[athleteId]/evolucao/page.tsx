@@ -39,6 +39,9 @@ type TimelineEntry =
       competitionName: string;
       time: string | null;
       location: string | null;
+      ourScore: number | null;
+      opponentScore: number | null;
+      events: { eventType: string; goalType: string | null; minute: number | null }[];
     }
   | {
       type: "transfer";
@@ -48,6 +51,29 @@ type TimelineEntry =
       fromCategory: string | null;
       toCategory: string | null;
     };
+
+const EVENT_ICON: Record<string, string> = {
+  Gol: "⚽",
+  Assistência: "🅰️",
+  Falta: "⚠️",
+  "Cartão amarelo": "🟨",
+  "Cartão vermelho": "🟥",
+  Lesão: "🤕",
+  "Pênalti sofrido": "🎯",
+  "Pênalti perdido": "❌",
+  "Pênalti defendido": "🧤",
+  Escanteio: "🚩",
+  Lateral: "↩️",
+  Desarme: "🛡️",
+  Interceptação: "✋",
+  Cruzamento: "🎯",
+  "Finalização certa": "🎯",
+  "Finalização errada": "💨",
+  Impedimento: "🚫",
+  Defesa: "🧤",
+  "Passe certo": "✅",
+  "Passe errado": "↪️",
+};
 
 const DOT_COLOR: Record<TimelineEntry["type"], string> = {
   tactical: "#111111",
@@ -70,7 +96,7 @@ export default async function AthleteEvolucaoPage({
 
   const { data: athlete } = await supabase
     .from("athletes")
-    .select("team")
+    .select("team, category")
     .eq("id", athleteId)
     .single();
 
@@ -84,6 +110,7 @@ export default async function AthleteEvolucaoPage({
     { data: games },
     { data: transfers },
     { data: partnerClubs },
+    { data: gameEvents },
   ] = await Promise.all([
     supabase
       .from("game_reports")
@@ -109,20 +136,36 @@ export default async function AthleteEvolucaoPage({
     supabase.from("checkins").select("checkin_date").eq("athlete_id", athleteId),
     supabase
       .from("games")
-      .select("scheduled_date, scheduled_time, location, opponent, competitions(name)")
+      .select(
+        "id, scheduled_date, scheduled_time, location, opponent, our_score, opponent_score, competitions(name)",
+      )
       .eq("club_id", profile!.clubId)
       .or(
-        `target_athlete_id.eq.${athleteId}${athlete?.team ? `,target_team.eq.${athlete.team}` : ""}`,
+        `target_athlete_id.eq.${athleteId}${
+          athlete?.team && athlete?.category
+            ? `,and(target_team.eq.${athlete.team},target_category.eq.${athlete.category})`
+            : ""
+        }`,
       ),
     supabase
       .from("athlete_club_transfers")
       .select("transferred_at, from_partner_club_id, from_category, to_partner_club_id, to_category")
       .eq("athlete_id", athleteId),
     supabase.from("partner_clubs").select("id, name").eq("club_id", profile!.clubId),
+    supabase
+      .from("game_events")
+      .select("game_id, event_type, goal_type, minute")
+      .eq("athlete_id", athleteId),
   ]);
 
   const clubNameById = new Map((partnerClubs ?? []).map((c) => [c.id, c.name]));
   const checkinDates = new Set((checkins ?? []).map((c) => c.checkin_date));
+  const eventsByGame = new Map<string, { eventType: string; goalType: string | null; minute: number | null }[]>();
+  for (const e of gameEvents ?? []) {
+    const list = eventsByGame.get(e.game_id) ?? [];
+    list.push({ eventType: e.event_type, goalType: e.goal_type, minute: e.minute });
+    eventsByGame.set(e.game_id, list);
+  }
 
   const entries: TimelineEntry[] = [];
   (gameReports ?? []).forEach((g) =>
@@ -184,6 +227,9 @@ export default async function AthleteEvolucaoPage({
       competitionName: (g.competitions as unknown as { name: string } | null)?.name ?? "—",
       time: g.scheduled_time,
       location: g.location,
+      ourScore: g.our_score,
+      opponentScore: g.opponent_score,
+      events: eventsByGame.get(g.id) ?? [],
     }),
   );
   (transfers ?? []).forEach((t) =>
@@ -359,12 +405,28 @@ export default async function AthleteEvolucaoPage({
                         {e.date}
                         {e.time ? ` às ${e.time.slice(0, 5)}` : ""}
                       </span>
+                      {e.ourScore != null && e.opponentScore != null && (
+                        <Badge tone="green">
+                          {e.ourScore} × {e.opponentScore}
+                        </Badge>
+                      )}
                     </div>
                     <h4 className="m-0 text-[15px] font-bold">vs. {e.opponent}</h4>
                     {e.location && (
                       <p className="mt-1.5 text-[13.5px] text-ink-soft leading-relaxed">
                         📍 {e.location}
                       </p>
+                    )}
+                    {e.events.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-2.5">
+                        {e.events.map((ev, i) => (
+                          <Badge key={i} tone="amber">
+                            {EVENT_ICON[ev.eventType] ?? "•"} {ev.eventType}
+                            {ev.goalType && ev.goalType !== "Normal" ? ` (${ev.goalType})` : ""}
+                            {ev.minute != null ? ` ${ev.minute}'` : ""}
+                          </Badge>
+                        ))}
+                      </div>
                     )}
                   </>
                 )}

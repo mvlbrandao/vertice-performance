@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { DeletePlayButton } from "@/components/plays/DeletePlayButton";
-import type { PlayFrame } from "@/lib/types/plays";
+import { SPORT_LABELS, type PlayFrame, type PlaySportType } from "@/lib/types/plays";
 
 export default async function PlaysPage() {
   const profile = await getSessionProfile();
@@ -13,7 +13,7 @@ export default async function PlaysPage() {
 
   const { data: plays } = await supabase
     .from("plays")
-    .select("id, name, target_type, target_team, video_url, frames, athletes(full_name)")
+    .select("id, name, target_type, target_team, video_url, frames, sport_type, athletes(full_name)")
     .eq("club_id", profile!.clubId)
     .order("created_at", { ascending: false });
 
@@ -48,7 +48,10 @@ export default async function PlaysPage() {
               <Card key={p.id}>
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <h4 className="m-0 text-[15px] font-bold">{p.name}</h4>
-                  <Badge tone={p.target_type === "team" ? "sky" : "amber"}>{target ?? "—"}</Badge>
+                  <div className="flex gap-1.5 flex-wrap justify-end">
+                    <Badge tone="dark">{SPORT_LABELS[p.sport_type as PlaySportType]}</Badge>
+                    <Badge tone={p.target_type === "team" ? "sky" : "amber"}>{target ?? "—"}</Badge>
+                  </div>
                 </div>
                 <p className="text-xs text-ink-faint m-0 mb-3">
                   {frames.length} {frames.length === 1 ? "quadro" : "quadros"}

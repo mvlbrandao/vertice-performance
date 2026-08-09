@@ -7,38 +7,81 @@ import { createClient } from "@/lib/supabase/server";
 import type { ActionResult } from "@/lib/actions/athletes";
 
 const meetingSchema = z.object({
-  athleteId: z.string().uuid(),
+  targetType: z.enum(["athlete", "team"]),
+  athleteId: z.string().uuid().optional().or(z.literal("")),
+  targetTeam: z.string().trim().optional().or(z.literal("")),
   title: z.string().trim().min(1, "Informe o título do encontro."),
   date: z.string().min(1, "Informe a data."),
   time: z.string().min(1, "Informe o horário."),
   type: z.enum(["Presencial", "Videochamada"]),
+  playId: z.string().uuid().optional().or(z.literal("")),
+  materialVideoUrl: z.string().trim().url("Link de vídeo inválido.").optional().or(z.literal("")),
 });
 
 export async function createMeeting(formData: FormData): Promise<ActionResult> {
   const coach = await requireCoach();
   const parsed = meetingSchema.safeParse({
-    athleteId: formData.get("athleteId"),
+    targetType: formData.get("targetType") ?? "athlete",
+    athleteId: formData.get("athleteId") ?? "",
+    targetTeam: formData.get("targetTeam") ?? "",
     title: formData.get("title"),
     date: formData.get("date"),
     time: formData.get("time"),
     type: formData.get("type"),
+    playId: formData.get("playId") ?? "",
+    materialVideoUrl: formData.get("materialVideoUrl") ?? "",
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
+  if (parsed.data.targetType === "athlete" && !parsed.data.athleteId) {
+    return { error: "Selecione o atleta do encontro." };
+  }
+  if (parsed.data.targetType === "team" && !parsed.data.targetTeam) {
+    return { error: "Selecione o time do encontro." };
+  }
 
   const supabase = await createClient();
-  const { error } = await supabase.from("meetings").insert({
-    athlete_id: parsed.data.athleteId,
+
+  const base = {
     club_id: coach.clubId,
     created_by: coach.userId,
     title: parsed.data.title,
     meeting_type: parsed.data.type,
     scheduled_date: parsed.data.date,
     scheduled_time: parsed.data.time,
-  });
+    play_id: parsed.data.playId || null,
+    material_video_url: parsed.data.materialVideoUrl || null,
+  };
 
-  if (error) return { error: error.message };
+  if (parsed.data.targetType === "athlete") {
+    const { error } = await supabase.from("meetings").insert({
+      ...base,
+      athlete_id: parsed.data.athleteId!,
+    });
+    if (error) return { error: error.message };
+  } else {
+    const { data: teamAthletes, error: athletesError } = await supabase
+      .from("athletes")
+      .select("id")
+      .eq("club_id", coach.clubId)
+      .eq("team", parsed.data.targetTeam!);
+    if (athletesError) return { error: athletesError.message };
+    if (!teamAthletes || teamAthletes.length === 0) {
+      return { error: "Nenhum atleta encontrado nesse time." };
+    }
+
+    const batchId = crypto.randomUUID();
+    const { error } = await supabase.from("meetings").insert(
+      teamAthletes.map((a) => ({
+        ...base,
+        athlete_id: a.id,
+        batch_id: batchId,
+      })),
+    );
+    if (error) return { error: error.message };
+  }
+
   revalidatePath("/agenda");
   revalidatePath("/dashboard");
   return { success: true };

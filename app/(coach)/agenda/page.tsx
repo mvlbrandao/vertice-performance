@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { NewMeetingModal } from "@/components/agenda/NewMeetingModal";
 import { ManageMeetingModal } from "@/components/agenda/ManageMeetingModal";
 import { cn } from "@/lib/utils/cn";
+import { getPartnerClubOptions } from "@/lib/data/partnerClubs";
 import type { MeetingStatus } from "@/lib/types/database";
 
 const STATUS_FILTERS: { value: string; label: string; status: MeetingStatus | null }[] = [
@@ -31,7 +32,7 @@ export default async function CoachAgendaPage({
   let meetingsQuery = supabase
     .from("meetings")
     .select(
-      "id, title, scheduled_date, scheduled_time, meeting_type, notes, status, athlete_confirmed, athletes(full_name)",
+      "id, title, scheduled_date, scheduled_time, meeting_type, notes, status, athlete_confirmed, play_id, material_video_url, athletes(full_name)",
     )
     .eq("club_id", profile!.clubId)
     .order("scheduled_date", { ascending: true })
@@ -41,14 +42,22 @@ export default async function CoachAgendaPage({
     meetingsQuery = meetingsQuery.eq("status", activeFilter.status);
   }
 
-  const [{ data: athletes }, { data: meetings }] = await Promise.all([
+  const [{ data: athletes }, { data: meetings }, partnerClubs, { data: plays }] = await Promise.all([
     supabase
       .from("athletes")
       .select("id, full_name")
       .eq("club_id", profile!.clubId)
       .order("full_name", { ascending: true }),
     meetingsQuery,
+    getPartnerClubOptions(supabase, profile!.clubId),
+    supabase
+      .from("plays")
+      .select("id, name")
+      .eq("club_id", profile!.clubId)
+      .order("name", { ascending: true }),
   ]);
+
+  const teams = partnerClubs.map((c) => c.name);
 
   return (
     <div>
@@ -59,7 +68,9 @@ export default async function CoachAgendaPage({
             Presenciais ou por videochamada, individuais por atleta
           </div>
         </div>
-        {athletes && athletes.length > 0 && <NewMeetingModal athletes={athletes} />}
+        {athletes && athletes.length > 0 && (
+          <NewMeetingModal athletes={athletes} teams={teams} plays={plays ?? []} />
+        )}
       </div>
 
       <div className="flex gap-1.5 mb-4">
@@ -102,6 +113,7 @@ export default async function CoachAgendaPage({
                   {m.notes ? " · Notas registradas" : ""}
                 </p>
               </div>
+              {(m.play_id || m.material_video_url) && <Badge tone="dark">📎 Material</Badge>}
               {m.status !== "Agendado" && (
                 <Badge tone={m.status === "Concluído" ? "green" : "clay"}>{m.status}</Badge>
               )}

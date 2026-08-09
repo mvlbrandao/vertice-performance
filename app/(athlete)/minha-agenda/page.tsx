@@ -13,7 +13,7 @@ export default async function AthleteAgendaPage() {
     ? await supabase
         .from("meetings")
         .select(
-          "id, title, scheduled_date, scheduled_time, meeting_type, notes, status, athlete_confirmed",
+          "id, title, scheduled_date, scheduled_time, meeting_type, notes, status, athlete_confirmed, material_video_url, plays(name)",
         )
         .eq("athlete_id", profile.athleteId)
         .neq("status", "Cancelado")
@@ -45,6 +45,25 @@ export default async function AthleteAgendaPage() {
                   {m.scheduled_date}
                   {m.notes ? ` · ${m.notes}` : ""}
                 </p>
+                {(m.plays || m.material_video_url) && (
+                  <p className="text-xs mt-1 flex gap-2 flex-wrap">
+                    {m.plays && (
+                      <a href="/mesa-tatica" className="font-semibold text-pitch-dark hover:underline">
+                        🎯 {(m.plays as unknown as { name: string }).name}
+                      </a>
+                    )}
+                    {m.material_video_url && (
+                      <a
+                        href={m.material_video_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-semibold text-pitch-dark hover:underline"
+                      >
+                        ▶ Vídeo de preparo
+                      </a>
+                    )}
+                  </p>
+                )}
               </div>
               <Badge tone={m.meeting_type === "Videochamada" ? "sky" : "green"}>
                 {m.meeting_type === "Videochamada" ? "🎥 Vídeo" : "📍 Presencial"}

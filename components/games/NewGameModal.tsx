@@ -12,14 +12,19 @@ export function NewGameModal({
   competitionName,
   athletes,
   teams,
+  partnerClubNames,
 }: {
   competitionId: string;
   competitionName: string;
   athletes: { id: string; full_name: string }[];
   teams: string[];
+  partnerClubNames: string[];
 }) {
   const { open, setOpen, pending, error, formRef, handleSubmit } = useFormModal(createGame);
   const [targetType, setTargetType] = useState<"athlete" | "team">("team");
+  const [opponentMode, setOpponentMode] = useState<"club" | "other">(
+    partnerClubNames.length > 0 ? "club" : "other",
+  );
 
   return (
     <>
@@ -29,8 +34,34 @@ export function NewGameModal({
       <Modal open={open} onClose={() => setOpen(false)} title={`Novo jogo — ${competitionName}`}>
         <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-3">
           <input type="hidden" name="competitionId" value={competitionId} />
+          {partnerClubNames.length > 0 && (
+            <Field label="Adversário é">
+              <select
+                value={opponentMode}
+                onChange={(e) => setOpponentMode(e.target.value as "club" | "other")}
+                className="w-full px-3 py-2.5 border border-line rounded-sm bg-white text-sm"
+              >
+                <option value="club">Um clube cadastrado</option>
+                <option value="other">Outro (digitar nome)</option>
+              </select>
+            </Field>
+          )}
           <Field label="Adversário">
-            <Input name="opponent" required placeholder="Ex: Flamengo Sub-12" />
+            {opponentMode === "club" && partnerClubNames.length > 0 ? (
+              <select
+                name="opponent"
+                required
+                className="w-full px-3 py-2.5 border border-line rounded-sm bg-white text-sm"
+              >
+                {partnerClubNames.map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <Input name="opponent" required placeholder="Ex: Flamengo Sub-12" />
+            )}
           </Field>
           <div className="grid grid-cols-2 gap-2.5">
             <Field label="Data">

@@ -3,14 +3,14 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PlayViewer } from "@/components/plays/PlayViewer";
-import type { PlayFrame } from "@/lib/types/plays";
+import type { PlayFrame, PlaySportType } from "@/lib/types/plays";
 
 export default async function AthleteMesaTaticaPage() {
   const supabase = await createClient();
 
   const { data: plays } = await supabase
     .from("plays")
-    .select("id, name, description, target_type, target_team, video_url, frames")
+    .select("id, name, description, target_type, target_team, video_url, frames, sport_type")
     .order("created_at", { ascending: false });
 
   return (
@@ -34,7 +34,10 @@ export default async function AthleteMesaTaticaPage() {
               {p.description && (
                 <p className="text-[13px] text-ink-soft mb-3">{p.description}</p>
               )}
-              <PlayViewer frames={(p.frames as unknown as PlayFrame[]) ?? []} />
+              <PlayViewer
+                frames={(p.frames as unknown as PlayFrame[]) ?? []}
+                sportType={p.sport_type as PlaySportType}
+              />
               {p.video_url && (
                 <a
                   href={p.video_url}

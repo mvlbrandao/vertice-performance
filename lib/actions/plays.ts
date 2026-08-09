@@ -14,6 +14,7 @@ const playSchema = z.object({
   targetTeam: z.string().trim().optional().or(z.literal("")),
   videoUrl: z.string().trim().url("Link inválido.").optional().or(z.literal("")),
   description: z.string().trim().optional(),
+  sportType: z.enum(["futsal", "campo", "fut7"]).optional(),
   frames: z.string().min(1, "Jogada sem quadros."),
 });
 
@@ -25,6 +26,7 @@ function parsePlayForm(formData: FormData) {
     targetTeam: formData.get("targetTeam") ?? "",
     videoUrl: formData.get("videoUrl") ?? "",
     description: formData.get("description") ?? "",
+    sportType: formData.get("sportType") ?? undefined,
     frames: formData.get("frames"),
   });
   if (!parsed.success) {
@@ -50,6 +52,7 @@ function parsePlayForm(formData: FormData) {
       target_team: parsed.data.targetType === "team" ? parsed.data.targetTeam : null,
       video_url: parsed.data.videoUrl || null,
       description: parsed.data.description || null,
+      sport_type: parsed.data.sportType ?? "futsal",
       frames,
     },
   } as const;

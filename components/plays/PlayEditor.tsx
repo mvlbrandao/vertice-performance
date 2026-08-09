@@ -7,7 +7,14 @@ import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Field";
 import { PlayCourtSVG, type SvgPoint } from "@/components/plays/PlayCourtSVG";
 import { createPlay, updatePlay } from "@/lib/actions/plays";
-import { defaultFrame, type PlayFrame, type PlayMarkerKind } from "@/lib/types/plays";
+import {
+  defaultFrame,
+  FORMATIONS,
+  SPORT_LABELS,
+  type PlayFrame,
+  type PlayMarkerKind,
+  type PlaySportType,
+} from "@/lib/types/plays";
 
 type Mode = "move" | "arrow";
 
@@ -18,6 +25,7 @@ export interface PlayEditorInitial {
   targetTeam: string | null;
   videoUrl: string | null;
   description: string | null;
+  sportType: PlaySportType;
   frames: PlayFrame[];
 }
 
@@ -46,6 +54,9 @@ export function PlayEditor({
   const [targetTeam, setTargetTeam] = useState(initialPlay?.targetTeam ?? teams[0] ?? "");
   const [videoUrl, setVideoUrl] = useState(initialPlay?.videoUrl ?? "");
   const [description, setDescription] = useState(initialPlay?.description ?? "");
+  const [sportType, setSportType] = useState<PlaySportType>(initialPlay?.sportType ?? "futsal");
+  const formationNames = Object.keys(FORMATIONS[sportType]);
+  const [formation, setFormation] = useState(formationNames[0]);
 
   const [frames, setFrames] = useState<PlayFrame[]>(initialPlay?.frames ?? [defaultFrame()]);
   const [frameIndex, setFrameIndex] = useState(0);
@@ -147,6 +158,25 @@ export function PlayEditor({
     });
   }
 
+  function applyFormation() {
+    const preset = FORMATIONS[sportType][formation];
+    if (!preset) return;
+    updateFrame((f) => ({
+      ...f,
+      markers: [
+        ...f.markers.filter((m) => m.kind !== "own"),
+        ...preset.map((p, i) => ({
+          id: crypto.randomUUID(),
+          kind: "own" as const,
+          x: p.x,
+          y: p.y,
+          label: i === 0 ? "G" : String(i + 1),
+        })),
+      ],
+    }));
+    setSelectedId(null);
+  }
+
   function removeSelected() {
     if (!selectedId) return;
     updateFrame((f) => ({
@@ -188,6 +218,7 @@ export function PlayEditor({
     formData.set("targetTeam", targetType === "team" ? targetTeam : "");
     formData.set("videoUrl", videoUrl);
     formData.set("description", description);
+    formData.set("sportType", sportType);
     formData.set("frames", JSON.stringify(frames));
 
     const result =
@@ -216,6 +247,23 @@ export function PlayEditor({
               onChange={(e) => setVideoUrl(e.target.value)}
               placeholder="https://..."
             />
+          </Field>
+          <Field label="Esporte">
+            <select
+              value={sportType}
+              onChange={(e) => {
+                const next = e.target.value as PlaySportType;
+                setSportType(next);
+                setFormation(Object.keys(FORMATIONS[next])[0]);
+              }}
+              className="w-full px-3 py-2.5 border border-line rounded-sm bg-white text-sm"
+            >
+              {(Object.keys(SPORT_LABELS) as PlaySportType[]).map((s) => (
+                <option key={s} value={s}>
+                  {SPORT_LABELS[s]}
+                </option>
+              ))}
+            </select>
           </Field>
           <Field label="Alvo">
             <select
@@ -349,8 +397,29 @@ export function PlayEditor({
           )}
         </div>
 
+        <div className="flex items-center gap-2 mb-3 flex-wrap">
+          <span className="text-xs font-semibold text-ink-soft uppercase tracking-wide">
+            Formação
+          </span>
+          <select
+            value={formation}
+            onChange={(e) => setFormation(e.target.value)}
+            className="px-2.5 py-1.5 border border-line rounded-sm bg-white text-[12.5px]"
+          >
+            {formationNames.map((f) => (
+              <option key={f} value={f}>
+                {f}
+              </option>
+            ))}
+          </select>
+          <Button type="button" variant="outline" size="sm" onClick={applyFormation}>
+            Aplicar formação
+          </Button>
+        </div>
+
         <PlayCourtSVG
           frame={frame}
+          sportType={sportType}
           interactive
           selectedId={selectedId}
           previewArrow={arrowPreview}

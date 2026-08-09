@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { COURT_VIEWBOX, type PlayFrame } from "@/lib/types/plays";
+import { COURT_VIEWBOX, type PlayFrame, type PlaySportType } from "@/lib/types/plays";
 
 const MARKER_RADIUS = 14;
 const BALL_RADIUS = 7;
@@ -21,8 +21,81 @@ export interface SvgPoint {
   y: number;
 }
 
+function FieldMarkings({
+  sportType,
+  width,
+  height,
+}: {
+  sportType: PlaySportType;
+  width: number;
+  height: number;
+}) {
+  const mid = height / 2;
+
+  if (sportType === "campo") {
+    return (
+      <g pointerEvents="none">
+        <rect x={10} y={10} width={width - 20} height={height - 20} fill="none" stroke="white" strokeWidth={2} />
+        <line x1={width / 2} y1={10} x2={width / 2} y2={height - 10} stroke="white" strokeWidth={2} />
+        <circle cx={width / 2} cy={mid} r={50} fill="none" stroke="white" strokeWidth={2} />
+        <circle cx={width / 2} cy={mid} r={2.5} fill="white" />
+        {/* grande área + pequena área, esquerda e direita */}
+        <rect x={10} y={mid - 110} width={90} height={220} fill="none" stroke="white" strokeWidth={2} />
+        <rect x={10} y={mid - 45} width={35} height={90} fill="none" stroke="white" strokeWidth={2} />
+        <rect x={width - 100} y={mid - 110} width={90} height={220} fill="none" stroke="white" strokeWidth={2} />
+        <rect x={width - 45} y={mid - 45} width={35} height={90} fill="none" stroke="white" strokeWidth={2} />
+        <circle cx={80} cy={mid} r={2.5} fill="white" />
+        <circle cx={width - 80} cy={mid} r={2.5} fill="white" />
+      </g>
+    );
+  }
+
+  if (sportType === "fut7") {
+    return (
+      <g pointerEvents="none">
+        <rect x={10} y={10} width={width - 20} height={height - 20} fill="none" stroke="white" strokeWidth={2} />
+        <line x1={width / 2} y1={10} x2={width / 2} y2={height - 10} stroke="white" strokeWidth={2} />
+        <circle cx={width / 2} cy={mid} r={45} fill="none" stroke="white" strokeWidth={2} />
+        <circle cx={width / 2} cy={mid} r={2.5} fill="white" />
+        <rect x={10} y={mid - 75} width={65} height={150} fill="none" stroke="white" strokeWidth={2} />
+        <rect x={width - 75} y={mid - 75} width={65} height={150} fill="none" stroke="white" strokeWidth={2} />
+        <circle cx={65} cy={mid} r={2.5} fill="white" />
+        <circle cx={width - 65} cy={mid} r={2.5} fill="white" />
+      </g>
+    );
+  }
+
+  // futsal (padrão)
+  return (
+    <g pointerEvents="none">
+      <rect x={10} y={10} width={width - 20} height={height - 20} fill="none" stroke="white" strokeWidth={2} />
+      <line x1={width / 2} y1={10} x2={width / 2} y2={height - 10} stroke="white" strokeWidth={2} />
+      <circle cx={width / 2} cy={mid} r={50} fill="none" stroke="white" strokeWidth={2} />
+      <circle cx={width / 2} cy={mid} r={2.5} fill="white" />
+
+      <path
+        d={`M10,${mid - 60} A70,70 0 0,1 80,${mid} A70,70 0 0,1 10,${mid + 60}`}
+        fill="none"
+        stroke="white"
+        strokeWidth={2}
+      />
+      <path
+        d={`M${width - 10},${mid - 60} A70,70 0 0,0 ${width - 80},${mid} A70,70 0 0,0 ${width - 10},${mid + 60}`}
+        fill="none"
+        stroke="white"
+        strokeWidth={2}
+      />
+      <rect x={2} y={mid - 20} width={8} height={40} fill="white" />
+      <rect x={width - 10} y={mid - 20} width={8} height={40} fill="white" />
+      <circle cx={55} cy={mid} r={2.5} fill="white" />
+      <circle cx={width - 55} cy={mid} r={2.5} fill="white" />
+    </g>
+  );
+}
+
 export function PlayCourtSVG({
   frame,
+  sportType = "futsal",
   interactive = false,
   selectedId = null,
   previewArrow = null,
@@ -32,6 +105,7 @@ export function PlayCourtSVG({
   onPointerUp,
 }: {
   frame: PlayFrame;
+  sportType?: PlaySportType;
   interactive?: boolean;
   selectedId?: string | null;
   previewArrow?: { x1: number; y1: number; x2: number; y2: number } | null;
@@ -60,45 +134,8 @@ export function PlayCourtSVG({
       onPointerMove={(e) => handlePointer(e, onPointerMove)}
       onPointerUp={(e) => handlePointer(e, onPointerUp)}
     >
-      {/* quadra (não intercepta pointer events, pra clique/drag no fundo funcionar) */}
-      <g pointerEvents="none">
-        <rect
-          x={10}
-          y={10}
-          width={width - 20}
-          height={height - 20}
-          fill="none"
-          stroke="white"
-          strokeWidth={2}
-        />
-        <line
-          x1={width / 2}
-          y1={10}
-          x2={width / 2}
-          y2={height - 10}
-          stroke="white"
-          strokeWidth={2}
-        />
-        <circle cx={width / 2} cy={height / 2} r={50} fill="none" stroke="white" strokeWidth={2} />
-        <circle cx={width / 2} cy={height / 2} r={2.5} fill="white" />
-
-        <path
-          d={`M10,${height / 2 - 60} A70,70 0 0,1 80,${height / 2} A70,70 0 0,1 10,${height / 2 + 60}`}
-          fill="none"
-          stroke="white"
-          strokeWidth={2}
-        />
-        <path
-          d={`M${width - 10},${height / 2 - 60} A70,70 0 0,0 ${width - 80},${height / 2} A70,70 0 0,0 ${width - 10},${height / 2 + 60}`}
-          fill="none"
-          stroke="white"
-          strokeWidth={2}
-        />
-        <rect x={2} y={height / 2 - 20} width={8} height={40} fill="white" />
-        <rect x={width - 10} y={height / 2 - 20} width={8} height={40} fill="white" />
-        <circle cx={55} cy={height / 2} r={2.5} fill="white" />
-        <circle cx={width - 55} cy={height / 2} r={2.5} fill="white" />
-      </g>
+      {/* quadra/campo (não intercepta pointer events, pra clique/drag no fundo funcionar) */}
+      <FieldMarkings sportType={sportType} width={width} height={height} />
 
       <defs>
         <marker

@@ -1,7 +1,9 @@
+import Link from "next/link";
 import { getSessionProfile } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { NewCompetitionModal } from "@/components/games/NewCompetitionModal";
 import { DeleteCompetitionButton } from "@/components/games/DeleteCompetitionButton";
@@ -22,7 +24,7 @@ export default async function JogosPage() {
       supabase
         .from("games")
         .select(
-          "id, competition_id, opponent, scheduled_date, scheduled_time, location, target_type, target_team, athletes(full_name)",
+          "id, competition_id, opponent, scheduled_date, scheduled_time, location, target_type, target_team, our_score, opponent_score, athletes(full_name)",
         )
         .eq("club_id", profile!.clubId)
         .order("scheduled_date", { ascending: true }),
@@ -77,6 +79,7 @@ export default async function JogosPage() {
                       competitionName={c.name}
                       athletes={athletes ?? []}
                       teams={teams}
+                      partnerClubNames={teams}
                     />
                     <DeleteCompetitionButton competitionId={c.id} />
                   </div>
@@ -92,7 +95,12 @@ export default async function JogosPage() {
                         className="flex items-center gap-3 py-2 border-b border-line last:border-b-0"
                       >
                         <div className="flex-1 min-w-0">
-                          <b className="text-sm block">vs. {g.opponent}</b>
+                          <b className="text-sm block">
+                            vs. {g.opponent}
+                            {g.our_score != null && g.opponent_score != null
+                              ? ` · ${g.our_score} × ${g.opponent_score}`
+                              : ""}
+                          </b>
                           <span className="text-xs text-ink-faint">
                             {g.scheduled_date}
                             {g.scheduled_time ? ` às ${g.scheduled_time.slice(0, 5)}` : ""}
@@ -104,6 +112,11 @@ export default async function JogosPage() {
                             ? g.target_team
                             : (g.athletes as unknown as { full_name: string } | null)?.full_name}
                         </Badge>
+                        <Link href={`/jogos/${g.id}`}>
+                          <Button variant="ghost" size="sm">
+                            Súmula
+                          </Button>
+                        </Link>
                         <DeleteGameButton gameId={g.id} />
                       </div>
                     ))}

@@ -20,6 +20,17 @@ export type DataRequestStatus = "Pendente" | "Em andamento" | "Concluído";
 export type PlayTargetType = "athlete" | "team";
 export type AthleteSex = "M" | "F";
 export type GameTargetType = "athlete" | "team";
+export type GameEventType =
+  | "Gol"
+  | "Assistência"
+  | "Falta"
+  | "Cartão amarelo"
+  | "Cartão vermelho"
+  | "Lesão"
+  | "Pênalti sofrido"
+  | "Pênalti perdido"
+  | "Pênalti defendido";
+export type GoalType = "Normal" | "Pênalti" | "Cabeça" | "Contra" | "Fora da área";
 
 export interface Database {
   public: {
@@ -331,6 +342,9 @@ export interface Database {
           notes: string | null;
           status: MeetingStatus;
           athlete_confirmed: boolean;
+          batch_id: string | null;
+          play_id: string | null;
+          material_video_url: string | null;
           created_at: string;
         };
         Insert: {
@@ -345,6 +359,9 @@ export interface Database {
           notes?: string | null;
           status?: MeetingStatus;
           athlete_confirmed?: boolean;
+          batch_id?: string | null;
+          play_id?: string | null;
+          material_video_url?: string | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["meetings"]["Insert"]>;
@@ -431,6 +448,7 @@ export interface Database {
           frames: Json;
           video_url: string | null;
           description: string | null;
+          sport_type: "futsal" | "campo" | "fut7";
           created_at: string;
           updated_at: string;
         };
@@ -446,6 +464,7 @@ export interface Database {
           frames?: Json;
           video_url?: string | null;
           description?: string | null;
+          sport_type?: "futsal" | "campo" | "fut7";
           created_at?: string;
           updated_at?: string;
         };
@@ -482,6 +501,8 @@ export interface Database {
           target_athlete_id: string | null;
           target_team: string | null;
           notes: string | null;
+          our_score: number | null;
+          opponent_score: number | null;
           created_at: string;
         };
         Insert: {
@@ -497,9 +518,39 @@ export interface Database {
           target_athlete_id?: string | null;
           target_team?: string | null;
           notes?: string | null;
+          our_score?: number | null;
+          opponent_score?: number | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["games"]["Insert"]>;
+        Relationships: [];
+      };
+      game_events: {
+        Row: {
+          id: string;
+          club_id: string;
+          game_id: string;
+          athlete_id: string;
+          event_type: GameEventType;
+          goal_type: GoalType | null;
+          minute: number | null;
+          notes: string | null;
+          created_by: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          club_id: string;
+          game_id: string;
+          athlete_id: string;
+          event_type: GameEventType;
+          goal_type?: GoalType | null;
+          minute?: number | null;
+          notes?: string | null;
+          created_by: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["game_events"]["Insert"]>;
         Relationships: [];
       };
       athlete_club_transfers: {

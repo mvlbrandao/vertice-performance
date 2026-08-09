@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { getSessionProfile } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
+import { resolveSignedUrl } from "@/lib/storage/resolveSignedUrl";
+import { initials } from "@/lib/utils/initials";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -42,6 +44,7 @@ export default async function DashboardPage() {
       .from("meetings")
       .select("*", { count: "exact", head: true })
       .eq("club_id", clubId)
+      .neq("status", "Cancelado")
       .gte("scheduled_date", today)
       .lte("scheduled_date", weekAhead),
     supabase
@@ -52,7 +55,7 @@ export default async function DashboardPage() {
       .neq("current_pain", "Nenhuma"),
     supabase
       .from("athletes")
-      .select("id, full_name, category, position, jersey_num, current_pain")
+      .select("id, full_name, team, category, position, jersey_num, current_pain, photo_url, photo_color")
       .eq("club_id", clubId)
       .order("created_at", { ascending: false })
       .limit(6),
@@ -60,6 +63,7 @@ export default async function DashboardPage() {
       .from("meetings")
       .select("id, title, scheduled_date, scheduled_time, meeting_type, athletes(full_name)")
       .eq("club_id", clubId)
+      .neq("status", "Cancelado")
       .gte("scheduled_date", today)
       .order("scheduled_date", { ascending: true })
       .order("scheduled_time", { ascending: true })
@@ -73,6 +77,13 @@ export default async function DashboardPage() {
           (new Set((checkinsToday ?? []).map((c) => c.athlete_id)).size / total) * 100,
         )
       : 0;
+
+  const athletesWithPhotos = await Promise.all(
+    (athletes ?? []).map(async (a) => ({
+      ...a,
+      signedPhotoUrl: await resolveSignedUrl("athlete-photos", a.photo_url),
+    })),
+  );
 
   return (
     <div>
@@ -117,22 +128,34 @@ export default async function DashboardPage() {
               Ver todos
             </Link>
           </div>
-          {!athletes || athletes.length === 0 ? (
+          {athletesWithPhotos.length === 0 ? (
             <EmptyState icon="👥" message="Nenhum atleta cadastrado ainda." />
           ) : (
-            athletes.map((a) => (
+            athletesWithPhotos.map((a) => (
               <Link
                 key={a.id}
                 href={`/athletes/${a.id}/dados`}
                 className="flex items-center gap-3 px-2.5 py-3 rounded-md hover:bg-white hover:border hover:border-line hover:shadow-card border border-transparent"
               >
-                <div className="w-[38px] h-[38px] rounded-lg bg-pitch-dark text-amber flex items-center justify-center font-display text-base shrink-0">
-                  {a.jersey_num ?? "—"}
-                </div>
+                {a.signedPhotoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={a.signedPhotoUrl}
+                    alt={a.full_name}
+                    className="w-[38px] h-[38px] rounded-lg object-cover shrink-0"
+                  />
+                ) : (
+                  <div
+                    className="w-[38px] h-[38px] rounded-lg flex items-center justify-center font-display text-base shrink-0"
+                    style={{ background: a.photo_color ?? "#111", color: "#FFD600" }}
+                  >
+                    {initials(a.full_name)}
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <b className="block text-sm truncate">{a.full_name}</b>
-                  <span className="text-xs text-ink-faint">
-                    {a.category} · {a.position?.join(", ")}
+                  <span className="text-xs text-ink-faint truncate block">
+                    {a.team ?? "—"} · {a.category} · {a.position?.join(", ")}
                   </span>
                 </div>
                 <Badge tone={!a.current_pain || a.current_pain === "Nenhuma" ? "green" : "clay"}>

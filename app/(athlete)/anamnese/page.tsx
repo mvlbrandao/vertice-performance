@@ -71,7 +71,7 @@ export default async function AthleteAnamnesePage() {
             const categoryItems = itemsByCategory.get(category) ?? [];
             return (
               <Card key={category}>
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between mb-3 flex-wrap gap-1.5">
                   <div className="flex items-center gap-1.5">
                     <span>{meta.icon}</span>
                     <b className="text-sm">{category}</b>

@@ -20,7 +20,7 @@ export function CloseCycleButton({ cycleId, athleteId }: { cycleId: string; athl
 
   if (confirming) {
     return (
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1.5 flex-wrap">
         <span className="text-xs text-ink-faint">Fechar este ciclo?</span>
         <Button variant="danger" size="sm" onClick={handleConfirm} disabled={pending}>
           {pending ? "…" : "Sim, fechar"}

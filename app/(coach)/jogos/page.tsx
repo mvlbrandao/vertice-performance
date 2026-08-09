@@ -86,7 +86,7 @@ export default async function JogosPage() {
                     {competitionGames.map((g) => (
                       <div
                         key={g.id}
-                        className="flex items-center gap-3 py-2 border-b border-line last:border-b-0"
+                        className="flex items-center gap-3 py-2 border-b border-line last:border-b-0 flex-wrap"
                       >
                         <div className="flex-1 min-w-0">
                           <b className="text-sm block">

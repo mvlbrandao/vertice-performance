@@ -146,9 +146,13 @@ export default async function ClubPage() {
                                 {initials(a.full_name)}
                               </div>
                             )}
-                            <span className="text-xs font-semibold truncate">{a.full_name}</span>
+                            <span className="text-xs font-semibold truncate flex-1 min-w-0">
+                              {a.full_name}
+                            </span>
                             {a.category && (
-                              <span className="text-[11px] text-ink-faint">· {a.category}</span>
+                              <span className="text-[11px] text-ink-faint shrink-0">
+                                · {a.category}
+                              </span>
                             )}
                           </Link>
                         ))}

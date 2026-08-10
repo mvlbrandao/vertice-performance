@@ -175,29 +175,3 @@ export async function updateAthlete(
   return { success: true };
 }
 
-export async function setAthleteActive(
-  athleteId: string,
-  active: boolean,
-  reason?: string,
-): Promise<ActionResult> {
-  const coach = await requireCoach();
-
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("athletes")
-    .update({
-      is_active: active,
-      deactivated_at: active ? null : new Date().toISOString(),
-      deactivation_reason: active ? null : reason?.trim() || null,
-    })
-    .eq("id", athleteId)
-    .eq("club_id", coach.clubId);
-
-  if (error) return { error: error.message };
-
-  revalidatePath(`/athletes/${athleteId}/dados`);
-  revalidatePath("/athletes");
-  revalidatePath("/dashboard");
-  revalidatePath("/relatorios");
-  return { success: true };
-}

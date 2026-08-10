@@ -4,6 +4,7 @@ import { InviteAthleteModal } from "@/components/athletes/InviteAthleteModal";
 import { EditAthleteModal } from "@/components/athletes/EditAthleteModal";
 import { TransferClubModal } from "@/components/athletes/TransferClubModal";
 import { DeactivateAthleteModal } from "@/components/athletes/DeactivateAthleteModal";
+import { PendingCancellationCard } from "@/components/athletes/PendingCancellationCard";
 import { PlayerScoreCard } from "@/components/athletes/PlayerScoreCard";
 import { getPartnerClubOptions } from "@/lib/data/partnerClubs";
 import { classifyBmi } from "@/lib/utils/bmiReference";
@@ -45,14 +46,27 @@ export default async function AthleteDadosPage({
   const { athleteId } = await params;
   const supabase = await createClient();
 
-  const [{ data: athlete }, { data: checkins }, { data: existingProfile }] = await Promise.all([
-    supabase.from("athletes").select("*").eq("id", athleteId).single(),
-    supabase
-      .from("checkins")
-      .select("training_done, diet_done")
-      .eq("athlete_id", athleteId),
-    supabase.from("profiles").select("id").eq("athlete_id", athleteId).maybeSingle(),
-  ]);
+  const [{ data: athlete }, { data: checkins }, { data: existingProfile }, { data: activeSubscription }, { data: pendingCancellation }] =
+    await Promise.all([
+      supabase.from("athletes").select("*").eq("id", athleteId).single(),
+      supabase
+        .from("checkins")
+        .select("training_done, diet_done")
+        .eq("athlete_id", athleteId),
+      supabase.from("profiles").select("id").eq("athlete_id", athleteId).maybeSingle(),
+      supabase
+        .from("athlete_billing_subscriptions")
+        .select("id")
+        .eq("athlete_id", athleteId)
+        .eq("status", "ACTIVE")
+        .maybeSingle(),
+      supabase
+        .from("athlete_cancellation_requests")
+        .select("id, reason_category, reason_detail, requested_at")
+        .eq("athlete_id", athleteId)
+        .eq("status", "Pendente")
+        .maybeSingle(),
+    ]);
 
   if (!athlete) return null;
 
@@ -75,6 +89,14 @@ export default async function AthleteDadosPage({
 
   return (
     <div>
+      {pendingCancellation && (
+        <PendingCancellationCard
+          requestId={pendingCancellation.id}
+          reasonCategory={pendingCancellation.reason_category}
+          reasonDetail={pendingCancellation.reason_detail}
+          requestedAt={pendingCancellation.requested_at}
+        />
+      )}
       <div className="mb-4">
         <PlayerScoreCard
           score={score}
@@ -115,7 +137,11 @@ export default async function AthleteDadosPage({
                 fullName={athlete.full_name}
                 alreadyProvisioned={!!existingProfile}
               />
-              <DeactivateAthleteModal athleteId={athlete.id} isActive={athlete.is_active} />
+              <DeactivateAthleteModal
+                athleteId={athlete.id}
+                isActive={athlete.is_active}
+                hasActiveSubscription={!!activeSubscription}
+              />
             </div>
           </div>
           {!athlete.is_active && (

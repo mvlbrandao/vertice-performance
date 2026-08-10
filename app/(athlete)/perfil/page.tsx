@@ -5,6 +5,7 @@ import { resolveSignedUrl } from "@/lib/storage/resolveSignedUrl";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { PlayerScoreCard } from "@/components/athletes/PlayerScoreCard";
+import { RequestCancellationButton } from "@/components/athletes/RequestCancellationButton";
 import { computePlayerScore } from "@/lib/scoring";
 import { initials } from "@/lib/utils/initials";
 
@@ -39,7 +40,7 @@ export default async function AthletePerfilPage() {
 
   if (!athlete) return null;
 
-  const [signedPhotoUrl, score, { data: lineupRows }] = await Promise.all([
+  const [signedPhotoUrl, score, { data: lineupRows }, { data: pendingCancellation }] = await Promise.all([
     resolveSignedUrl("athlete-photos", athlete.photo_url),
     computePlayerScore(supabase, athlete.id),
     supabase
@@ -48,6 +49,12 @@ export default async function AthletePerfilPage() {
         "status, notes, games(id, opponent, scheduled_date, scheduled_time, lineup_video_url, plays(name))",
       )
       .eq("athlete_id", athlete.id),
+    supabase
+      .from("athlete_cancellation_requests")
+      .select("reason_category, requested_at")
+      .eq("athlete_id", athlete.id)
+      .eq("status", "Pendente")
+      .maybeSingle(),
   ]);
   const hasPain = athlete.current_pain && athlete.current_pain !== "Nenhuma";
   const today = new Date().toISOString().slice(0, 10);
@@ -181,6 +188,16 @@ export default async function AthletePerfilPage() {
           <Row k="Posição" v={athlete.position?.join(", ") || "—"} />
           <Row k="Time" v={athlete.team ?? "—"} />
           <Row k="Na plataforma desde" v={athlete.joined_at ?? "—"} />
+        </Card>
+        <Card>
+          <h3 className="mt-0 mb-3">Contrato</h3>
+          <RequestCancellationButton
+            pendingRequest={
+              pendingCancellation
+                ? { reasonCategory: pendingCancellation.reason_category, requestedAt: pendingCancellation.requested_at }
+                : null
+            }
+          />
         </Card>
         <Card>
           <h3 className="mt-0 mb-3">Saúde & condição física</h3>

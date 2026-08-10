@@ -1002,6 +1002,52 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["cash_movements"]["Insert"]>;
         Relationships: [];
       };
+      athlete_cancellation_requests: {
+        Row: {
+          id: string;
+          club_id: string;
+          athlete_id: string;
+          reason_category:
+            | "Financeiro"
+            | "Mudança de clube"
+            | "Mudança de cidade"
+            | "Insatisfação"
+            | "Lesão / Parou de praticar"
+            | "Outro";
+          reason_detail: string | null;
+          status: "Pendente" | "Aprovado" | "Rejeitado";
+          cancel_future_charges: boolean;
+          requested_by: string;
+          requested_by_role: "athlete" | "coach";
+          requested_at: string;
+          reviewed_by: string | null;
+          reviewed_at: string | null;
+          review_notes: string | null;
+        };
+        Insert: {
+          id?: string;
+          club_id: string;
+          athlete_id: string;
+          reason_category:
+            | "Financeiro"
+            | "Mudança de clube"
+            | "Mudança de cidade"
+            | "Insatisfação"
+            | "Lesão / Parou de praticar"
+            | "Outro";
+          reason_detail?: string | null;
+          status?: "Pendente" | "Aprovado" | "Rejeitado";
+          cancel_future_charges?: boolean;
+          requested_by: string;
+          requested_by_role: "athlete" | "coach";
+          requested_at?: string;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          review_notes?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["athlete_cancellation_requests"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {

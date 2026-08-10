@@ -17,6 +17,7 @@ const navItems: NavItem[] = [
       { href: "/caixa-do-dia", icon: "🗄️", label: "Caixa do Dia" },
       { href: "/evolucao-despesas", icon: "📊", label: "Evolução de Despesas" },
       { href: "/evolucao-financeira-sub", icon: "🧭", label: "Evolução de Receita" },
+      { href: "/cancelamentos", icon: "🚫", label: "Cancelamentos" },
       { href: "/auditoria", icon: "🕵️", label: "Auditoria" },
     ],
   },

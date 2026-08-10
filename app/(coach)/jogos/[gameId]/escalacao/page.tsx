@@ -32,12 +32,14 @@ export default async function GameLineupPage({
           .select("id, full_name, jersey_num, photo_color, position")
           .eq("club_id", profile!.clubId)
           .eq("team", game.target_team ?? "")
+          .eq("is_active", true)
           .order("full_name", { ascending: true })
       : supabase
           .from("athletes")
           .select("id, full_name, jersey_num, photo_color, position")
           .eq("club_id", profile!.clubId)
-          .eq("id", game.target_athlete_id ?? "");
+          .eq("id", game.target_athlete_id ?? "")
+          .eq("is_active", true);
   if (game.target_type === "team" && game.target_category) {
     rosterQuery = rosterQuery.eq("category", game.target_category);
   }

@@ -48,6 +48,7 @@ export default async function CoachAgendaPage({
         .from("athletes")
         .select("id, full_name, position")
         .eq("club_id", profile!.clubId)
+        .eq("is_active", true)
         .order("full_name", { ascending: true }),
       meetingsQuery,
       getPartnerClubOptions(supabase, profile!.clubId),

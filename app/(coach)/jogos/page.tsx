@@ -33,6 +33,7 @@ export default async function JogosPage() {
         .from("athletes")
         .select("id, full_name")
         .eq("club_id", profile!.clubId)
+        .eq("is_active", true)
         .order("full_name", { ascending: true }),
       getPartnerClubOptions(supabase, profile!.clubId),
     ]);

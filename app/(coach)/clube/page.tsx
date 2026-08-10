@@ -41,6 +41,7 @@ export default async function ClubPage() {
       .from("athletes")
       .select("id, full_name, team, category, photo_url, photo_color")
       .eq("club_id", profile!.clubId)
+      .eq("is_active", true)
       .order("full_name", { ascending: true }),
     supabase
       .from("profiles")

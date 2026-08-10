@@ -22,6 +22,7 @@ export default async function EquipePage() {
       .from("athletes")
       .select("id, full_name")
       .eq("club_id", profile!.clubId)
+      .eq("is_active", true)
       .order("full_name", { ascending: true }),
     supabase
       .from("athlete_staff_access")

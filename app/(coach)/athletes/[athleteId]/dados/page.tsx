@@ -12,6 +12,8 @@ import { computePlayerScore } from "@/lib/scoring";
 import { getAthleteChallengePoints } from "@/lib/challengePoints";
 import { resolveSignedUrl } from "@/lib/storage/resolveSignedUrl";
 import { initials } from "@/lib/utils/initials";
+import { INJURY_SEVERITY_META } from "@/lib/data/injuries";
+import { Badge } from "@/components/ui/Badge";
 
 function Row({ k, v, danger }: { k: string; v: string; danger?: boolean }) {
   return (
@@ -47,7 +49,7 @@ export default async function AthleteDadosPage({
   const { athleteId } = await params;
   const supabase = await createClient();
 
-  const [{ data: athlete }, { data: checkins }, { data: existingProfile }, { data: activeSubscription }, { data: pendingCancellation }] =
+  const [{ data: athlete }, { data: checkins }, { data: existingProfile }, { data: activeSubscription }, { data: pendingCancellation }, { data: activeInjuries }] =
     await Promise.all([
       supabase.from("athletes").select("*").eq("id", athleteId).single(),
       supabase
@@ -67,6 +69,12 @@ export default async function AthleteDadosPage({
         .eq("athlete_id", athleteId)
         .eq("status", "Pendente")
         .maybeSingle(),
+      supabase
+        .from("athlete_injuries")
+        .select("id, body_region, severity, status, expected_return_date")
+        .eq("athlete_id", athleteId)
+        .neq("status", "Recuperado")
+        .order("occurred_at", { ascending: false }),
     ]);
 
   if (!athlete) return null;
@@ -196,6 +204,24 @@ export default async function AthleteDadosPage({
           </div>
           <BarRow label="Adesão a treinos" pct={trainingPct} />
           <BarRow label="Adesão à dieta" pct={dietPct} />
+          {activeInjuries && activeInjuries.length > 0 && (
+            <div className="mt-3.5 pt-3.5 border-t border-line">
+              <span className="text-xs font-semibold text-ink-soft uppercase tracking-wide block mb-2">
+                Lesões ativas
+              </span>
+              <div className="flex flex-col gap-1.5">
+                {activeInjuries.map((inj) => (
+                  <div key={inj.id} className="flex items-center gap-1.5 flex-wrap text-[12.5px]">
+                    <Badge tone={INJURY_SEVERITY_META[inj.severity].tone}>{inj.body_region}</Badge>
+                    <span className="text-ink-faint">{inj.status}</span>
+                    {inj.expected_return_date && (
+                      <span className="text-ink-faint">· volta em {inj.expected_return_date}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </Card>
       </div>
     </div>

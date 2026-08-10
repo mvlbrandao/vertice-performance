@@ -1050,6 +1050,48 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["athlete_cancellation_requests"]["Insert"]>;
         Relationships: [];
       };
+      athlete_injuries: {
+        Row: {
+          id: string;
+          club_id: string;
+          athlete_id: string;
+          source: "Jogo" | "Avulso";
+          game_id: string | null;
+          source_game_event_id: string | null;
+          body_region: string;
+          injury_type: string;
+          severity: "Leve (grau 1)" | "Moderada (grau 2)" | "Grave (grau 3)";
+          description: string | null;
+          occurred_at: string;
+          expected_return_date: string | null;
+          status: "Em tratamento" | "Em observação" | "Recuperado";
+          treatment_notes: string | null;
+          created_by: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          club_id: string;
+          athlete_id: string;
+          source: "Jogo" | "Avulso";
+          game_id?: string | null;
+          source_game_event_id?: string | null;
+          body_region: string;
+          injury_type: string;
+          severity: "Leve (grau 1)" | "Moderada (grau 2)" | "Grave (grau 3)";
+          description?: string | null;
+          occurred_at?: string;
+          expected_return_date?: string | null;
+          status?: "Em tratamento" | "Em observação" | "Recuperado";
+          treatment_notes?: string | null;
+          created_by: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["athlete_injuries"]["Insert"]>;
+        Relationships: [];
+      };
       athlete_score_snapshots: {
         Row: {
           id: string;

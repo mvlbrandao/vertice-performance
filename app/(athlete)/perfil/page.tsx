@@ -11,6 +11,7 @@ import { computePlayerScore } from "@/lib/scoring";
 import { getScoreChange } from "@/lib/scoreHistory";
 import { getAthleteChallengePoints } from "@/lib/challengePoints";
 import { initials } from "@/lib/utils/initials";
+import { INJURY_SEVERITY_META } from "@/lib/data/injuries";
 
 function Row({ k, v }: { k: string; v: string }) {
   return (
@@ -43,22 +44,29 @@ export default async function AthletePerfilPage() {
 
   if (!athlete) return null;
 
-  const [signedPhotoUrl, score, { data: lineupRows }, { data: pendingCancellation }] = await Promise.all([
-    resolveSignedUrl("athlete-photos", athlete.photo_url),
-    computePlayerScore(supabase, athlete.id),
-    supabase
-      .from("game_lineups")
-      .select(
-        "status, notes, games(id, opponent, scheduled_date, scheduled_time, lineup_video_url, plays(name))",
-      )
-      .eq("athlete_id", athlete.id),
-    supabase
-      .from("athlete_cancellation_requests")
-      .select("reason_category, requested_at")
-      .eq("athlete_id", athlete.id)
-      .eq("status", "Pendente")
-      .maybeSingle(),
-  ]);
+  const [signedPhotoUrl, score, { data: lineupRows }, { data: pendingCancellation }, { data: activeInjuries }] =
+    await Promise.all([
+      resolveSignedUrl("athlete-photos", athlete.photo_url),
+      computePlayerScore(supabase, athlete.id),
+      supabase
+        .from("game_lineups")
+        .select(
+          "status, notes, games(id, opponent, scheduled_date, scheduled_time, lineup_video_url, plays(name))",
+        )
+        .eq("athlete_id", athlete.id),
+      supabase
+        .from("athlete_cancellation_requests")
+        .select("reason_category, requested_at")
+        .eq("athlete_id", athlete.id)
+        .eq("status", "Pendente")
+        .maybeSingle(),
+      supabase
+        .from("athlete_injuries")
+        .select("id, body_region, injury_type, severity, status, expected_return_date, treatment_notes")
+        .eq("athlete_id", athlete.id)
+        .neq("status", "Recuperado")
+        .order("occurred_at", { ascending: false }),
+    ]);
   const scoreChange = await getScoreChange(supabase, profile.clubId, athlete.id, score);
   const challengePoints = await getAthleteChallengePoints(supabase, athlete.id);
   const hasPain = athlete.current_pain && athlete.current_pain !== "Nenhuma";
@@ -223,6 +231,21 @@ export default async function AthletePerfilPage() {
                 : "Nenhuma dor relatada nos últimos check-ins."}
             </span>
           </div>
+          {activeInjuries && activeInjuries.length > 0 && (
+            <div className="mt-3.5 pt-3.5 border-t border-line flex flex-col gap-2">
+              {activeInjuries.map((inj) => (
+                <div key={inj.id} className="text-[12.5px]">
+                  <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+                    <Badge tone={INJURY_SEVERITY_META[inj.severity].tone}>{inj.body_region}</Badge>
+                    <span className="text-ink-faint">{inj.injury_type} · {inj.status}</span>
+                  </div>
+                  {inj.expected_return_date && (
+                    <span className="text-ink-faint">Previsão de retorno: {inj.expected_return_date}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </Card>
       </div>
     </div>

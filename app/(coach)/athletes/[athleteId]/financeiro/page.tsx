@@ -1,8 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/Card";
-import { EmptyState } from "@/components/ui/EmptyState";
 import { NewChargeModal } from "@/components/billing/NewChargeModal";
-import { ChargeRow } from "@/components/billing/ChargeRow";
+import { ChargesList } from "@/components/billing/ChargesList";
 import { GuardianBillingForm } from "@/components/billing/GuardianBillingForm";
 import { NewRecurringBillingModal } from "@/components/billing/NewRecurringBillingModal";
 import { RecurringBillingCard } from "@/components/billing/RecurringBillingCard";
@@ -94,27 +93,9 @@ export default async function AthleteFinanceiroPage({
         </Card>
       </div>
 
-      <Card>
-        {!charges || charges.length === 0 ? (
-          <EmptyState icon="💳" message="Nenhum lançamento registrado ainda." />
-        ) : (
-          charges.map((c) => (
-            <ChargeRow
-              key={c.id}
-              id={c.id}
-              athleteId={athleteId}
-              description={c.description}
-              amountCents={c.amount_cents}
-              discountCents={c.discount_cents}
-              competenceMonth={c.competence_month}
-              competenceYear={c.competence_year}
-              dueDate={c.due_date}
-              status={c.status}
-              canManage
-            />
-          ))
-        )}
-      </Card>
+      <ChargesList
+        charges={(charges ?? []).map((c) => ({ ...c, athlete_id: athleteId }))}
+      />
 
       {(!athlete?.guardian_cpf || !athlete?.guardian_email) && (
         <Card className="mt-4">

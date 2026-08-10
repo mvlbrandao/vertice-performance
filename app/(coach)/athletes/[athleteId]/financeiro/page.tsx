@@ -6,6 +6,7 @@ import { ChargeRow } from "@/components/billing/ChargeRow";
 import { GuardianBillingForm } from "@/components/billing/GuardianBillingForm";
 import { NewRecurringBillingModal } from "@/components/billing/NewRecurringBillingModal";
 import { RecurringBillingCard } from "@/components/billing/RecurringBillingCard";
+import { BillingRulesCard } from "@/components/billing/BillingRulesCard";
 
 function formatCents(cents: number) {
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -27,7 +28,7 @@ export default async function AthleteFinanceiroPage({
       .order("due_date", { ascending: false }),
     supabase
       .from("athletes")
-      .select("guardian_cpf, guardian_email")
+      .select("guardian_cpf, guardian_email, asaas_customer_id")
       .eq("id", athleteId)
       .single(),
     supabase
@@ -75,6 +76,8 @@ export default async function AthleteFinanceiroPage({
           checkoutUrl: s.checkout_url,
         }))}
       />
+
+      <BillingRulesCard asaasCustomerId={athlete?.asaas_customer_id ?? null} />
 
       <div className="grid grid-cols-2 gap-3 mb-4">
         <Card>

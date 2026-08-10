@@ -140,3 +140,28 @@ export async function listFinancialTransactions(startDate: string, finishDate: s
 export function isAsaasFeeTransaction(type: string) {
   return FEE_TYPES.has(type);
 }
+
+export type AsaasNotification = {
+  id: string;
+  customer: string;
+  enabled: boolean;
+  emailEnabledForCustomer: boolean;
+  smsEnabledForCustomer: boolean;
+  phoneCallEnabledForCustomer: boolean;
+  whatsappEnabledForCustomer: boolean;
+  event:
+    | "PAYMENT_CREATED"
+    | "PAYMENT_DUEDATE_WARNING"
+    | "PAYMENT_OVERDUE"
+    | "PAYMENT_RECEIVED"
+    | string;
+  scheduleOffset: number;
+};
+
+/** Régua de cobrança: regras de lembrete (e-mail/SMS/WhatsApp/ligação) configuradas para o cliente no Asaas. */
+export async function getCustomerNotifications(customerId: string) {
+  const res = await asaasFetch<{ data: AsaasNotification[] }>(
+    `/customers/${customerId}/notifications`,
+  );
+  return res.data;
+}

@@ -16,7 +16,7 @@ const navItems: NavItem[] = [
       { href: "/relatorios", icon: "📈", label: "Relatórios" },
       { href: "/caixa-do-dia", icon: "🗄️", label: "Caixa do Dia" },
       { href: "/evolucao-despesas", icon: "📊", label: "Evolução de Despesas" },
-      { href: "/evolucao-financeira-sub", icon: "🧭", label: "Evolução por Sub" },
+      { href: "/evolucao-financeira-sub", icon: "🧭", label: "Evolução de Receita" },
       { href: "/auditoria", icon: "🕵️", label: "Auditoria" },
     ],
   },

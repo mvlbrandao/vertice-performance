@@ -1,9 +1,8 @@
+import Link from "next/link";
 import { getSessionProfile } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
-
-const MONTHS_WINDOW = 6;
 
 function formatCents(cents: number) {
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -14,27 +13,28 @@ function todayISO() {
 function monthKey(iso: string) {
   return iso.slice(0, 7);
 }
-function lastNMonthKeys(n: number) {
-  const now = new Date();
-  const keys: string[] = [];
-  for (let i = n - 1; i >= 0; i--) {
-    const d = new Date(Date.UTC(now.getFullYear(), now.getMonth() - i, 1));
-    keys.push(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`);
-  }
-  return keys;
+function yearMonthKeys(year: number) {
+  return Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, "0")}`);
 }
 function monthLabel(key: string) {
   const [y, m] = key.split("-").map(Number);
   return new Date(y, m - 1, 1).toLocaleDateString("pt-BR", { month: "short" }).replace(".", "");
 }
 
-export default async function EvolucaoFinanceiraSubPage() {
+export default async function EvolucaoFinanceiraSubPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ year?: string }>;
+}) {
+  const { year: yearParam } = await searchParams;
+  const year = yearParam ? Number(yearParam) : new Date().getFullYear();
   const profile = await getSessionProfile();
   const supabase = await createClient();
   const today = todayISO();
 
-  const months = lastNMonthKeys(MONTHS_WINDOW);
+  const months = yearMonthKeys(year);
   const windowStart = `${months[0]}-01`;
+  const windowEnd = `${year}-12-31T23:59:59`;
 
   const [{ data: paidCharges }, { data: dueCharges }] = await Promise.all([
     supabase
@@ -42,13 +42,15 @@ export default async function EvolucaoFinanceiraSubPage() {
       .select("amount_cents, discount_cents, paid_at, athletes(category)")
       .eq("club_id", profile!.clubId)
       .eq("status", "Pago")
-      .gte("paid_at", windowStart),
+      .gte("paid_at", windowStart)
+      .lte("paid_at", windowEnd),
     supabase
       .from("athlete_charges")
       .select("amount_cents, discount_cents, due_date, status, athletes(category)")
       .eq("club_id", profile!.clubId)
       .neq("status", "Cancelado")
-      .gte("due_date", windowStart),
+      .gte("due_date", windowStart)
+      .lte("due_date", `${year}-12-31`),
   ]);
 
   const subOf = (row: { athletes: unknown }) =>
@@ -111,11 +113,27 @@ export default async function EvolucaoFinanceiraSubPage() {
 
   return (
     <div>
-      <div className="mb-4">
-        <h1 className="text-[28px] m-0">Evolução financeira por sub</h1>
-        <div className="text-xs text-ink-faint mt-0.5">
-          Recebimentos e inadimplência agrupados por categoria (SUB10, SUB11...) nos últimos{" "}
-          {MONTHS_WINDOW} meses.
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <div>
+          <h1 className="text-[28px] m-0">Evolução de receita</h1>
+          <div className="text-xs text-ink-faint mt-0.5">
+            Recebimentos e inadimplência agrupados por categoria (SUB10, SUB11...) nos 12 meses de{" "}
+            {year}.
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Link
+            href={`/evolucao-financeira-sub?year=${year - 1}`}
+            className="text-xs font-semibold border border-line rounded-sm px-3 py-2 hover:border-pitch-dark"
+          >
+            ← {year - 1}
+          </Link>
+          <Link
+            href={`/evolucao-financeira-sub?year=${year + 1}`}
+            className="text-xs font-semibold border border-line rounded-sm px-3 py-2 hover:border-pitch-dark"
+          >
+            {year + 1} →
+          </Link>
         </div>
       </div>
 

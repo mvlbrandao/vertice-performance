@@ -6,10 +6,17 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Field";
 
+const FEATURES = [
+  { icon: "📊", label: "Card de score estilo FIFA" },
+  { icon: "🧭", label: "Análise SWOT por atleta" },
+  { icon: "💰", label: "Financeiro e cobrança integrados" },
+];
+
 export function LoginForm() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -33,26 +40,26 @@ export function LoginForm() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-6"
+      className="min-h-screen flex items-center justify-center p-5 sm:p-6"
       style={{
         background:
           "radial-gradient(circle at 20% 20%, rgba(255,214,0,.10), transparent 45%), linear-gradient(160deg, #111111 0%, #000000 100%)",
       }}
     >
-      <div className="w-full max-w-[920px] bg-paper rounded-lg overflow-hidden grid md:grid-cols-[1.1fr_1fr] shadow-[0_40px_80px_-30px_rgba(0,0,0,.7)]">
+      <div className="w-full max-w-[960px] bg-paper rounded-xl overflow-hidden grid md:grid-cols-[1.1fr_1fr] shadow-[0_50px_100px_-30px_rgba(0,0,0,.75)] border border-white/5">
         <div
-          className="text-chalk p-9 relative flex flex-col justify-between min-h-[220px] md:min-h-[480px]"
+          className="text-chalk p-8 sm:p-10 relative flex flex-col justify-between gap-8 min-h-[200px] md:min-h-[520px]"
           style={{
             background:
               "repeating-linear-gradient(90deg, rgba(255,220,0,.22) 0 2px, transparent 2px 64px), linear-gradient(180deg, #1A1A1A 0%, #000000 100%)",
           }}
         >
           <div className="flex items-center gap-2.5 z-10">
-            <div className="w-3 h-3 rounded-full bg-amber" />
+            <div className="w-3 h-3 rounded-full bg-amber shadow-[0_0_16px_rgba(255,214,0,.7)]" />
             <span className="font-display text-[22px] tracking-wide">VÉRTICE PERFORMANCE</span>
           </div>
           <div className="z-10">
-            <h1 className="text-[52px] leading-[0.95] mb-2.5">
+            <h1 className="text-[42px] sm:text-[52px] leading-[0.95] mb-3 font-display">
               Alta
               <br />
               performance
@@ -60,35 +67,25 @@ export function LoginForm() {
               começa aqui.
             </h1>
             <p className="text-sm text-white/75 max-w-[320px]">
-              Plataforma de acompanhamento técnico, físico e mental para
-              atletas de base — do treino à mesa tática.
+              Plataforma de acompanhamento técnico, físico, mental e
+              financeiro para atletas de base — do treino à mesa tática.
             </p>
           </div>
-          <div className="flex gap-5 z-10">
-            <div>
-              <b className="block font-display text-[26px] text-amber">128</b>
-              <span className="text-[11.5px] text-white/55 uppercase tracking-wide">
-                Atletas ativos
-              </span>
-            </div>
-            <div>
-              <b className="block font-display text-[26px] text-amber">14</b>
-              <span className="text-[11.5px] text-white/55 uppercase tracking-wide">
-                Categorias
-              </span>
-            </div>
-            <div>
-              <b className="block font-display text-[26px] text-amber">96%</b>
-              <span className="text-[11.5px] text-white/55 uppercase tracking-wide">
-                Check-in semanal
-              </span>
-            </div>
+          <div className="flex flex-col gap-2.5 z-10">
+            {FEATURES.map((f) => (
+              <div key={f.label} className="flex items-center gap-2.5 text-[13px] text-white/80">
+                <span className="w-7 h-7 rounded-full bg-amber/15 border border-amber/30 flex items-center justify-center text-sm shrink-0">
+                  {f.icon}
+                </span>
+                {f.label}
+              </div>
+            ))}
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-9 flex flex-col gap-4.5 gap-[18px]">
+        <form onSubmit={handleSubmit} className="p-8 sm:p-10 flex flex-col gap-4.5 gap-[18px] justify-center">
           <div>
-            <h2 className="text-[30px] mb-0.5">Entrar</h2>
+            <h2 className="text-[30px] mb-0.5 font-display">Entrar</h2>
             <p className="text-[13.5px] text-ink-soft">
               Acesse com o e-mail e senha cadastrados pelo seu clube.
             </p>
@@ -104,18 +101,27 @@ export function LoginForm() {
             />
           </Field>
           <Field label="Senha">
-            <Input
-              type="password"
-              required
-              autoComplete="current-password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <div className="relative">
+              <Input
+                type={showPassword ? "text" : "password"}
+                required
+                autoComplete="current-password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="pr-16"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-ink-faint hover:text-pitch-dark"
+                aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+              >
+                {showPassword ? "Ocultar" : "Mostrar"}
+              </button>
+            </div>
           </Field>
-          {error && (
-            <div className="text-clay text-[12.5px] font-medium">{error}</div>
-          )}
+          {error && <div className="text-clay text-[12.5px] font-medium">{error}</div>}
           <Button type="submit" variant="solid" disabled={loading} className="w-full">
             {loading ? "Entrando…" : "Entrar na plataforma"}
           </Button>

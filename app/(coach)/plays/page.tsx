@@ -14,9 +14,10 @@ export default async function PlaysPage() {
   const { data: plays } = await supabase
     .from("plays")
     .select(
-      "id, name, target_type, target_team, video_url, frames, sport_type, tags, athletes(full_name)",
+      "id, name, target_type, target_team, video_url, frames, sport_type, tags, is_global, athletes(full_name)",
     )
-    .eq("club_id", profile!.clubId)
+    .or(`club_id.eq.${profile!.clubId},is_global.eq.true`)
+    .order("is_global", { ascending: true })
     .order("created_at", { ascending: false });
 
   return (
@@ -51,8 +52,11 @@ export default async function PlaysPage() {
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <h4 className="m-0 text-[15px] font-bold">{p.name}</h4>
                   <div className="flex gap-1.5 flex-wrap justify-end">
+                    {p.is_global && <Badge tone="green">⭐ Padrão</Badge>}
                     <Badge tone="dark">{SPORT_LABELS[p.sport_type as PlaySportType]}</Badge>
-                    <Badge tone={p.target_type === "team" ? "sky" : "amber"}>{target ?? "—"}</Badge>
+                    {!p.is_global && (
+                      <Badge tone={p.target_type === "team" ? "sky" : "amber"}>{target ?? "—"}</Badge>
+                    )}
                   </div>
                 </div>
                 <p className="text-xs text-ink-faint m-0 mb-2">
@@ -68,12 +72,14 @@ export default async function PlaysPage() {
                   </div>
                 )}
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Link
-                    href={`/plays/${p.id}`}
-                    className="text-xs font-semibold border border-line rounded-sm px-2.5 py-1.5 hover:border-pitch-dark"
-                  >
-                    ✏️ Editar
-                  </Link>
+                  {!p.is_global && (
+                    <Link
+                      href={`/plays/${p.id}`}
+                      className="text-xs font-semibold border border-line rounded-sm px-2.5 py-1.5 hover:border-pitch-dark"
+                    >
+                      ✏️ Editar
+                    </Link>
+                  )}
                   {p.video_url && (
                     <a
                       href={p.video_url}
@@ -84,7 +90,7 @@ export default async function PlaysPage() {
                       ▶ Ver vídeo
                     </a>
                   )}
-                  <DeletePlayButton playId={p.id} />
+                  {!p.is_global && <DeletePlayButton playId={p.id} />}
                 </div>
               </Card>
             );

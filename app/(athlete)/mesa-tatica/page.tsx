@@ -10,7 +10,7 @@ export default async function AthleteMesaTaticaPage() {
 
   const { data: plays } = await supabase
     .from("plays")
-    .select("id, name, description, target_type, target_team, video_url, frames, sport_type")
+    .select("id, name, description, target_type, target_team, video_url, frames, sport_type, is_global")
     .order("created_at", { ascending: false });
 
   return (
@@ -27,8 +27,8 @@ export default async function AthleteMesaTaticaPage() {
             <Card key={p.id}>
               <div className="flex items-start justify-between gap-2 mb-2 flex-wrap">
                 <h4 className="m-0 text-[15px] font-bold">{p.name}</h4>
-                <Badge tone={p.target_type === "team" ? "sky" : "amber"}>
-                  {p.target_type === "team" ? p.target_team : "Individual"}
+                <Badge tone={p.is_global ? "green" : p.target_type === "team" ? "sky" : "amber"}>
+                  {p.is_global ? "⭐ Padrão" : p.target_type === "team" ? p.target_team : "Individual"}
                 </Badge>
               </div>
               {p.description && (

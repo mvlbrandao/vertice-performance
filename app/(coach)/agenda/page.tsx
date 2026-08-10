@@ -54,7 +54,7 @@ export default async function CoachAgendaPage({
       supabase
         .from("plays")
         .select("id, name")
-        .eq("club_id", profile!.clubId)
+        .or(`club_id.eq.${profile!.clubId},is_global.eq.true`)
         .order("name", { ascending: true }),
       supabase
         .from("athlete_swot_cycles")

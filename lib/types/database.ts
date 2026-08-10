@@ -551,7 +551,7 @@ export interface Database {
       plays: {
         Row: {
           id: string;
-          club_id: string;
+          club_id: string | null;
           created_by: string;
           name: string;
           target_type: PlayTargetType;
@@ -563,12 +563,13 @@ export interface Database {
           description: string | null;
           sport_type: "futsal" | "campo" | "fut7";
           tags: string[];
+          is_global: boolean;
           created_at: string;
           updated_at: string;
         };
         Insert: {
           id?: string;
-          club_id: string;
+          club_id?: string | null;
           created_by: string;
           name: string;
           target_type: PlayTargetType;
@@ -580,6 +581,7 @@ export interface Database {
           description?: string | null;
           sport_type?: "futsal" | "campo" | "fut7";
           tags?: string[];
+          is_global?: boolean;
           created_at?: string;
           updated_at?: string;
         };

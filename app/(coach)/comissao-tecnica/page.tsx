@@ -27,6 +27,7 @@ export default async function ComissaoTecnicaPage() {
         attack: score.attack,
         defense: score.defense,
         overall: score.overall,
+        warnings: score.warnings,
       };
     }),
   );

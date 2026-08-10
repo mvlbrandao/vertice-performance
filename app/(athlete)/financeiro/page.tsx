@@ -62,27 +62,29 @@ export default async function AthleteFinanceiroPage() {
           charges.map((c) => (
             <div
               key={c.id}
-              className="flex items-center gap-3 py-2.5 border-b border-line last:border-b-0 flex-wrap"
+              className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 py-2.5 border-b border-line last:border-b-0"
             >
-              <div className="flex-1 min-w-[160px]">
+              <div className="flex-1 min-w-0">
                 <b className="text-sm block">{c.description}</b>
                 <span className="text-xs text-ink-faint">
                   {MONTHS[c.competence_month - 1]}/{c.competence_year} · vence {c.due_date}
                 </span>
               </div>
-              <span className="font-mono text-sm font-semibold text-right">
-                {c.discount_cents > 0 ? (
-                  <span className="block">
-                    <span className="text-ink-faint line-through text-xs block">
-                      {formatCents(c.amount_cents)}
+              <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap shrink-0">
+                <span className="font-mono text-sm font-semibold text-right">
+                  {c.discount_cents > 0 ? (
+                    <span className="block">
+                      <span className="text-ink-faint line-through text-xs block">
+                        {formatCents(c.amount_cents)}
+                      </span>
+                      {formatCents(c.amount_cents - c.discount_cents)}
                     </span>
-                    {formatCents(c.amount_cents - c.discount_cents)}
-                  </span>
-                ) : (
-                  formatCents(c.amount_cents)
-                )}
-              </span>
-              <Badge tone={STATUS_TONE[c.status]}>{c.status}</Badge>
+                  ) : (
+                    formatCents(c.amount_cents)
+                  )}
+                </span>
+                <Badge tone={STATUS_TONE[c.status]}>{c.status}</Badge>
+              </div>
             </div>
           ))
         )}

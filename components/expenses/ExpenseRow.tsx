@@ -93,8 +93,8 @@ export function ExpenseRow({
   }
 
   return (
-    <div className="flex items-center gap-3 py-2.5 border-b border-line last:border-b-0 flex-wrap">
-      <div className="flex-1 min-w-[160px]">
+    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 py-2.5 border-b border-line last:border-b-0">
+      <div className="flex-1 min-w-0 sm:min-w-[160px]">
         <div className="flex items-center gap-1.5 flex-wrap">
           <b className="text-sm">{description}</b>
           {categoryName && <Badge tone="sky">{categoryName}</Badge>}
@@ -161,47 +161,49 @@ export function ExpenseRow({
           </span>
         )}
       </div>
-      <span className="font-mono text-sm font-semibold">{formatCents(amountCents)}</span>
-      <Badge tone={isOverdue ? "clay" : STATUS_TONE[status]}>{isOverdue ? "Atrasado" : status}</Badge>
-      {status !== "Pago" && status !== "Cancelado" && (
+      <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap shrink-0">
+        <span className="font-mono text-sm font-semibold">{formatCents(amountCents)}</span>
+        <Badge tone={isOverdue ? "clay" : STATUS_TONE[status]}>{isOverdue ? "Atrasado" : status}</Badge>
+        {status !== "Pago" && status !== "Cancelado" && (
+          <button
+            type="button"
+            onClick={markPaid}
+            disabled={pending}
+            className="text-[11px] font-semibold text-pitch-dark hover:underline disabled:opacity-50"
+          >
+            Marcar pago
+          </button>
+        )}
+        {status === "Pago" && (
+          <button
+            type="button"
+            onClick={undoPaid}
+            disabled={pending}
+            className="text-[11px] font-semibold text-ink-faint hover:text-clay disabled:opacity-50"
+          >
+            Desfazer baixa
+          </button>
+        )}
+        {status === "Pendente" && (
+          <button
+            type="button"
+            onClick={cancel}
+            disabled={pending}
+            className="text-[11px] font-semibold text-ink-faint hover:text-clay disabled:opacity-50"
+          >
+            Cancelar
+          </button>
+        )}
         <button
           type="button"
-          onClick={markPaid}
+          onClick={handleDelete}
           disabled={pending}
-          className="text-[11px] font-semibold text-pitch-dark hover:underline disabled:opacity-50"
+          className="text-ink-faint hover:text-clay text-[11px] leading-none"
+          aria-label="Excluir despesa"
         >
-          Marcar pago
+          ✕
         </button>
-      )}
-      {status === "Pago" && (
-        <button
-          type="button"
-          onClick={undoPaid}
-          disabled={pending}
-          className="text-[11px] font-semibold text-ink-faint hover:text-clay disabled:opacity-50"
-        >
-          Desfazer baixa
-        </button>
-      )}
-      {status === "Pendente" && (
-        <button
-          type="button"
-          onClick={cancel}
-          disabled={pending}
-          className="text-[11px] font-semibold text-ink-faint hover:text-clay disabled:opacity-50"
-        >
-          Cancelar
-        </button>
-      )}
-      <button
-        type="button"
-        onClick={handleDelete}
-        disabled={pending}
-        className="text-ink-faint hover:text-clay text-[11px] leading-none"
-        aria-label="Excluir despesa"
-      >
-        ✕
-      </button>
+      </div>
     </div>
   );
 }

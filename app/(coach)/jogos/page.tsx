@@ -86,7 +86,7 @@ export default async function JogosPage() {
                     {competitionGames.map((g) => (
                       <div
                         key={g.id}
-                        className="flex items-center gap-3 py-2 border-b border-line last:border-b-0 flex-wrap"
+                        className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 py-2 border-b border-line last:border-b-0"
                       >
                         <div className="flex-1 min-w-0">
                           <b className="text-sm block">
@@ -101,17 +101,19 @@ export default async function JogosPage() {
                             {g.location ? ` · ${g.location}` : ""}
                           </span>
                         </div>
-                        <Badge tone={g.target_type === "team" ? "sky" : "amber"}>
-                          {g.target_type === "team"
-                            ? `${g.target_team} · ${g.target_category ?? "—"}`
-                            : (g.athletes as unknown as { full_name: string } | null)?.full_name}
-                        </Badge>
-                        <Link href={`/jogos/${g.id}`}>
-                          <Button variant="ghost" size="sm">
-                            Súmula
-                          </Button>
-                        </Link>
-                        <DeleteGameButton gameId={g.id} />
+                        <div className="flex items-center gap-2 flex-wrap shrink-0">
+                          <Badge tone={g.target_type === "team" ? "sky" : "amber"}>
+                            {g.target_type === "team"
+                              ? `${g.target_team} · ${g.target_category ?? "—"}`
+                              : (g.athletes as unknown as { full_name: string } | null)?.full_name}
+                          </Badge>
+                          <Link href={`/jogos/${g.id}`}>
+                            <Button variant="ghost" size="sm">
+                              Súmula
+                            </Button>
+                          </Link>
+                          <DeleteGameButton gameId={g.id} />
+                        </div>
                       </div>
                     ))}
                   </div>

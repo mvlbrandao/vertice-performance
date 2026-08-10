@@ -23,6 +23,7 @@ const navItems: NavItem[] = [
   },
   { href: "/plays", icon: "🎯", label: "Mesa Tática" },
   { href: "/jogos", icon: "🏆", label: "Jogos" },
+  { href: "/comissao-tecnica", icon: "🔬", label: "Comissão Técnica" },
   { href: "/desafios-gestao", icon: "🎖️", label: "Desafios" },
   { href: "/clube", icon: "🏟️", label: "Clubes" },
   { href: "/equipe", icon: "🧑‍⚕️", label: "Equipe" },

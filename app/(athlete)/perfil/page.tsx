@@ -12,6 +12,8 @@ import { getScoreChange } from "@/lib/scoreHistory";
 import { getAthleteChallengePoints } from "@/lib/challengePoints";
 import { initials } from "@/lib/utils/initials";
 import { INJURY_SEVERITY_META } from "@/lib/data/injuries";
+import { AthleteComparisonCard } from "@/components/scouting/AthleteComparisonCard";
+import { getClubPeerCloud, getSystemPercentile } from "@/lib/scouting/peerScoring";
 
 function Row({ k, v }: { k: string; v: string }) {
   return (
@@ -69,6 +71,11 @@ export default async function AthletePerfilPage() {
     ]);
   const scoreChange = await getScoreChange(supabase, profile.clubId, athlete.id, score);
   const challengePoints = await getAthleteChallengePoints(supabase, athlete.id);
+  const [categoryCloud, clubCloud, systemPercentile] = await Promise.all([
+    getClubPeerCloud(profile.clubId, athlete.id, athlete.category),
+    getClubPeerCloud(profile.clubId, athlete.id),
+    getSystemPercentile(athlete.id, athlete.category),
+  ]);
   const hasPain = athlete.current_pain && athlete.current_pain !== "Nenhuma";
   const today = new Date().toISOString().slice(0, 10);
   const upcomingConvocations = (lineupRows ?? [])
@@ -248,6 +255,17 @@ export default async function AthletePerfilPage() {
           )}
         </Card>
       </div>
+
+      <Card className="mt-4">
+        <h3 className="mt-0 mb-3">Onde eu estou — Ofensivo × Defensivo</h3>
+        <AthleteComparisonCard
+          own={{ attack: score.attack, defense: score.defense }}
+          categoryCloud={categoryCloud}
+          clubCloud={clubCloud}
+          systemPercentile={systemPercentile}
+          category={athlete.category}
+        />
+      </Card>
     </div>
   );
 }

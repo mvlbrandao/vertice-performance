@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireCoach, requireAthlete } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionResult } from "@/lib/actions/athletes";
+import { sendPushToAthlete } from "@/lib/push/send";
 
 const meetingSchema = z.object({
   targetType: z.enum(["athlete", "team"]),
@@ -62,6 +63,13 @@ export async function createMeeting(formData: FormData): Promise<ActionResult> {
     focus_tag: parsed.data.focusTag || null,
   };
 
+  const notifyPayload = {
+    title: "🗓️ Novo encontro marcado",
+    body: `${parsed.data.title} · ${parsed.data.date} às ${parsed.data.time}`,
+    url: "/minha-agenda",
+    tag: "new-meeting",
+  };
+
   if (parsed.data.targetType === "athlete") {
     const { error } = await supabase.from("meetings").insert({
       ...base,
@@ -70,6 +78,7 @@ export async function createMeeting(formData: FormData): Promise<ActionResult> {
     });
     if (error) return { error: error.message };
     if (parsed.data.swotItemId) revalidatePath(`/athletes/${parsed.data.athleteId}/anamnese`);
+    await sendPushToAthlete(parsed.data.athleteId!, notifyPayload);
   } else {
     const { data: teamAthletes, error: athletesError } = await supabase
       .from("athletes")
@@ -90,6 +99,7 @@ export async function createMeeting(formData: FormData): Promise<ActionResult> {
       })),
     );
     if (error) return { error: error.message };
+    await Promise.all(teamAthletes.map((a) => sendPushToAthlete(a.id, notifyPayload)));
   }
 
   revalidatePath("/agenda");

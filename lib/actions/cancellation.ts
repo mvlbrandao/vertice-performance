@@ -8,6 +8,8 @@ import { AsaasError, cancelSubscription } from "@/lib/asaas/client";
 import { logFinancialAudit } from "@/lib/actions/auditLog";
 import { CANCELLATION_REASONS } from "@/lib/data/cancellationReasons";
 import type { ActionResult } from "@/lib/actions/athletes";
+import { sendPushToAthlete } from "@/lib/push/send";
+import { sendCancellationReviewedEmail } from "@/lib/email/send";
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
@@ -263,6 +265,32 @@ export async function reviewCancellationRequest(formData: FormData): Promise<Act
     .eq("id", parsed.data.requestId)
     .eq("club_id", coach.clubId);
   if (error) return { error: error.message };
+
+  await sendPushToAthlete(request.athlete_id, {
+    title:
+      parsed.data.decision === "Aprovado"
+        ? "Cancelamento aprovado"
+        : "Pedido de cancelamento avaliado",
+    body:
+      parsed.data.decision === "Aprovado"
+        ? "Seu pedido de cancelamento de contrato foi aprovado pelo treinador."
+        : "Seu pedido de cancelamento não foi aprovado — fale com o treinador.",
+    url: "/perfil",
+    tag: "cancellation-review",
+  });
+
+  const { data: athlete } = await supabase
+    .from("athletes")
+    .select("full_name, guardian_email")
+    .eq("id", request.athlete_id)
+    .single();
+  if (athlete?.guardian_email) {
+    await sendCancellationReviewedEmail({
+      to: athlete.guardian_email,
+      athleteName: athlete.full_name,
+      approved: parsed.data.decision === "Aprovado",
+    });
+  }
 
   invalidateAthletePaths(request.athlete_id);
   return { success: true };

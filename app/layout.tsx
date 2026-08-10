@@ -24,6 +24,18 @@ export const metadata: Metadata = {
   title: "Vértice Performance — Plataforma de Desenvolvimento de Atletas",
   description:
     "Acompanhamento técnico, físico e mental de atletas de base — do treino à mesa tática.",
+  manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
+};
+
+export const viewport = {
+  themeColor: "#111111",
 };
 
 export default function RootLayout({

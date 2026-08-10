@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireCoach } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionResult } from "@/lib/actions/athletes";
+import { sendPushToAthlete } from "@/lib/push/send";
 
 const competitionSchema = z.object({
   name: z.string().trim().min(1, "Informe o nome da competição."),
@@ -214,6 +215,23 @@ export async function publishLineup(gameId: string): Promise<ActionResult> {
     .eq("id", gameId)
     .eq("club_id", coach.clubId);
   if (error) return { error: error.message };
+
+  const [{ data: game }, { data: lineup }] = await Promise.all([
+    supabase.from("games").select("opponent, scheduled_date").eq("id", gameId).single(),
+    supabase.from("game_lineups").select("athlete_id, status").eq("game_id", gameId),
+  ]);
+  if (game && lineup) {
+    await Promise.all(
+      lineup.map((l) =>
+        sendPushToAthlete(l.athlete_id, {
+          title: "📣 Você foi convocado!",
+          body: `${l.status} vs. ${game.opponent} · ${game.scheduled_date}`,
+          url: "/minha-agenda",
+          tag: `lineup-${gameId}`,
+        }),
+      ),
+    );
+  }
 
   lineupPaths(gameId);
   return { success: true };

@@ -6,6 +6,7 @@ import { requireCoach, requireAthlete } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { CHALLENGE_TIERS } from "@/lib/data/challengeTiers";
 import type { ActionResult } from "@/lib/actions/athletes";
+import { sendPushToAthlete, sendPushToClubCoaches } from "@/lib/push/send";
 
 function paths() {
   revalidatePath("/desafios");
@@ -109,6 +110,18 @@ export async function submitChallenge(formData: FormData): Promise<ActionResult>
   });
   if (error) return { error: error.message };
 
+  const { data: challenge } = await supabase
+    .from("challenges")
+    .select("title")
+    .eq("id", parsed.data.challengeId)
+    .single();
+  await sendPushToClubCoaches(profile.clubId, {
+    title: "🎖️ Novo envio de desafio",
+    body: `${profile.fullName} enviou "${challenge?.title ?? "desafio"}" pra avaliação`,
+    url: "/desafios-gestao",
+    tag: "challenge-submission",
+  });
+
   paths();
   return { success: true };
 }
@@ -133,17 +146,15 @@ export async function reviewSubmission(formData: FormData): Promise<ActionResult
   const supabase = await createClient();
   const { data: submission } = await supabase
     .from("challenge_submissions")
-    .select("id, status, challenges(points)")
+    .select("id, athlete_id, status, challenges(title, points)")
     .eq("id", parsed.data.submissionId)
     .eq("club_id", coach.clubId)
     .single();
   if (!submission) return { error: "Envio não encontrado." };
   if (submission.status !== "Pendente") return { error: "Esse envio já foi avaliado." };
 
-  const points =
-    parsed.data.decision === "Aprovado"
-      ? ((submission.challenges as unknown as { points: number } | null)?.points ?? 0)
-      : null;
+  const challengeInfo = submission.challenges as unknown as { title: string; points: number } | null;
+  const points = parsed.data.decision === "Aprovado" ? (challengeInfo?.points ?? 0) : null;
 
   const { error } = await supabase
     .from("challenge_submissions")
@@ -157,6 +168,16 @@ export async function reviewSubmission(formData: FormData): Promise<ActionResult
     .eq("id", parsed.data.submissionId)
     .eq("club_id", coach.clubId);
   if (error) return { error: error.message };
+
+  await sendPushToAthlete(submission.athlete_id, {
+    title: parsed.data.decision === "Aprovado" ? "🎉 Desafio aprovado!" : "Desafio avaliado",
+    body:
+      parsed.data.decision === "Aprovado"
+        ? `"${challengeInfo?.title ?? "Desafio"}" aprovado — +${points} pontos!`
+        : `"${challengeInfo?.title ?? "Desafio"}" não foi aprovado dessa vez.`,
+    url: "/desafios",
+    tag: "challenge-review",
+  });
 
   paths();
   return { success: true };

@@ -16,6 +16,7 @@ import { createClient } from "@/lib/supabase/server";
 import { logFinancialAudit } from "@/lib/actions/auditLog";
 import type { ActionResult } from "@/lib/actions/athletes";
 import type { ChargeStatus } from "@/lib/types/database";
+import { sendChargePaidEmail } from "@/lib/email/send";
 
 function paths(athleteId: string) {
   revalidatePath(`/athletes/${athleteId}/financeiro`);
@@ -115,7 +116,7 @@ export async function setChargeStatus(
   const supabase = await createClient();
   const { data: previous } = await supabase
     .from("athlete_charges")
-    .select("status")
+    .select("status, description, amount_cents")
     .eq("id", chargeId)
     .eq("club_id", coach.clubId)
     .single();
@@ -138,6 +139,22 @@ export async function setChargeStatus(
     performedBy: coach.userId,
     performedByName: coach.fullName,
   });
+
+  if (status === "Pago" && previous && previous.status !== "Pago") {
+    const { data: athlete } = await supabase
+      .from("athletes")
+      .select("full_name, guardian_email")
+      .eq("id", athleteId)
+      .single();
+    if (athlete?.guardian_email) {
+      await sendChargePaidEmail({
+        to: athlete.guardian_email,
+        athleteName: athlete.full_name,
+        description: previous.description,
+        amountCents: previous.amount_cents,
+      });
+    }
+  }
 
   paths(athleteId);
   return { success: true };

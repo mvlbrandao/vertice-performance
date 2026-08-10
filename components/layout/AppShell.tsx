@@ -6,6 +6,7 @@ import { useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils/cn";
 import { initials } from "@/lib/utils/initials";
 import { LogoutButton } from "@/components/layout/LogoutButton";
+import { NotificationPrompt } from "@/components/push/NotificationPrompt";
 
 export interface NavItem {
   href: string;
@@ -150,6 +151,7 @@ export function AppShell({
           <span className="font-display text-lg tracking-wide">VÉRTICE PERFORMANCE</span>
         </div>
         <main className="flex-1 px-7 pt-6 pb-16 max-[840px]:px-4 max-[840px]:pt-4.5">
+          <NotificationPrompt />
           {children}
         </main>
       </div>

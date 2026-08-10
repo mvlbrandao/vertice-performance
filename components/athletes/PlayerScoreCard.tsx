@@ -1,4 +1,5 @@
 import type { PlayerScore } from "@/lib/scoring";
+import { overallColor } from "@/lib/utils/scoreColor";
 
 const ATTRIBUTES: { key: keyof Omit<PlayerScore, "overall">; abbr: string; label: string }[] = [
   { key: "attack", abbr: "ATA", label: "Ataque" },
@@ -9,13 +10,6 @@ const ATTRIBUTES: { key: keyof Omit<PlayerScore, "overall">; abbr: string; label
   { key: "commitment", abbr: "COM", label: "Compromisso" },
   { key: "development", abbr: "DES", label: "Desenvolvimento" },
 ];
-
-function overallColor(v: number) {
-  if (v >= 80) return "#1A6B3C";
-  if (v >= 65) return "#9A7A00";
-  if (v >= 50) return "#3D7EA6";
-  return "#C0392B";
-}
 
 export function PlayerScoreCard({
   score,

@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { NewAthleteModal } from "@/components/athletes/NewAthleteModal";
 import { AthletesGrid } from "@/components/athletes/AthletesGrid";
 import { getPartnerClubOptions } from "@/lib/data/partnerClubs";
+import { computePlayerScore } from "@/lib/scoring";
 
 export default async function AthletesPage() {
   const profile = await getSessionProfile();
@@ -23,10 +24,13 @@ export default async function AthletesPage() {
   ]);
 
   const athletesWithPhotos = await Promise.all(
-    (athletes ?? []).map(async (a) => ({
-      ...a,
-      signedPhotoUrl: await resolveSignedUrl("athlete-photos", a.photo_url),
-    })),
+    (athletes ?? []).map(async (a) => {
+      const [signedPhotoUrl, score] = await Promise.all([
+        resolveSignedUrl("athlete-photos", a.photo_url),
+        computePlayerScore(supabase, a.id),
+      ]);
+      return { ...a, signedPhotoUrl, score: score.overall };
+    }),
   );
 
   return (

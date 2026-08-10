@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Button } from "@/components/ui/Button";
 import { initials } from "@/lib/utils/initials";
+import { overallColor, scoreStars } from "@/lib/utils/scoreColor";
 
 export interface AthleteGridItem {
   id: string;
@@ -20,14 +21,29 @@ export interface AthleteGridItem {
   photo_color: string | null;
   signedPhotoUrl: string | null;
   is_active: boolean;
+  score: number;
 }
 
 const ALL = "";
+const SCORE_BANDS: { value: string; label: string; test: (v: number) => boolean }[] = [
+  { value: "", label: "Todos os scores", test: () => true },
+  { value: "80", label: "⭐⭐⭐ 80+", test: (v) => v >= 80 },
+  { value: "65", label: "⭐⭐ 65-79", test: (v) => v >= 65 && v < 80 },
+  { value: "50", label: "⭐ 50-64", test: (v) => v >= 50 && v < 65 },
+  { value: "0", label: "Abaixo de 50", test: (v) => v < 50 },
+];
+const SORT_OPTIONS = [
+  { value: "name", label: "Nome (A-Z)" },
+  { value: "score_desc", label: "Score (maior → menor)" },
+  { value: "score_asc", label: "Score (menor → maior)" },
+];
 
 export function AthletesGrid({ athletes }: { athletes: AthleteGridItem[] }) {
   const [team, setTeam] = useState(ALL);
   const [category, setCategory] = useState(ALL);
   const [position, setPosition] = useState(ALL);
+  const [scoreBand, setScoreBand] = useState(ALL);
+  const [sort, setSort] = useState("name");
   const [showInactive, setShowInactive] = useState(false);
   const inactiveCount = athletes.filter((a) => !a.is_active).length;
 
@@ -44,15 +60,24 @@ export function AthletesGrid({ athletes }: { athletes: AthleteGridItem[] }) {
     [athletes],
   );
 
-  const filtered = athletes.filter(
-    (a) =>
-      (showInactive || a.is_active) &&
-      (!team || a.team === team) &&
-      (!category || a.category === category) &&
-      (!position || (a.position ?? []).includes(position)),
-  );
+  const scoreTest = SCORE_BANDS.find((b) => b.value === scoreBand)?.test ?? (() => true);
 
-  const hasActiveFilter = team !== ALL || category !== ALL || position !== ALL;
+  const filtered = athletes
+    .filter(
+      (a) =>
+        (showInactive || a.is_active) &&
+        (!team || a.team === team) &&
+        (!category || a.category === category) &&
+        (!position || (a.position ?? []).includes(position)) &&
+        scoreTest(a.score),
+    )
+    .sort((a, b) => {
+      if (sort === "score_desc") return b.score - a.score;
+      if (sort === "score_asc") return a.score - b.score;
+      return a.full_name.localeCompare(b.full_name);
+    });
+
+  const hasActiveFilter = team !== ALL || category !== ALL || position !== ALL || scoreBand !== ALL;
 
   return (
     <div>
@@ -90,6 +115,28 @@ export function AthletesGrid({ athletes }: { athletes: AthleteGridItem[] }) {
           {positions.map((p) => (
             <option key={p} value={p}>
               {p}
+            </option>
+          ))}
+        </select>
+        <select
+          value={scoreBand}
+          onChange={(e) => setScoreBand(e.target.value)}
+          className="px-3 py-2 border border-line rounded-sm bg-white text-[12.5px] font-semibold text-ink-soft"
+        >
+          {SCORE_BANDS.map((b) => (
+            <option key={b.value} value={b.value}>
+              {b.label}
+            </option>
+          ))}
+        </select>
+        <select
+          value={sort}
+          onChange={(e) => setSort(e.target.value)}
+          className="px-3 py-2 border border-line rounded-sm bg-white text-[12.5px] font-semibold text-ink-soft"
+        >
+          {SORT_OPTIONS.map((s) => (
+            <option key={s.value} value={s.value}>
+              {s.label}
             </option>
           ))}
         </select>
@@ -149,12 +196,23 @@ export function AthletesGrid({ athletes }: { athletes: AthleteGridItem[] }) {
                       {initials(a.full_name)}
                     </div>
                   )}
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <b className="block text-base truncate">{a.full_name}</b>
                     <span className="text-xs text-ink-faint truncate block">
                       {a.team ?? "—"}
                       {a.instagram ? ` · ${a.instagram}` : ""}
                     </span>
+                  </div>
+                  <div
+                    className="flex flex-col items-center shrink-0"
+                    style={{ color: overallColor(a.score) }}
+                    title={`Score geral: ${a.score}`}
+                  >
+                    <span className="text-xs leading-none">
+                      {"★".repeat(scoreStars(a.score))}
+                      {"☆".repeat(3 - scoreStars(a.score))}
+                    </span>
+                    <span className="font-display text-sm leading-none mt-0.5">{a.score}</span>
                   </div>
                 </div>
                 <div className="flex gap-1.5 flex-wrap mb-2.5">

@@ -6,7 +6,9 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { PlayerScoreCard } from "@/components/athletes/PlayerScoreCard";
 import { RequestCancellationButton } from "@/components/athletes/RequestCancellationButton";
+import { ScoreChangeAlert } from "@/components/athletes/ScoreChangeAlert";
 import { computePlayerScore } from "@/lib/scoring";
+import { getScoreChange } from "@/lib/scoreHistory";
 import { initials } from "@/lib/utils/initials";
 
 function Row({ k, v }: { k: string; v: string }) {
@@ -56,6 +58,7 @@ export default async function AthletePerfilPage() {
       .eq("status", "Pendente")
       .maybeSingle(),
   ]);
+  const scoreChange = await getScoreChange(supabase, profile.clubId, athlete.id, score);
   const hasPain = athlete.current_pain && athlete.current_pain !== "Nenhuma";
   const today = new Date().toISOString().slice(0, 10);
   const upcomingConvocations = (lineupRows ?? [])
@@ -167,6 +170,8 @@ export default async function AthletePerfilPage() {
           ))}
         </div>
       )}
+
+      <ScoreChangeAlert result={scoreChange} warnings={score.warnings} />
 
       <div className="mb-4">
         <PlayerScoreCard

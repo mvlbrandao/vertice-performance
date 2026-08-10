@@ -1048,6 +1048,40 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["athlete_cancellation_requests"]["Insert"]>;
         Relationships: [];
       };
+      athlete_score_snapshots: {
+        Row: {
+          id: string;
+          club_id: string;
+          athlete_id: string;
+          overall: number;
+          attack: number;
+          defense: number;
+          discipline: number;
+          physical: number;
+          mental: number;
+          commitment: number;
+          development: number;
+          computed_at: string;
+          acknowledged: boolean;
+        };
+        Insert: {
+          id?: string;
+          club_id: string;
+          athlete_id: string;
+          overall: number;
+          attack: number;
+          defense: number;
+          discipline: number;
+          physical: number;
+          mental: number;
+          commitment: number;
+          development: number;
+          computed_at?: string;
+          acknowledged?: boolean;
+        };
+        Update: Partial<Database["public"]["Tables"]["athlete_score_snapshots"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {

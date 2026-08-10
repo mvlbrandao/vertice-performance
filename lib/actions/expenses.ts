@@ -41,6 +41,19 @@ export async function createExpenseCategory(formData: FormData): Promise<ActionR
 export async function deleteExpenseCategory(categoryId: string): Promise<ActionResult> {
   const coach = await requireCoach();
   const supabase = await createClient();
+  const { data: category } = await supabase
+    .from("expense_categories")
+    .select("is_locked")
+    .eq("id", categoryId)
+    .eq("club_id", coach.clubId)
+    .single();
+  if (category?.is_locked) {
+    return {
+      error:
+        "Essa categoria é usada para vincular despesas a profissionais e não pode ser excluída.",
+    };
+  }
+
   const { error } = await supabase
     .from("expense_categories")
     .delete()
@@ -54,6 +67,7 @@ export async function deleteExpenseCategory(categoryId: string): Promise<ActionR
 
 const expenseSchema = z.object({
   categoryId: z.string().uuid().optional().or(z.literal("")),
+  professionalId: z.string().uuid().optional().or(z.literal("")),
   description: z.string().trim().min(1, "Informe a descrição."),
   amount: z.string().min(1, "Informe o valor."),
   dueDate: z.string().min(1, "Informe o vencimento."),
@@ -67,10 +81,28 @@ function addMonthsToISODate(iso: string, months: number) {
   return date.toISOString().slice(0, 10);
 }
 
+async function requireProfessionalIfNeeded(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  categoryId: string,
+  professionalId: string,
+): Promise<string | null> {
+  if (!categoryId) return null;
+  const { data: category } = await supabase
+    .from("expense_categories")
+    .select("requires_professional")
+    .eq("id", categoryId)
+    .single();
+  if (category?.requires_professional && !professionalId) {
+    return "Selecione o profissional para uma despesa de Salários e comissão técnica.";
+  }
+  return null;
+}
+
 export async function createExpense(formData: FormData): Promise<ActionResult> {
   const coach = await requireCoach();
   const parsed = expenseSchema.safeParse({
     categoryId: formData.get("categoryId") ?? "",
+    professionalId: formData.get("professionalId") ?? "",
     description: formData.get("description"),
     amount: formData.get("amount"),
     dueDate: formData.get("dueDate"),
@@ -86,6 +118,14 @@ export async function createExpense(formData: FormData): Promise<ActionResult> {
     return { error: "Valor inválido." };
   }
 
+  const supabase = await createClient();
+  const professionalError = await requireProfessionalIfNeeded(
+    supabase,
+    parsed.data.categoryId ?? "",
+    parsed.data.professionalId ?? "",
+  );
+  if (professionalError) return { error: professionalError };
+
   const installmentsCount = Math.min(
     Math.max(Number(parsed.data.installments) || 1, 1),
     36,
@@ -93,6 +133,7 @@ export async function createExpense(formData: FormData): Promise<ActionResult> {
   const rows = Array.from({ length: installmentsCount }, (_, i) => ({
     club_id: coach.clubId,
     category_id: parsed.data.categoryId || null,
+    professional_id: parsed.data.professionalId || null,
     description:
       installmentsCount > 1
         ? `${parsed.data.description} (${i + 1}/${installmentsCount})`
@@ -103,7 +144,6 @@ export async function createExpense(formData: FormData): Promise<ActionResult> {
     created_by: coach.userId,
   }));
 
-  const supabase = await createClient();
   const { error } = await supabase.from("expenses").insert(rows);
   if (error) return { error: error.message };
 
@@ -113,6 +153,7 @@ export async function createExpense(formData: FormData): Promise<ActionResult> {
 
 const editExpenseSchema = z.object({
   categoryId: z.string().uuid().optional().or(z.literal("")),
+  professionalId: z.string().uuid().optional().or(z.literal("")),
   description: z.string().trim().min(1, "Informe a descrição."),
   amount: z.string().min(1, "Informe o valor."),
   notes: z.string().trim().optional(),
@@ -122,6 +163,7 @@ export async function updateExpense(expenseId: string, formData: FormData): Prom
   const coach = await requireCoach();
   const parsed = editExpenseSchema.safeParse({
     categoryId: formData.get("categoryId") ?? "",
+    professionalId: formData.get("professionalId") ?? "",
     description: formData.get("description"),
     amount: formData.get("amount"),
     notes: formData.get("notes") ?? "",
@@ -136,6 +178,13 @@ export async function updateExpense(expenseId: string, formData: FormData): Prom
   }
 
   const supabase = await createClient();
+  const professionalError = await requireProfessionalIfNeeded(
+    supabase,
+    parsed.data.categoryId ?? "",
+    parsed.data.professionalId ?? "",
+  );
+  if (professionalError) return { error: professionalError };
+
   const { data: previous } = await supabase
     .from("expenses")
     .select("description, amount_cents, category_id, notes")
@@ -150,6 +199,7 @@ export async function updateExpense(expenseId: string, formData: FormData): Prom
       description: parsed.data.description,
       amount_cents: nextAmountCents,
       category_id: parsed.data.categoryId || null,
+      professional_id: parsed.data.professionalId || null,
       notes: parsed.data.notes || null,
     })
     .eq("id", expenseId)

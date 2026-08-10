@@ -869,12 +869,16 @@ export interface Database {
           id: string;
           club_id: string;
           name: string;
+          requires_professional: boolean;
+          is_locked: boolean;
           created_at: string;
         };
         Insert: {
           id?: string;
           club_id: string;
           name: string;
+          requires_professional?: boolean;
+          is_locked?: boolean;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["expense_categories"]["Insert"]>;
@@ -885,6 +889,7 @@ export interface Database {
           id: string;
           club_id: string;
           category_id: string | null;
+          professional_id: string | null;
           description: string;
           amount_cents: number;
           due_date: string;
@@ -899,6 +904,7 @@ export interface Database {
           id?: string;
           club_id: string;
           category_id?: string | null;
+          professional_id?: string | null;
           description: string;
           amount_cents: number;
           due_date: string;

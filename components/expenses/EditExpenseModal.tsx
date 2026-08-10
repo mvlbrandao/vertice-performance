@@ -10,7 +10,9 @@ import { updateExpense } from "@/lib/actions/expenses";
 export function EditExpenseModal({
   id,
   categories,
+  professionals,
   categoryId,
+  professionalId,
   description,
   amountCents,
   notes,
@@ -18,8 +20,10 @@ export function EditExpenseModal({
   onClose,
 }: {
   id: string;
-  categories: { id: string; name: string }[];
+  categories: { id: string; name: string; requiresProfessional: boolean }[];
+  professionals: { id: string; full_name: string }[];
   categoryId: string | null;
+  professionalId: string | null;
   description: string;
   amountCents: number;
   notes: string | null;
@@ -29,6 +33,9 @@ export function EditExpenseModal({
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [categoryChoice, setCategoryChoice] = useState(categoryId ?? "");
+  const requiresProfessional =
+    categories.find((c) => c.id === categoryChoice)?.requiresProfessional ?? false;
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -51,7 +58,8 @@ export function EditExpenseModal({
         <Field label="Categoria">
           <select
             name="categoryId"
-            defaultValue={categoryId ?? ""}
+            value={categoryChoice}
+            onChange={(e) => setCategoryChoice(e.target.value)}
             className="w-full px-3 py-2.5 border border-line rounded-sm bg-white text-sm"
           >
             <option value="">Sem categoria</option>
@@ -62,6 +70,25 @@ export function EditExpenseModal({
             ))}
           </select>
         </Field>
+        {requiresProfessional && (
+          <Field label="Profissional">
+            <select
+              name="professionalId"
+              required
+              defaultValue={professionalId ?? ""}
+              className="w-full px-3 py-2.5 border border-line rounded-sm bg-white text-sm"
+            >
+              <option value="" disabled>
+                Selecione o profissional...
+              </option>
+              {professionals.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.full_name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
         <Field label="Descrição">
           <Input name="description" required defaultValue={description} />
         </Field>

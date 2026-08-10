@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getSessionProfile } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/Card";
@@ -61,18 +62,24 @@ export default async function EquipePage() {
             const grantedList = grantedByStaff.get(s.id) ?? [];
             return (
               <Card key={s.id} className="flex items-center justify-between gap-3 flex-wrap">
-                <div>
-                  <b className="text-sm block">{s.full_name}</b>
+                <Link href={`/equipe/${s.id}`} className="min-w-0">
+                  <b className="text-sm block hover:underline">{s.full_name}</b>
                   <span className="text-xs text-ink-faint">
                     {s.title ?? "Staff"} · {grantedList.length} atleta
                     {grantedList.length === 1 ? "" : "s"} liberado
                     {grantedList.length === 1 ? "" : "s"}
                   </span>
-                </div>
+                </Link>
                 <div className="flex items-center gap-2">
                   <Badge tone={grantedList.length > 0 ? "green" : "amber"}>
                     {grantedList.length > 0 ? "Com acesso" : "Sem acesso ainda"}
                   </Badge>
+                  <Link
+                    href={`/equipe/${s.id}`}
+                    className="text-xs font-semibold border border-line rounded-sm px-2.5 py-1.5 hover:border-pitch-dark"
+                  >
+                    💰 Recebimentos
+                  </Link>
                   <StaffAccessModal
                     staffProfileId={s.id}
                     staffName={s.full_name}

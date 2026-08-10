@@ -28,6 +28,9 @@ export function ExpenseRow({
   categoryId,
   categoryName,
   categories,
+  professionalId,
+  professionalName,
+  professionals,
   amountCents,
   notes,
   dueDate,
@@ -37,7 +40,10 @@ export function ExpenseRow({
   description: string;
   categoryId: string | null;
   categoryName: string | null;
-  categories: { id: string; name: string }[];
+  categories: { id: string; name: string; requiresProfessional: boolean }[];
+  professionalId: string | null;
+  professionalName: string | null;
+  professionals: { id: string; full_name: string }[];
   amountCents: number;
   notes: string | null;
   dueDate: string;
@@ -92,6 +98,7 @@ export function ExpenseRow({
         <div className="flex items-center gap-1.5 flex-wrap">
           <b className="text-sm">{description}</b>
           {categoryName && <Badge tone="sky">{categoryName}</Badge>}
+          {professionalName && <Badge tone="dark">👤 {professionalName}</Badge>}
           <button
             type="button"
             onClick={() => setEditingExpense(true)}
@@ -103,7 +110,9 @@ export function ExpenseRow({
         <EditExpenseModal
           id={id}
           categories={categories}
+          professionals={professionals}
           categoryId={categoryId}
+          professionalId={professionalId}
           description={description}
           amountCents={amountCents}
           notes={notes}

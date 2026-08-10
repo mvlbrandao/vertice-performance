@@ -17,18 +17,32 @@ export default async function ContasAPagarPage() {
   const supabase = await createClient();
   const today = todayISO();
 
-  const [{ data: expenses }, { data: categories }] = await Promise.all([
+  const [{ data: expenses }, { data: categories }, { data: professionals }] = await Promise.all([
     supabase
       .from("expenses")
-      .select("id, description, amount_cents, due_date, status, category_id, notes, expense_categories(name)")
+      .select(
+        "id, description, amount_cents, due_date, status, category_id, professional_id, notes, expense_categories(name), profiles!professional_id(full_name)",
+      )
       .eq("club_id", profile!.clubId)
       .order("due_date", { ascending: true }),
     supabase
       .from("expense_categories")
-      .select("id, name")
+      .select("id, name, requires_professional")
       .eq("club_id", profile!.clubId)
       .order("name", { ascending: true }),
+    supabase
+      .from("profiles")
+      .select("id, full_name")
+      .eq("club_id", profile!.clubId)
+      .eq("role", "staff")
+      .order("full_name", { ascending: true }),
   ]);
+
+  const categoryOptions = (categories ?? []).map((c) => ({
+    id: c.id,
+    name: c.name,
+    requiresProfessional: c.requires_professional,
+  }));
 
   const rows = expenses ?? [];
   const isOverdue = (e: { status: string; due_date: string }) =>
@@ -50,7 +64,7 @@ export default async function ContasAPagarPage() {
             Despesas do clube, por categoria — aluguel, material, salários etc.
           </div>
         </div>
-        <NewExpenseModal categories={categories ?? []} />
+        <NewExpenseModal categories={categoryOptions} professionals={professionals ?? []} />
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
@@ -87,7 +101,12 @@ export default async function ContasAPagarPage() {
               categoryName={
                 (e.expense_categories as unknown as { name: string } | null)?.name ?? null
               }
-              categories={categories ?? []}
+              categories={categoryOptions}
+              professionalId={e.professional_id}
+              professionalName={
+                (e.profiles as unknown as { full_name: string } | null)?.full_name ?? null
+              }
+              professionals={professionals ?? []}
               amountCents={e.amount_cents}
               notes={e.notes}
               dueDate={e.due_date}

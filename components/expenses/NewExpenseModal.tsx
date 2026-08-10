@@ -12,14 +12,18 @@ const NEW_CATEGORY = "__nova__";
 
 export function NewExpenseModal({
   categories,
+  professionals,
 }: {
-  categories: { id: string; name: string }[];
+  categories: { id: string; name: string; requiresProfessional: boolean }[];
+  professionals: { id: string; full_name: string }[];
 }) {
   const router = useRouter();
   const { open, setOpen, pending, error, formRef, handleSubmit } = useFormModal(createExpense);
   const [categoryChoice, setCategoryChoice] = useState("");
   const [newCategoryName, setNewCategoryName] = useState("");
   const isNewCategory = categoryChoice === NEW_CATEGORY;
+  const requiresProfessional =
+    categories.find((c) => c.id === categoryChoice)?.requiresProfessional ?? false;
 
   const [categoryPending, setCategoryPending] = useState(false);
   const [categoryError, setCategoryError] = useState<string | null>(null);
@@ -87,6 +91,25 @@ export function NewExpenseModal({
               {categoryError && (
                 <div className="text-clay text-[12.5px] font-medium mt-1">{categoryError}</div>
               )}
+            </Field>
+          )}
+          {requiresProfessional && (
+            <Field label="Profissional">
+              <select
+                name="professionalId"
+                required
+                defaultValue=""
+                className="w-full px-3 py-2.5 border border-line rounded-sm bg-white text-sm"
+              >
+                <option value="" disabled>
+                  Selecione o profissional...
+                </option>
+                {professionals.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.full_name}
+                  </option>
+                ))}
+              </select>
             </Field>
           )}
           <Field label="Descrição">

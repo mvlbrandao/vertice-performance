@@ -23,14 +23,20 @@ export async function POST(request: Request) {
   const eventType = (payload as { type?: string } | null)?.type ?? "UNKNOWN";
 
   const admin = createAdminClient();
-  const { data: club } = await admin.from("clubs").select("id").limit(1).single();
-  if (club) {
-    await admin.from("asaas_security_events").insert({
-      club_id: club.id,
-      event_type: eventType,
-      payload: payload ?? {},
-      decision: "REFUSED",
-    });
+  // A chave de API do Asaas é compartilhada por toda a plataforma (não há
+  // conta Asaas por clube), então um uso indevido da chave ameaça todos os
+  // clubes igualmente — o evento é registrado pra cada um, não só pro
+  // primeiro que a query retornar, senão só um coach veria o alerta.
+  const { data: clubs } = await admin.from("clubs").select("id");
+  if (clubs && clubs.length > 0) {
+    await admin.from("asaas_security_events").insert(
+      clubs.map((club) => ({
+        club_id: club.id,
+        event_type: eventType,
+        payload: payload ?? {},
+        decision: "REFUSED" as const,
+      })),
+    );
   }
 
   return NextResponse.json({

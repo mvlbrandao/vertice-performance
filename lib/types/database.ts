@@ -1082,6 +1082,68 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["athlete_score_snapshots"]["Insert"]>;
         Relationships: [];
       };
+      challenges: {
+        Row: {
+          id: string;
+          club_id: string;
+          athlete_id: string | null;
+          title: string;
+          description: string;
+          tier: "Bronze" | "Prata" | "Ouro";
+          points: number;
+          target_position: string | null;
+          status: "Ativo" | "Arquivado";
+          created_by: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          club_id: string;
+          athlete_id?: string | null;
+          title: string;
+          description: string;
+          tier?: "Bronze" | "Prata" | "Ouro";
+          points: number;
+          target_position?: string | null;
+          status?: "Ativo" | "Arquivado";
+          created_by: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["challenges"]["Insert"]>;
+        Relationships: [];
+      };
+      challenge_submissions: {
+        Row: {
+          id: string;
+          club_id: string;
+          challenge_id: string;
+          athlete_id: string;
+          instagram_url: string;
+          notes: string | null;
+          status: "Pendente" | "Aprovado" | "Rejeitado";
+          points_awarded: number | null;
+          submitted_at: string;
+          reviewed_by: string | null;
+          reviewed_at: string | null;
+          review_notes: string | null;
+        };
+        Insert: {
+          id?: string;
+          club_id: string;
+          challenge_id: string;
+          athlete_id: string;
+          instagram_url: string;
+          notes?: string | null;
+          status?: "Pendente" | "Aprovado" | "Rejeitado";
+          points_awarded?: number | null;
+          submitted_at?: string;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          review_notes?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["challenge_submissions"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {

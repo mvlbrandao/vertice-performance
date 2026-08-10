@@ -9,6 +9,7 @@ import { PlayerScoreCard } from "@/components/athletes/PlayerScoreCard";
 import { getPartnerClubOptions } from "@/lib/data/partnerClubs";
 import { classifyBmi } from "@/lib/utils/bmiReference";
 import { computePlayerScore } from "@/lib/scoring";
+import { getAthleteChallengePoints } from "@/lib/challengePoints";
 import { resolveSignedUrl } from "@/lib/storage/resolveSignedUrl";
 import { initials } from "@/lib/utils/initials";
 
@@ -75,6 +76,7 @@ export default async function AthleteDadosPage({
     computePlayerScore(supabase, athleteId),
     resolveSignedUrl("athlete-photos", athlete.photo_url),
   ]);
+  const challengePoints = await getAthleteChallengePoints(supabase, athleteId);
 
   const totalCheckins = checkins?.length ?? 0;
   const trainingPct = totalCheckins
@@ -105,6 +107,7 @@ export default async function AthleteDadosPage({
           initials={initials(athlete.full_name)}
           fullName={athlete.full_name}
           position={athlete.position?.join(", ") || null}
+          challengePoints={challengePoints}
         />
       </div>
       <div className="grid lg:grid-cols-2 gap-4">

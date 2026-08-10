@@ -10,6 +10,7 @@ const navItems: NavItem[] = [
   { href: "/anamnese", icon: "🧭", label: "Anamnese" },
   { href: "/financeiro", icon: "💳", label: "Financeiro" },
   { href: "/treino", icon: "🏋️", label: "Treinos" },
+  { href: "/desafios", icon: "🎖️", label: "Desafios" },
   { href: "/mesa-tatica", icon: "🎯", label: "Mesa Tática" },
   { href: "/checkin", icon: "✅", label: "Check-in Diário" },
   { href: "/privacidade", icon: "🔒", label: "Privacidade dos meus dados" },

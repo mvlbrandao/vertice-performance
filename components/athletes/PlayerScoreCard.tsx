@@ -1,5 +1,6 @@
 import type { PlayerScore } from "@/lib/scoring";
 import { overallColor, scoreStars } from "@/lib/utils/scoreColor";
+import { athleteLevelFor } from "@/lib/data/challengeTiers";
 
 const ATTRIBUTES: { key: keyof Omit<PlayerScore, "overall">; abbr: string; label: string }[] = [
   { key: "attack", abbr: "ATA", label: "Ataque" },
@@ -18,6 +19,7 @@ export function PlayerScoreCard({
   initials,
   fullName,
   position,
+  challengePoints,
 }: {
   score: PlayerScore;
   photoUrl: string | null;
@@ -25,7 +27,9 @@ export function PlayerScoreCard({
   initials: string;
   fullName: string;
   position: string | null;
+  challengePoints?: number;
 }) {
+  const level = challengePoints != null ? athleteLevelFor(challengePoints) : null;
   return (
     <div className="rounded-lg bg-pitch-dark text-chalk p-4 flex gap-4 items-center flex-wrap">
       <div className="flex flex-col items-center gap-1.5 shrink-0">
@@ -57,7 +61,18 @@ export function PlayerScoreCard({
         </div>
       )}
       <div className="flex-1 min-w-[200px]">
-        <b className="block text-sm truncate">{fullName}</b>
+        <div className="flex items-center gap-2 flex-wrap">
+          <b className="block text-sm truncate">{fullName}</b>
+          {level && (
+            <span
+              className="text-[10.5px] font-bold px-1.5 py-0.5 rounded-sm border"
+              style={{ borderColor: level.color, color: level.color }}
+              title={`${challengePoints} pontos de desafio`}
+            >
+              {level.icon} {level.label}
+            </span>
+          )}
+        </div>
         {position && <span className="text-xs text-white/60">{position}</span>}
         <div className="grid grid-cols-3 gap-x-3 gap-y-1 mt-2">
           {ATTRIBUTES.map((a) => (

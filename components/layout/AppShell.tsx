@@ -49,13 +49,13 @@ export function AppShell({
           open ? "max-[840px]:left-0 max-[840px]:shadow-2xl" : "max-[840px]:-left-[260px]",
         )}
       >
-        <div className="flex items-center gap-2.5 px-2.5 pt-1.5 pb-4">
+        <div className="flex items-center gap-2.5 px-2.5 pt-1.5 pb-4 shrink-0">
           <div className="w-3 h-3 rounded-full bg-amber" />
           <span className="font-display text-[22px] tracking-wide">
             VÉRTICE PERFORMANCE
           </span>
         </div>
-        <nav className="flex flex-col gap-1">
+        <nav className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-1 pr-1">
           {navItems.map((item) => {
             if (item.children) {
               const groupActive = item.children.some((c) => isActive(c.href));
@@ -126,7 +126,7 @@ export function AppShell({
             );
           })}
         </nav>
-        <div className="mt-auto pt-3 border-t border-amber/15 flex items-center gap-2.5">
+        <div className="mt-auto pt-3 border-t border-amber/15 flex items-center gap-2.5 shrink-0">
           <div className="w-[34px] h-[34px] rounded-full bg-amber text-pitch-dark flex items-center justify-center font-extrabold text-[13px] shrink-0">
             {initials(userName)}
           </div>

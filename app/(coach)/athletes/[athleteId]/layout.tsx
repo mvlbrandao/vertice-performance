@@ -7,6 +7,8 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { AthleteTabs } from "@/components/athletes/AthleteTabs";
 import { AthletePhotoUploader } from "@/components/athletes/AthletePhotoUploader";
+import { computePlayerScore } from "@/lib/scoring";
+import { overallColor, scoreStars } from "@/lib/utils/scoreColor";
 
 export default async function AthleteDetailLayout({
   children,
@@ -28,7 +30,10 @@ export default async function AthleteDetailLayout({
 
   if (!athlete) notFound();
 
-  const signedPhotoUrl = await resolveSignedUrl("athlete-photos", athlete.photo_url);
+  const [signedPhotoUrl, score] = await Promise.all([
+    resolveSignedUrl("athlete-photos", athlete.photo_url),
+    computePlayerScore(supabase, athlete.id),
+  ]);
 
   return (
     <div>
@@ -54,6 +59,14 @@ export default async function AthleteDetailLayout({
           </div>
         </div>
         <div className="flex gap-6.5 text-center">
+          <div style={{ color: overallColor(score.overall) }}>
+            <span className="block text-sm leading-none">
+              {"★".repeat(scoreStars(score.overall))}
+              {"☆".repeat(3 - scoreStars(score.overall))}
+            </span>
+            <b className="font-mono text-lg block">{score.overall}</b>
+            <span className="text-[11px] text-ink-faint">Score</span>
+          </div>
           <div>
             <b className="font-mono text-lg block">
               {athlete.height_cm ? `${athlete.height_cm}cm` : "—"}

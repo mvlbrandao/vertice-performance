@@ -1,5 +1,5 @@
 import type { PlayerScore } from "@/lib/scoring";
-import { overallColor } from "@/lib/utils/scoreColor";
+import { overallColor, scoreStars } from "@/lib/utils/scoreColor";
 
 const ATTRIBUTES: { key: keyof Omit<PlayerScore, "overall">; abbr: string; label: string }[] = [
   { key: "attack", abbr: "ATA", label: "Ataque" },
@@ -35,6 +35,10 @@ export function PlayerScoreCard({
         >
           {score.overall}
         </div>
+        <span className="text-xs leading-none" style={{ color: overallColor(score.overall) }}>
+          {"★".repeat(scoreStars(score.overall))}
+          {"☆".repeat(3 - scoreStars(score.overall))}
+        </span>
         <span className="text-[10px] text-white/50 uppercase tracking-wide">Geral</span>
       </div>
       {photoUrl ? (

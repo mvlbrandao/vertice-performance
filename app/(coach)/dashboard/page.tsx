@@ -6,6 +6,8 @@ import { initials } from "@/lib/utils/initials";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { computePlayerScore } from "@/lib/scoring";
+import { overallColor, scoreStars } from "@/lib/utils/scoreColor";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -146,10 +148,13 @@ export default async function DashboardPage() {
       : 0;
 
   const athletesWithPhotos = await Promise.all(
-    (athletes ?? []).map(async (a) => ({
-      ...a,
-      signedPhotoUrl: await resolveSignedUrl("athlete-photos", a.photo_url),
-    })),
+    (athletes ?? []).map(async (a) => {
+      const [signedPhotoUrl, score] = await Promise.all([
+        resolveSignedUrl("athlete-photos", a.photo_url),
+        computePlayerScore(supabase, a.id),
+      ]);
+      return { ...a, signedPhotoUrl, score: score.overall };
+    }),
   );
 
   return (
@@ -270,6 +275,17 @@ export default async function DashboardPage() {
                   <span className="text-xs text-ink-faint truncate block">
                     {a.team ?? "—"} · {a.category} · {a.position?.join(", ")}
                   </span>
+                </div>
+                <div
+                  className="flex flex-col items-center shrink-0"
+                  style={{ color: overallColor(a.score) }}
+                  title={`Score geral: ${a.score}`}
+                >
+                  <span className="text-[10px] leading-none">
+                    {"★".repeat(scoreStars(a.score))}
+                    {"☆".repeat(3 - scoreStars(a.score))}
+                  </span>
+                  <span className="font-display text-xs leading-none mt-0.5">{a.score}</span>
                 </div>
                 <Badge tone={!a.current_pain || a.current_pain === "Nenhuma" ? "green" : "clay"}>
                   {!a.current_pain || a.current_pain === "Nenhuma" ? "Apto" : "Atenção"}

@@ -13,6 +13,7 @@ const ACTION_LABEL: Record<string, string> = {
   due_date_change: "Alteração de vencimento",
   edit: "Edição",
   delete: "Exclusão",
+  reopen: "Reabertura",
 };
 
 function describeDetails(action: string, details: Record<string, unknown>): string {
@@ -36,6 +37,13 @@ function describeDetails(action: string, details: Record<string, unknown>): stri
       );
     }
     return parts.length > 0 ? parts.join(" · ") : "sem alterações de conteúdo";
+  }
+  if (action === "reopen") {
+    const originalClose = details.originally_closed_by
+      ? `fechado originalmente por ${details.originally_closed_by}`
+      : "";
+    const reason = details.reason ? `motivo: ${details.reason}` : "sem motivo informado";
+    return [originalClose, reason].filter(Boolean).join(" · ");
   }
   return "—";
 }
@@ -86,14 +94,17 @@ export default async function AuditoriaPage() {
         ) : (
           logs.map((log) => {
             const isCharge = log.entity_type === "charge";
+            const isExpense = log.entity_type === "expense";
             const charge = isCharge ? chargeById.get(log.entity_id) : null;
-            const expense = !isCharge ? expenseById.get(log.entity_id) : null;
+            const expense = isExpense ? expenseById.get(log.entity_id) : null;
             const athleteName = charge
               ? (charge.athletes as unknown as { full_name: string } | null)?.full_name
               : null;
             const label = isCharge
               ? `${athleteName ?? "Atleta"} — ${charge?.description ?? "lançamento removido"}`
-              : (expense?.description ?? "despesa removida");
+              : isExpense
+                ? (expense?.description ?? "despesa removida")
+                : `Caixa do dia — ${(log.details as { closure_date?: string })?.closure_date ?? ""}`;
 
             return (
               <div
@@ -102,8 +113,8 @@ export default async function AuditoriaPage() {
               >
                 <div className="flex-1 min-w-[220px]">
                   <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                    <Badge tone={isCharge ? "sky" : "amber"}>
-                      {isCharge ? "Contas a receber" : "Contas a pagar"}
+                    <Badge tone={isCharge ? "sky" : isExpense ? "amber" : "dark"}>
+                      {isCharge ? "Contas a receber" : isExpense ? "Contas a pagar" : "Caixa do dia"}
                     </Badge>
                     <Badge tone="dark">{ACTION_LABEL[log.action] ?? log.action}</Badge>
                   </div>

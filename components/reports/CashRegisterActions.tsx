@@ -46,20 +46,48 @@ export function CloseCashRegisterButton({ closureDate }: { closureDate: string }
   );
 }
 
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export function ReopenCashRegisterButton({ closureDate }: { closureDate: string }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showReason, setShowReason] = useState(false);
+  const [reason, setReason] = useState("");
+  const isPastDay = closureDate < todayISO();
 
   async function handleReopen() {
+    if (isPastDay && !showReason) {
+      setShowReason(true);
+      return;
+    }
     setPending(true);
-    await reopenCashRegister(closureDate);
+    setError(null);
+    const result = await reopenCashRegister(closureDate, reason);
     setPending(false);
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
     router.refresh();
   }
 
   return (
-    <Button variant="outline" size="sm" onClick={handleReopen} disabled={pending}>
-      {pending ? "Reabrindo…" : "🔓 Reabrir caixa"}
-    </Button>
+    <div className="flex flex-col gap-2 items-end">
+      {showReason && (
+        <Input
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="Motivo da reabertura (obrigatório)"
+          className="w-[280px]"
+        />
+      )}
+      {error && <div className="text-clay text-[11.5px] font-medium">{error}</div>}
+      <Button variant="outline" size="sm" onClick={handleReopen} disabled={pending}>
+        {pending ? "Reabrindo…" : isPastDay ? "🔓 Reabrir caixa (dia anterior)" : "🔓 Reabrir caixa"}
+      </Button>
+    </div>
   );
 }

@@ -4,7 +4,12 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requireCoach } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
+import { logFinancialAudit } from "@/lib/actions/auditLog";
 import type { ActionResult } from "@/lib/actions/athletes";
+
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
 
 const closeSchema = z.object({
   closureDate: z.string().min(1),
@@ -71,9 +76,24 @@ export async function closeCashRegister(formData: FormData): Promise<ActionResul
   return { success: true };
 }
 
-export async function reopenCashRegister(closureDate: string): Promise<ActionResult> {
+export async function reopenCashRegister(closureDate: string, reason?: string): Promise<ActionResult> {
   const coach = await requireCoach();
+
+  // Depois que o dia vira, reabrir exige justificativa — é uma correção
+  // excepcional, não parte do fluxo normal do dia.
+  if (closureDate < todayISO() && !reason?.trim()) {
+    return { error: "Informe o motivo para reabrir o caixa de um dia anterior." };
+  }
+
   const supabase = await createClient();
+  const { data: closure } = await supabase
+    .from("daily_cash_closures")
+    .select("id, closed_by_name, closed_at")
+    .eq("club_id", coach.clubId)
+    .eq("closure_date", closureDate)
+    .single();
+  if (!closure) return { error: "Caixa não encontrado." };
+
   const { error } = await supabase
     .from("daily_cash_closures")
     .delete()
@@ -81,6 +101,22 @@ export async function reopenCashRegister(closureDate: string): Promise<ActionRes
     .eq("closure_date", closureDate);
   if (error) return { error: error.message };
 
+  await logFinancialAudit({
+    clubId: coach.clubId,
+    entityType: "cash_closure",
+    entityId: closure.id,
+    action: "reopen",
+    details: {
+      closure_date: closureDate,
+      originally_closed_by: closure.closed_by_name,
+      originally_closed_at: closure.closed_at,
+      reason: reason?.trim() || null,
+    },
+    performedBy: coach.userId,
+    performedByName: coach.fullName,
+  });
+
   revalidatePath("/caixa-do-dia");
+  revalidatePath("/auditoria");
   return { success: true };
 }

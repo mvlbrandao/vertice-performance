@@ -1,8 +1,8 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 
-type Entity = "charge" | "expense";
-type Action = "status_change" | "due_date_change" | "edit" | "delete";
+type Entity = "charge" | "expense" | "cash_closure";
+type Action = "status_change" | "due_date_change" | "edit" | "delete" | "reopen";
 
 export async function logFinancialAudit(params: {
   clubId: string;

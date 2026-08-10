@@ -922,9 +922,9 @@ export interface Database {
         Row: {
           id: string;
           club_id: string;
-          entity_type: "charge" | "expense";
+          entity_type: "charge" | "expense" | "cash_closure";
           entity_id: string;
-          action: "status_change" | "due_date_change" | "edit" | "delete";
+          action: "status_change" | "due_date_change" | "edit" | "delete" | "reopen";
           details: Record<string, unknown>;
           performed_by: string;
           performed_by_name: string;
@@ -933,9 +933,9 @@ export interface Database {
         Insert: {
           id?: string;
           club_id: string;
-          entity_type: "charge" | "expense";
+          entity_type: "charge" | "expense" | "cash_closure";
           entity_id: string;
-          action: "status_change" | "due_date_change" | "edit" | "delete";
+          action: "status_change" | "due_date_change" | "edit" | "delete" | "reopen";
           details?: Record<string, unknown>;
           performed_by: string;
           performed_by_name: string;

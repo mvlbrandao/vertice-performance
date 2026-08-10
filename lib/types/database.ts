@@ -976,6 +976,32 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["daily_cash_closures"]["Insert"]>;
         Relationships: [];
       };
+      cash_movements: {
+        Row: {
+          id: string;
+          club_id: string;
+          movement_date: string;
+          type: "entrada" | "saida";
+          description: string;
+          amount_cents: number;
+          created_by: string;
+          created_by_name: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          club_id: string;
+          movement_date: string;
+          type: "entrada" | "saida";
+          description: string;
+          amount_cents: number;
+          created_by: string;
+          created_by_name: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["cash_movements"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {

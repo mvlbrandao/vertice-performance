@@ -5,6 +5,8 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { CloseCashRegisterButton, ReopenCashRegisterButton } from "@/components/reports/CashRegisterActions";
+import { NewCashMovementModal } from "@/components/reports/NewCashMovementModal";
+import { DeleteCashMovementButton } from "@/components/reports/DeleteCashMovementButton";
 
 function formatCents(cents: number) {
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -23,6 +25,7 @@ type Movement = {
   time: string | null;
   label: string;
   cents: number;
+  id?: string;
 };
 
 export default async function CaixaDoDiaPage({
@@ -36,28 +39,34 @@ export default async function CaixaDoDiaPage({
   const supabase = await createClient();
   const dayEnd = `${date}T23:59:59`;
 
-  const [{ data: charges }, { data: expenses }, { data: closure }] = await Promise.all([
-    supabase
-      .from("athlete_charges")
-      .select("amount_cents, discount_cents, paid_at, description, athletes(full_name)")
-      .eq("club_id", profile!.clubId)
-      .eq("status", "Pago")
-      .gte("paid_at", date)
-      .lte("paid_at", dayEnd),
-    supabase
-      .from("expenses")
-      .select("amount_cents, paid_at, description, expense_categories(name)")
-      .eq("club_id", profile!.clubId)
-      .eq("status", "Pago")
-      .gte("paid_at", date)
-      .lte("paid_at", dayEnd),
-    supabase
-      .from("daily_cash_closures")
-      .select("*")
-      .eq("club_id", profile!.clubId)
-      .eq("closure_date", date)
-      .maybeSingle(),
-  ]);
+  const [{ data: charges }, { data: expenses }, { data: movementRows }, { data: closure }] =
+    await Promise.all([
+      supabase
+        .from("athlete_charges")
+        .select("amount_cents, discount_cents, paid_at, description, athletes(full_name)")
+        .eq("club_id", profile!.clubId)
+        .eq("status", "Pago")
+        .gte("paid_at", date)
+        .lte("paid_at", dayEnd),
+      supabase
+        .from("expenses")
+        .select("amount_cents, paid_at, description, expense_categories(name)")
+        .eq("club_id", profile!.clubId)
+        .eq("status", "Pago")
+        .gte("paid_at", date)
+        .lte("paid_at", dayEnd),
+      supabase
+        .from("cash_movements")
+        .select("id, type, description, amount_cents, created_at")
+        .eq("club_id", profile!.clubId)
+        .eq("movement_date", date),
+      supabase
+        .from("daily_cash_closures")
+        .select("*")
+        .eq("club_id", profile!.clubId)
+        .eq("closure_date", date)
+        .maybeSingle(),
+    ]);
 
   const movements: Movement[] = [
     ...(charges ?? []).map((c) => ({
@@ -75,6 +84,13 @@ export default async function CaixaDoDiaPage({
           : ""
       }`,
       cents: e.amount_cents,
+    })),
+    ...(movementRows ?? []).map((m) => ({
+      type: m.type === "entrada" ? ("income" as const) : ("expense" as const),
+      time: m.created_at,
+      label: `${m.description} (avulso)`,
+      cents: m.amount_cents,
+      id: m.id,
     })),
   ].sort((a, b) => (a.time ?? "").localeCompare(b.time ?? ""));
 
@@ -104,7 +120,7 @@ export default async function CaixaDoDiaPage({
           <h1 className="text-[28px] m-0">Caixa do dia</h1>
           <div className="text-xs text-ink-faint mt-0.5 capitalize">{dateLabel}</div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center flex-wrap">
           <Link
             href={`/caixa-do-dia?date=${addDaysISO(date, -1)}`}
             className="text-xs font-semibold border border-line rounded-sm px-3 py-2 hover:border-pitch-dark"
@@ -123,6 +139,7 @@ export default async function CaixaDoDiaPage({
           >
             Dia seguinte →
           </Link>
+          <NewCashMovementModal movementDate={date} />
         </div>
       </div>
 
@@ -201,6 +218,7 @@ export default async function CaixaDoDiaPage({
               >
                 {m.type === "income" ? "+" : "−"} {formatCents(m.cents)}
               </b>
+              {m.id && <DeleteCashMovementButton id={m.id} />}
             </div>
           ))
         )}

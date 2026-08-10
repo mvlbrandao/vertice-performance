@@ -31,7 +31,7 @@ export async function closeCashRegister(formData: FormData): Promise<ActionResul
   const dayStart = closureDate;
   const dayEnd = `${closureDate}T23:59:59`;
 
-  const [{ data: charges }, { data: expenses }] = await Promise.all([
+  const [{ data: charges }, { data: expenses }, { data: movements }] = await Promise.all([
     supabase
       .from("athlete_charges")
       .select("amount_cents, discount_cents")
@@ -46,13 +46,24 @@ export async function closeCashRegister(formData: FormData): Promise<ActionResul
       .eq("status", "Pago")
       .gte("paid_at", dayStart)
       .lte("paid_at", dayEnd),
+    supabase
+      .from("cash_movements")
+      .select("type, amount_cents")
+      .eq("club_id", coach.clubId)
+      .eq("movement_date", closureDate),
   ]);
 
-  const incomeCents = (charges ?? []).reduce(
-    (sum, c) => sum + (c.amount_cents - c.discount_cents),
-    0,
-  );
-  const expenseCents = (expenses ?? []).reduce((sum, e) => sum + e.amount_cents, 0);
+  const movementIncome = (movements ?? [])
+    .filter((m) => m.type === "entrada")
+    .reduce((sum, m) => sum + m.amount_cents, 0);
+  const movementExpense = (movements ?? [])
+    .filter((m) => m.type === "saida")
+    .reduce((sum, m) => sum + m.amount_cents, 0);
+
+  const incomeCents =
+    (charges ?? []).reduce((sum, c) => sum + (c.amount_cents - c.discount_cents), 0) +
+    movementIncome;
+  const expenseCents = (expenses ?? []).reduce((sum, e) => sum + e.amount_cents, 0) + movementExpense;
 
   const { error } = await supabase.from("daily_cash_closures").upsert(
     {
@@ -61,8 +72,8 @@ export async function closeCashRegister(formData: FormData): Promise<ActionResul
       income_cents: incomeCents,
       expense_cents: expenseCents,
       balance_cents: incomeCents - expenseCents,
-      income_count: charges?.length ?? 0,
-      expense_count: expenses?.length ?? 0,
+      income_count: (charges?.length ?? 0) + (movements ?? []).filter((m) => m.type === "entrada").length,
+      expense_count: (expenses?.length ?? 0) + (movements ?? []).filter((m) => m.type === "saida").length,
       notes: parsed.data.notes || null,
       closed_by: coach.userId,
       closed_by_name: coach.fullName,
@@ -118,5 +129,59 @@ export async function reopenCashRegister(closureDate: string, reason?: string): 
 
   revalidatePath("/caixa-do-dia");
   revalidatePath("/auditoria");
+  return { success: true };
+}
+
+const movementSchema = z.object({
+  movementDate: z.string().min(1),
+  type: z.enum(["entrada", "saida"]),
+  description: z.string().trim().min(1, "Informe a descrição."),
+  amount: z.string().min(1, "Informe o valor."),
+});
+
+export async function createCashMovement(formData: FormData): Promise<ActionResult> {
+  const coach = await requireCoach();
+  const parsed = movementSchema.safeParse({
+    movementDate: formData.get("movementDate"),
+    type: formData.get("type"),
+    description: formData.get("description"),
+    amount: formData.get("amount"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+  }
+
+  const amountValue = Number(parsed.data.amount.replace(",", "."));
+  if (!Number.isFinite(amountValue) || amountValue <= 0) {
+    return { error: "Valor inválido." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("cash_movements").insert({
+    club_id: coach.clubId,
+    movement_date: parsed.data.movementDate,
+    type: parsed.data.type,
+    description: parsed.data.description,
+    amount_cents: Math.round(amountValue * 100),
+    created_by: coach.userId,
+    created_by_name: coach.fullName,
+  });
+  if (error) return { error: error.message };
+
+  revalidatePath("/caixa-do-dia");
+  return { success: true };
+}
+
+export async function deleteCashMovement(movementId: string): Promise<ActionResult> {
+  const coach = await requireCoach();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("cash_movements")
+    .delete()
+    .eq("id", movementId)
+    .eq("club_id", coach.clubId);
+  if (error) return { error: error.message };
+
+  revalidatePath("/caixa-do-dia");
   return { success: true };
 }

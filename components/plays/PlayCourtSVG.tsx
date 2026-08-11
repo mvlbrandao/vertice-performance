@@ -5,6 +5,9 @@ import { COURT_VIEWBOX, type PlayFrame, type PlaySportType } from "@/lib/types/p
 
 const MARKER_RADIUS = 14;
 const BALL_RADIUS = 7;
+/** Raio do alvo de toque (invisível), em unidades do viewBox — ~44px reais
+ *  na largura típica de celular, o mínimo confortável pra dedo. */
+const TOUCH_RADIUS = 26;
 
 function toSvgPoint(svg: SVGSVGElement, clientX: number, clientY: number) {
   const pt = svg.createSVGPoint();
@@ -126,7 +129,12 @@ export function PlayCourtSVG({
     <svg
       ref={svgRef}
       viewBox={`0 0 ${width} ${height}`}
-      className="w-full h-auto rounded-md border border-line touch-none select-none"
+      // touch-none só no editor: ele precisa capturar o arraste do dedo pra
+      // mover marcador. No modo leitura isso travaria a rolagem da página
+      // sempre que o dedo encostasse na quadra.
+      className={`w-full h-auto rounded-md border border-line select-none ${
+        interactive ? "touch-none" : ""
+      }`}
       style={{ background: "#0F5132" }}
       onPointerDown={(e) => {
         if (e.target === svgRef.current) handlePointer(e, onCanvasPointerDown);
@@ -190,6 +198,18 @@ export function PlayCourtSVG({
       {frame.markers.map((m) => {
         const isBall = m.kind === "ball";
         const r = isBall ? BALL_RADIUS : MARKER_RADIUS;
+        // A bola normalmente fica exatamente sobre quem está com ela, o que
+        // tapava o número do jogador. Aqui ela é empurrada pra borda do
+        // marcador — continua claro quem tem a posse, sem esconder quem é.
+        const carrier = isBall
+          ? frame.markers.find(
+              (other) =>
+                other.kind !== "ball" && Math.hypot(other.x - m.x, other.y - m.y) < MARKER_RADIUS,
+            )
+          : undefined;
+        const offset = carrier ? MARKER_RADIUS + BALL_RADIUS - 3 : 0;
+        const cx = m.x + offset * 0.7;
+        const cy = m.y + offset * 0.7;
         return (
           <g
             key={m.id}
@@ -203,13 +223,29 @@ export function PlayCourtSVG({
                 : undefined
             }
           >
+            {/* Alvo de toque invisível: no celular a quadra encolhe pra ~0.6x,
+                então o marcador desenhado fica com menos de 20px na tela —
+                pequeno demais pra dedo. Este círculo maior só captura o
+                toque, sem mudar o visual. */}
+            {interactive && (
+              <circle cx={m.x} cy={m.y} r={TOUCH_RADIUS} fill="transparent" />
+            )}
             <circle
-              cx={m.x}
-              cy={m.y}
+              cx={cx}
+              cy={cy}
               r={r}
+              pointerEvents="none"
               fill={isBall ? "white" : m.kind === "own" ? "#FFD600" : "#F5F5F5"}
-              stroke={selectedId === m.id ? "#C0392B" : m.kind === "opponent" ? "#111111" : "none"}
-              strokeWidth={selectedId === m.id ? 3 : 2}
+              stroke={
+                selectedId === m.id
+                  ? "#C0392B"
+                  : isBall
+                    ? "#111111"
+                    : m.kind === "opponent"
+                      ? "#111111"
+                      : "none"
+              }
+              strokeWidth={selectedId === m.id ? 3 : isBall ? 1.5 : 2}
             />
             {!isBall && m.label && (
               <text

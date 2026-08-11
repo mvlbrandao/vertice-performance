@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { DeletePlayButton } from "@/components/plays/DeletePlayButton";
+import { PlayViewer } from "@/components/plays/PlayViewer";
 import { SPORT_LABELS, type PlayFrame, type PlaySportType } from "@/lib/types/plays";
 
 export default async function PlaysPage() {
@@ -61,6 +62,7 @@ export default async function PlaysPage() {
                 </div>
                 <p className="text-xs text-ink-faint m-0 mb-2">
                   {frames.length} {frames.length === 1 ? "quadro" : "quadros"}
+                  {frames.length > 1 ? " · animada" : ""}
                 </p>
                 {p.tags && p.tags.length > 0 && (
                   <div className="flex flex-wrap gap-1 mb-3">
@@ -71,6 +73,9 @@ export default async function PlaysPage() {
                     ))}
                   </div>
                 )}
+                <div className="mb-3">
+                  <PlayViewer frames={frames} sportType={p.sport_type as PlaySportType} />
+                </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   {!p.is_global && (
                     <Link

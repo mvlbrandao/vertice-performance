@@ -3,7 +3,12 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { subscribeToPush } from "@/lib/actions/push";
-import { isPushSupported, getExistingSubscription, subscribeToPushBrowser } from "@/lib/push/subscribeClient";
+import {
+  isPushSupported,
+  getExistingSubscription,
+  subscribeToPushBrowser,
+  PushConfigError,
+} from "@/lib/push/subscribeClient";
 
 const DISMISS_KEY = "vertice-push-prompt-dismissed";
 
@@ -49,8 +54,16 @@ export function NotificationPrompt() {
         return;
       }
       setVisible(false);
-    } catch {
-      setError("Não foi possível ativar as notificações neste navegador.");
+    } catch (e) {
+      // Mostra o motivo real em vez de engolir tudo numa mensagem genérica —
+      // sem isso, uma chave VAPID faltando no servidor e um navegador sem
+      // suporte viravam exatamente o mesmo erro, impossível de diagnosticar.
+      if (e instanceof PushConfigError) {
+        setError(e.message);
+      } else {
+        const detail = e instanceof Error ? e.message : String(e);
+        setError(`Não foi possível ativar as notificações: ${detail}`);
+      }
     }
     setPending(false);
   }

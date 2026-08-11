@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { RequestCancellationButton } from "@/components/athletes/RequestCancellationButton";
 import type { ChargeStatus } from "@/lib/types/database";
 
 const MONTHS = [
@@ -45,12 +46,20 @@ export default async function AthleteFinanceiroPage() {
   }
 
   const supabase = await createClient();
-  const { data: charges } = await supabase
-    .from("athlete_charges")
-    .select("*")
-    .eq("athlete_id", profile.athleteId)
-    .neq("status", "Cancelado")
-    .order("due_date", { ascending: false });
+  const [{ data: charges }, { data: pendingCancellation }] = await Promise.all([
+    supabase
+      .from("athlete_charges")
+      .select("*")
+      .eq("athlete_id", profile.athleteId)
+      .neq("status", "Cancelado")
+      .order("due_date", { ascending: false }),
+    supabase
+      .from("athlete_cancellation_requests")
+      .select("reason_category, requested_at")
+      .eq("athlete_id", profile.athleteId)
+      .eq("status", "Pendente")
+      .maybeSingle(),
+  ]);
 
   return (
     <div>
@@ -88,6 +97,20 @@ export default async function AthleteFinanceiroPage() {
             </div>
           ))
         )}
+      </Card>
+
+      <Card className="mt-4">
+        <h3 className="mt-0 mb-3">Contrato</h3>
+        <RequestCancellationButton
+          pendingRequest={
+            pendingCancellation
+              ? {
+                  reasonCategory: pendingCancellation.reason_category,
+                  requestedAt: pendingCancellation.requested_at,
+                }
+              : null
+          }
+        />
       </Card>
     </div>
   );

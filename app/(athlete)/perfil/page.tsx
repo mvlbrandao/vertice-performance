@@ -5,7 +5,6 @@ import { resolveSignedUrl } from "@/lib/storage/resolveSignedUrl";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { PlayerScoreCard } from "@/components/athletes/PlayerScoreCard";
-import { RequestCancellationButton } from "@/components/athletes/RequestCancellationButton";
 import { ScoreChangeAlert } from "@/components/athletes/ScoreChangeAlert";
 import { computePlayerScore } from "@/lib/scoring";
 import { getScoreChange } from "@/lib/scoreHistory";
@@ -46,7 +45,7 @@ export default async function AthletePerfilPage() {
 
   if (!athlete) return null;
 
-  const [signedPhotoUrl, score, { data: lineupRows }, { data: pendingCancellation }, { data: activeInjuries }] =
+  const [signedPhotoUrl, score, { data: lineupRows }, { data: activeInjuries }] =
     await Promise.all([
       resolveSignedUrl("athlete-photos", athlete.photo_url),
       computePlayerScore(supabase, athlete.id),
@@ -56,12 +55,6 @@ export default async function AthletePerfilPage() {
           "status, notes, games(id, opponent, scheduled_date, scheduled_time, lineup_video_url, plays(name))",
         )
         .eq("athlete_id", athlete.id),
-      supabase
-        .from("athlete_cancellation_requests")
-        .select("reason_category, requested_at")
-        .eq("athlete_id", athlete.id)
-        .eq("status", "Pendente")
-        .maybeSingle(),
       supabase
         .from("athlete_injuries")
         .select("id, body_region, injury_type, severity, status, expected_return_date, treatment_notes")
@@ -211,16 +204,6 @@ export default async function AthletePerfilPage() {
           <Row k="Posição" v={athlete.position?.join(", ") || "—"} />
           <Row k="Time" v={athlete.team ?? "—"} />
           <Row k="Na plataforma desde" v={athlete.joined_at ?? "—"} />
-        </Card>
-        <Card>
-          <h3 className="mt-0 mb-3">Contrato</h3>
-          <RequestCancellationButton
-            pendingRequest={
-              pendingCancellation
-                ? { reasonCategory: pendingCancellation.reason_category, requestedAt: pendingCancellation.requested_at }
-                : null
-            }
-          />
         </Card>
         <Card>
           <h3 className="mt-0 mb-3">Saúde & condição física</h3>

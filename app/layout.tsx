@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Bebas_Neue, Work_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import { ServiceWorkerRegistrar } from "@/components/pwa/ServiceWorkerRegistrar";
 
 const bebasNeue = Bebas_Neue({
   variable: "--font-display",
@@ -49,6 +50,7 @@ export default function RootLayout({
       className={`${bebasNeue.variable} ${workSans.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-chalk text-ink font-sans">
+        <ServiceWorkerRegistrar />
         {children}
       </body>
     </html>

@@ -13,7 +13,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requireCoach } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
-import { logFinancialAudit } from "@/lib/actions/auditLog";
+import { logAudit } from "@/lib/actions/auditLog";
 import type { ActionResult } from "@/lib/actions/athletes";
 import type { ChargeStatus } from "@/lib/types/database";
 import { sendChargePaidEmail } from "@/lib/email/send";
@@ -130,7 +130,7 @@ export async function setChargeStatus(
     .eq("club_id", coach.clubId);
   if (error) return { error: error.message };
 
-  await logFinancialAudit({
+  await logAudit({
     clubId: coach.clubId,
     entityType: "charge",
     entityId: chargeId,
@@ -138,6 +138,7 @@ export async function setChargeStatus(
     details: { from: previous?.status ?? null, to: status },
     performedBy: coach.userId,
     performedByName: coach.fullName,
+    athleteId,
   });
 
   if (status === "Pago" && previous && previous.status !== "Pago") {
@@ -181,7 +182,7 @@ export async function updateChargeDueDate(
     .eq("club_id", coach.clubId);
   if (error) return { error: error.message };
 
-  await logFinancialAudit({
+  await logAudit({
     clubId: coach.clubId,
     entityType: "charge",
     entityId: chargeId,
@@ -189,6 +190,7 @@ export async function updateChargeDueDate(
     details: { from: previous?.due_date ?? null, to: dueDate },
     performedBy: coach.userId,
     performedByName: coach.fullName,
+    athleteId,
   });
 
   paths(athleteId);

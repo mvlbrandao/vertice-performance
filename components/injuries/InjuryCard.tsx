@@ -36,6 +36,7 @@ export function InjuryCard({ injury }: { injury: Injury }) {
   const [editing, setEditing] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
   const severityMeta = INJURY_SEVERITY_META[injury.severity];
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
@@ -54,8 +55,9 @@ export function InjuryCard({ injury }: { injury: Injury }) {
   }
 
   async function handleDelete() {
-    if (!confirm("Excluir este registro de lesão?")) return;
+    setPending(true);
     await deleteInjury(injury.id, injury.athlete_id);
+    setPending(false);
     router.refresh();
   }
 
@@ -77,13 +79,27 @@ export function InjuryCard({ injury }: { injury: Injury }) {
             </span>
           </div>
         </div>
-        <div className="flex gap-1.5">
-          <Button variant="ghost" size="sm" onClick={() => setEditing((v) => !v)}>
-            {editing ? "Fechar" : "✏️ Atualizar"}
-          </Button>
-          <Button variant="danger" size="sm" onClick={handleDelete}>
-            Excluir
-          </Button>
+        <div className="flex gap-1.5 items-center">
+          {confirming ? (
+            <>
+              <span className="text-xs text-ink-faint">Excluir esta lesão?</span>
+              <Button variant="danger" size="sm" onClick={handleDelete} disabled={pending}>
+                {pending ? "…" : "Sim"}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setConfirming(false)} disabled={pending}>
+                Não
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="ghost" size="sm" onClick={() => setEditing((v) => !v)}>
+                {editing ? "Fechar" : "✏️ Atualizar"}
+              </Button>
+              <Button variant="danger" size="sm" onClick={() => setConfirming(true)}>
+                Excluir
+              </Button>
+            </>
+          )}
         </div>
       </div>
 

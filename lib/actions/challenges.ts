@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { CHALLENGE_TIERS } from "@/lib/data/challengeTiers";
 import type { ActionResult } from "@/lib/actions/athletes";
 import { sendPushToAthlete, sendPushToClubCoaches } from "@/lib/push/send";
+import { logAudit } from "@/lib/actions/auditLog";
 
 function paths() {
   revalidatePath("/desafios");
@@ -177,6 +178,22 @@ export async function reviewSubmission(formData: FormData): Promise<ActionResult
         : `"${challengeInfo?.title ?? "Desafio"}" não foi aprovado dessa vez.`,
     url: "/desafios",
     tag: "challenge-review",
+  });
+
+  await logAudit({
+    clubId: coach.clubId,
+    entityType: "challenge",
+    entityId: parsed.data.submissionId,
+    action: "review",
+    details: {
+      decision: parsed.data.decision,
+      challenge: challengeInfo?.title ?? null,
+      points_awarded: points,
+      notes: parsed.data.reviewNotes || null,
+    },
+    performedBy: coach.userId,
+    performedByName: coach.fullName,
+    athleteId: submission.athlete_id,
   });
 
   paths();

@@ -1,129 +1,146 @@
+import Link from "next/link";
 import { getSessionProfile } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { AUDIT_AREAS, ACTION_LABEL, areaOf, describeDetails } from "@/lib/audit/describe";
+import type { AuditActionType, AuditEntityType } from "@/lib/types/database";
 
-function formatCents(cents: number) {
-  return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
+type Search = Promise<{ area?: string }>;
 
-const ACTION_LABEL: Record<string, string> = {
-  status_change: "Mudança de status",
-  due_date_change: "Alteração de vencimento",
-  edit: "Edição",
-  delete: "Exclusão",
-  reopen: "Reabertura",
+const AREA_TONE: Record<string, "sky" | "amber" | "dark" | "clay" | "green"> = {
+  financeiro: "amber",
+  atletas: "sky",
+  escalacao: "green",
+  saude: "clay",
+  acesso: "dark",
+  desafios: "sky",
 };
 
-function describeDetails(action: string, details: Record<string, unknown>): string {
-  if (action === "status_change") {
-    return `${details.from ?? "—"} → ${details.to ?? "—"}`;
-  }
-  if (action === "due_date_change") {
-    return `${details.from ?? "—"} → ${details.to ?? "—"}`;
-  }
-  if (action === "edit") {
-    const from = details.from as Record<string, unknown> | null;
-    const to = details.to as Record<string, unknown> | null;
-    if (!from || !to) return "—";
-    const parts: string[] = [];
-    if (from.description !== to.description) {
-      parts.push(`descrição: "${from.description}" → "${to.description}"`);
-    }
-    if (from.amount_cents !== to.amount_cents) {
-      parts.push(
-        `valor: ${formatCents(Number(from.amount_cents))} → ${formatCents(Number(to.amount_cents))}`,
-      );
-    }
-    return parts.length > 0 ? parts.join(" · ") : "sem alterações de conteúdo";
-  }
-  if (action === "reopen") {
-    const originalClose = details.originally_closed_by
-      ? `fechado originalmente por ${details.originally_closed_by}`
-      : "";
-    const reason = details.reason ? `motivo: ${details.reason}` : "sem motivo informado";
-    return [originalClose, reason].filter(Boolean).join(" · ");
-  }
-  return "—";
-}
+export default async function AuditoriaPage({ searchParams }: { searchParams: Search }) {
+  const { area: areaKey } = await searchParams;
+  const area = AUDIT_AREAS.find((a) => a.key === areaKey);
 
-export default async function AuditoriaPage() {
   const profile = await getSessionProfile();
   const supabase = await createClient();
 
-  const { data: logs } = await supabase
-    .from("financial_audit_log")
+  let query = supabase
+    .from("audit_log")
     .select("*")
     .eq("club_id", profile!.clubId)
     .order("performed_at", { ascending: false })
     .limit(200);
+  if (area) query = query.in("entity_type", area.entities);
 
-  const chargeIds = (logs ?? []).filter((l) => l.entity_type === "charge").map((l) => l.entity_id);
-  const expenseIds = (logs ?? [])
-    .filter((l) => l.entity_type === "expense")
-    .map((l) => l.entity_id);
+  const { data: logs } = await query;
+  const rows = logs ?? [];
 
-  const [{ data: charges }, { data: expenses }] = await Promise.all([
-    chargeIds.length > 0
-      ? supabase
-          .from("athlete_charges")
-          .select("id, description, athletes(full_name)")
-          .in("id", chargeIds)
-      : Promise.resolve({ data: [] as { id: string; description: string; athletes: unknown }[] }),
-    expenseIds.length > 0
-      ? supabase.from("expenses").select("id, description").in("id", expenseIds)
-      : Promise.resolve({ data: [] as { id: string; description: string }[] }),
+  const idsOf = (entity: AuditEntityType) =>
+    rows.filter((l) => l.entity_type === entity).map((l) => l.entity_id);
+  const athleteIds = [...new Set(rows.map((l) => l.athlete_id).filter(Boolean))] as string[];
+
+  const [chargeById, expenseById, gameById, staffById, athleteById] = await Promise.all([
+    mapIn<{ description: string }>(supabase, "athlete_charges", "id, description", idsOf("charge")),
+    mapIn<{ description: string }>(supabase, "expenses", "id, description", idsOf("expense")),
+    mapIn<{ opponent: string; scheduled_date: string }>(
+      supabase,
+      "games",
+      "id, opponent, scheduled_date",
+      idsOf("lineup"),
+    ),
+    mapIn<{ full_name: string }>(supabase, "profiles", "id, full_name", idsOf("access")),
+    mapIn<{ full_name: string }>(supabase, "athletes", "id, full_name", athleteIds),
   ]);
 
-  const chargeById = new Map((charges ?? []).map((c) => [c.id, c]));
-  const expenseById = new Map((expenses ?? []).map((e) => [e.id, e]));
+  function labelFor(log: (typeof rows)[number]): string {
+    const athlete = log.athlete_id ? athleteById.get(log.athlete_id)?.full_name : null;
+    switch (log.entity_type) {
+      case "charge": {
+        const desc = chargeById.get(log.entity_id)?.description ?? "lançamento removido";
+        return `${athlete ?? "Atleta"} — ${desc}`;
+      }
+      case "expense":
+        return expenseById.get(log.entity_id)?.description ?? "despesa removida";
+      case "cash_closure":
+        return `Caixa do dia — ${(log.details as { closure_date?: string })?.closure_date ?? ""}`;
+      case "athlete":
+        return athlete ?? "atleta removido";
+      case "lineup": {
+        const game = gameById.get(log.entity_id);
+        const match = game ? `vs. ${game.opponent} · ${game.scheduled_date}` : "jogo removido";
+        return athlete ? `${athlete} — ${match}` : match;
+      }
+      case "injury":
+        return athlete ? `Lesão de ${athlete}` : "Lesão";
+      case "access": {
+        // Convite guarda o id do próprio convite em entity_id, não o de um
+        // profissional — ler como concessão de staff inventaria um "→".
+        const details = log.details as { convite?: string; full_name?: string };
+        if (details.convite) return athlete ?? details.full_name ?? "Convite";
+        const person = staffById.get(log.entity_id)?.full_name;
+        if (athlete) return `${person ?? "Profissional"} → ${athlete}`;
+        return person ?? details.full_name ?? "Acesso";
+      }
+      case "challenge":
+        return athlete ? `Desafio de ${athlete}` : "Desafio";
+      default:
+        return "—";
+    }
+  }
 
   return (
     <div>
       <div className="mb-4">
-        <h1 className="text-[28px] m-0">Auditoria financeira</h1>
+        <h1 className="text-[28px] m-0">Auditoria</h1>
         <div className="text-xs text-ink-faint mt-0.5">
-          Histórico de alterações, mudanças de status e baixas em contas a pagar e a receber.
+          Quem fez o quê, e quando — no dinheiro, no cadastro, na convocação, na saúde e no acesso.
         </div>
       </div>
 
-      <Card>
-        {!logs || logs.length === 0 ? (
-          <EmptyState icon="🕵️" message="Nenhum registro de auditoria ainda." />
-        ) : (
-          logs.map((log) => {
-            const isCharge = log.entity_type === "charge";
-            const isExpense = log.entity_type === "expense";
-            const charge = isCharge ? chargeById.get(log.entity_id) : null;
-            const expense = isExpense ? expenseById.get(log.entity_id) : null;
-            const athleteName = charge
-              ? (charge.athletes as unknown as { full_name: string } | null)?.full_name
-              : null;
-            const label = isCharge
-              ? `${athleteName ?? "Atleta"} — ${charge?.description ?? "lançamento removido"}`
-              : isExpense
-                ? (expense?.description ?? "despesa removida")
-                : `Caixa do dia — ${(log.details as { closure_date?: string })?.closure_date ?? ""}`;
+      <div className="flex gap-1.5 flex-wrap mb-4">
+        <FilterChip href="/auditoria" active={!area} label="Tudo" icon="📋" />
+        {AUDIT_AREAS.map((a) => (
+          <FilterChip
+            key={a.key}
+            href={`/auditoria?area=${a.key}`}
+            active={area?.key === a.key}
+            label={a.label}
+            icon={a.icon}
+          />
+        ))}
+      </div>
 
+      <Card>
+        {rows.length === 0 ? (
+          <EmptyState icon="🕵️" message="Nenhum registro de auditoria nessa área ainda." />
+        ) : (
+          rows.map((log) => {
+            const logArea = areaOf(log.entity_type as AuditEntityType);
             return (
               <div
                 key={log.id}
-                className="flex items-start gap-3 py-2.5 border-b border-line last:border-b-0 flex-wrap"
+                className="flex flex-col sm:flex-row sm:items-start gap-1.5 sm:gap-3 py-2.5 border-b border-line last:border-b-0"
               >
-                <div className="flex-1 min-w-[220px]">
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                    <Badge tone={isCharge ? "sky" : isExpense ? "amber" : "dark"}>
-                      {isCharge ? "Contas a receber" : isExpense ? "Contas a pagar" : "Caixa do dia"}
+                    <Badge tone={AREA_TONE[logArea?.key ?? ""] ?? "dark"}>
+                      {logArea?.icon} {logArea?.label ?? log.entity_type}
                     </Badge>
-                    <Badge tone="dark">{ACTION_LABEL[log.action] ?? log.action}</Badge>
+                    <Badge tone="dark">
+                      {ACTION_LABEL[log.action as AuditActionType] ?? log.action}
+                    </Badge>
                   </div>
-                  <b className="text-sm block">{label}</b>
-                  <span className="text-xs text-ink-soft">
-                    {describeDetails(log.action, log.details as Record<string, unknown>)}
+                  <b className="text-sm block">{labelFor(log)}</b>
+                  <span className="text-xs text-ink-soft break-words">
+                    {describeDetails(
+                      log.entity_type as AuditEntityType,
+                      log.action as AuditActionType,
+                      log.details as Record<string, unknown>,
+                    )}
                   </span>
                 </div>
-                <div className="text-right shrink-0">
+                <div className="sm:text-right shrink-0">
                   <span className="text-xs font-semibold block">{log.performed_by_name}</span>
                   <span className="text-[11px] text-ink-faint font-mono">
                     {new Date(log.performed_at).toLocaleString("pt-BR")}
@@ -136,4 +153,46 @@ export default async function AuditoriaPage() {
       </Card>
     </div>
   );
+}
+
+function FilterChip({
+  href,
+  active,
+  label,
+  icon,
+}: {
+  href: string;
+  active: boolean;
+  label: string;
+  icon: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className={`inline-flex items-center gap-1 rounded-sm border px-2.5 py-1.5 text-[12.5px] font-semibold ${
+        active
+          ? "bg-pitch-dark text-chalk border-pitch-dark"
+          : "bg-paper text-ink-soft border-line hover:border-ink-faint"
+      }`}
+    >
+      <span>{icon}</span>
+      {label}
+    </Link>
+  );
+}
+
+/**
+ * Busca os nomes de uma tabela por id e devolve pronto pra consulta. Sai
+ * cedo com a lista vazia: um `in ()` sem valores é rejeitado pelo PostgREST.
+ */
+async function mapIn<T>(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  table: "athlete_charges" | "expenses" | "games" | "profiles" | "athletes",
+  columns: string,
+  ids: string[],
+): Promise<Map<string, T>> {
+  if (ids.length === 0) return new Map();
+  const { data } = await supabase.from(table).select(columns).in("id", [...new Set(ids)]);
+  const rows = (data ?? []) as unknown as ({ id: string } & T)[];
+  return new Map(rows.map((r) => [r.id, r]));
 }

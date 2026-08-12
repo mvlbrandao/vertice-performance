@@ -6,6 +6,7 @@ import { requireCoach } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionResult } from "@/lib/actions/athletes";
 import { sendPushToAthlete } from "@/lib/push/send";
+import { logAudit } from "@/lib/actions/auditLog";
 
 const competitionSchema = z.object({
   name: z.string().trim().min(1, "Informe o nome da competição."),
@@ -133,6 +134,17 @@ export async function setLineupStatus(
   const coach = await requireCoach();
   const supabase = await createClient();
 
+  // "Por que eu fui cortado?" é a pergunta que mais chega ao treinador, e
+  // até aqui nada registrava quem mexeu na convocação. Guardamos o estado
+  // anterior antes de escrever, senão o "de → para" se perde.
+  const { data: previous } = await supabase
+    .from("game_lineups")
+    .select("status")
+    .eq("club_id", coach.clubId)
+    .eq("game_id", gameId)
+    .eq("athlete_id", athleteId)
+    .maybeSingle();
+
   if (status === null) {
     const { error } = await supabase
       .from("game_lineups")
@@ -141,6 +153,7 @@ export async function setLineupStatus(
       .eq("game_id", gameId)
       .eq("athlete_id", athleteId);
     if (error) return { error: error.message };
+    await logLineupChange(coach, gameId, athleteId, previous?.status ?? null, null);
     lineupPaths(gameId);
     return { success: true };
   }
@@ -151,8 +164,30 @@ export async function setLineupStatus(
   );
   if (error) return { error: error.message };
 
+  await logLineupChange(coach, gameId, athleteId, previous?.status ?? null, status);
+
   lineupPaths(gameId);
   return { success: true };
+}
+
+async function logLineupChange(
+  coach: { clubId: string; userId: string; fullName: string },
+  gameId: string,
+  athleteId: string,
+  from: string | null,
+  to: string | null,
+) {
+  if (from === to) return;
+  await logAudit({
+    clubId: coach.clubId,
+    entityType: "lineup",
+    entityId: gameId,
+    action: "status_change",
+    details: { from, to },
+    performedBy: coach.userId,
+    performedByName: coach.fullName,
+    athleteId,
+  });
 }
 
 export async function setLineupNotes(
@@ -233,6 +268,16 @@ export async function publishLineup(gameId: string): Promise<ActionResult> {
     );
   }
 
+  await logAudit({
+    clubId: coach.clubId,
+    entityType: "lineup",
+    entityId: gameId,
+    action: "publish",
+    details: { convocados: lineup?.length ?? 0 },
+    performedBy: coach.userId,
+    performedByName: coach.fullName,
+  });
+
   lineupPaths(gameId);
   return { success: true };
 }
@@ -246,6 +291,16 @@ export async function unpublishLineup(gameId: string): Promise<ActionResult> {
     .eq("id", gameId)
     .eq("club_id", coach.clubId);
   if (error) return { error: error.message };
+
+  await logAudit({
+    clubId: coach.clubId,
+    entityType: "lineup",
+    entityId: gameId,
+    action: "unpublish",
+    details: {},
+    performedBy: coach.userId,
+    performedByName: coach.fullName,
+  });
 
   lineupPaths(gameId);
   return { success: true };

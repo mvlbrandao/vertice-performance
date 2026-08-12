@@ -7,6 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionResult } from "@/lib/actions/athletes";
 import { translateAuthError } from "@/lib/utils/authErrors";
+import { logAudit } from "@/lib/actions/auditLog";
 
 const inviteStaffSchema = z.object({
   fullName: z.string().trim().min(1, "Informe o nome."),
@@ -52,6 +53,16 @@ export async function inviteStaff(formData: FormData): Promise<ActionResult> {
   });
   if (profileError) return { error: profileError.message };
 
+  await logAudit({
+    clubId: coach.clubId,
+    entityType: "access",
+    entityId: invited.user.id,
+    action: "create",
+    details: { staff_name: parsed.data.fullName, email: parsed.data.email, title: parsed.data.title || null },
+    performedBy: coach.userId,
+    performedByName: coach.fullName,
+  });
+
   revalidatePath("/equipe");
   return { success: true };
 }
@@ -75,6 +86,19 @@ export async function grantAthleteAccess(
   );
   if (error) return { error: error.message };
 
+  // Quem pode ver a ficha de quem é a pergunta central de privacidade
+  // aqui: dado de saúde e de menor de idade passam por essa concessão.
+  await logAudit({
+    clubId: coach.clubId,
+    entityType: "access",
+    entityId: staffProfileId,
+    action: "grant",
+    details: { access_level: accessLevel },
+    performedBy: coach.userId,
+    performedByName: coach.fullName,
+    athleteId,
+  });
+
   revalidatePath("/equipe");
   return { success: true };
 }
@@ -93,6 +117,16 @@ export async function updateStaffAreas(
     .eq("role", "staff");
   if (error) return { error: error.message };
 
+  await logAudit({
+    clubId: coach.clubId,
+    entityType: "access",
+    entityId: staffProfileId,
+    action: "edit",
+    details: { staff_areas: areas },
+    performedBy: coach.userId,
+    performedByName: coach.fullName,
+  });
+
   revalidatePath("/equipe");
   return { success: true };
 }
@@ -110,6 +144,17 @@ export async function revokeAthleteAccess(
     .eq("staff_profile_id", staffProfileId)
     .eq("athlete_id", athleteId);
   if (error) return { error: error.message };
+
+  await logAudit({
+    clubId: coach.clubId,
+    entityType: "access",
+    entityId: staffProfileId,
+    action: "revoke",
+    details: {},
+    performedBy: coach.userId,
+    performedByName: coach.fullName,
+    athleteId,
+  });
 
   revalidatePath("/equipe");
   return { success: true };

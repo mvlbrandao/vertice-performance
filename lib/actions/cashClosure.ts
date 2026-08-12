@@ -4,7 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requireCoach } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
-import { logFinancialAudit } from "@/lib/actions/auditLog";
+import { logAudit } from "@/lib/actions/auditLog";
 import type { ActionResult } from "@/lib/actions/athletes";
 
 function todayISO() {
@@ -112,7 +112,7 @@ export async function reopenCashRegister(closureDate: string, reason?: string): 
     .eq("closure_date", closureDate);
   if (error) return { error: error.message };
 
-  await logFinancialAudit({
+  await logAudit({
     clubId: coach.clubId,
     entityType: "cash_closure",
     entityId: closure.id,

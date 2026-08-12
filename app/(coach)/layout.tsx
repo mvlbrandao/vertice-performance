@@ -19,7 +19,6 @@ const navItems: NavItem[] = [
       { href: "/evolucao-despesas", icon: "📊", label: "Evolução de Despesas" },
       { href: "/evolucao-financeira-sub", icon: "🧭", label: "Evolução de Receita" },
       { href: "/cancelamentos", icon: "🚫", label: "Cancelamentos" },
-      { href: "/auditoria", icon: "🕵️", label: "Auditoria" },
     ],
   },
   { href: "/plays", icon: "🎯", label: "Mesa Tática" },
@@ -28,6 +27,7 @@ const navItems: NavItem[] = [
   { href: "/desafios-gestao", icon: "🎖️", label: "Desafios" },
   { href: "/clube", icon: "🏟️", label: "Clubes" },
   { href: "/equipe", icon: "🧑‍⚕️", label: "Equipe" },
+  { href: "/auditoria", icon: "🕵️", label: "Auditoria" },
   { href: "/config", icon: "🔒", label: "Configurações & Segurança" },
 ];
 

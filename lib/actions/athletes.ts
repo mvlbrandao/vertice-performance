@@ -4,6 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requireCoach } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
+import { logAudit, diffFields } from "@/lib/actions/auditLog";
 
 const athleteSchema = z.object({
   fullName: z.string().trim().min(1, "Nome é obrigatório."),
@@ -86,27 +87,42 @@ export async function createAthlete(formData: FormData): Promise<ActionResult> {
   const photoColor =
     parsed.data.clubColor || fallbackColors[Math.floor(Math.random() * fallbackColors.length)];
 
-  const { error } = await supabase.from("athletes").insert({
-    club_id: coach.clubId,
-    created_by: coach.userId,
-    full_name: parsed.data.fullName,
-    birth_date: parsed.data.birthDate || null,
-    category: parsed.data.category || null,
-    position: parsePositions(formData),
-    team: parsed.data.team || null,
-    sex: parseSex(parsed.data.sex),
-    guardian_name: parsed.data.guardianName || null,
-    guardian_phone: parsed.data.guardianPhone || null,
-    instagram: parsed.data.instagram || null,
-    photo_color: photoColor,
-    height_cm: heightCm,
-    weight_kg: weightKg,
-    bmi: computeBmi(heightCm, weightKg),
-  });
+  const { data: created, error } = await supabase
+    .from("athletes")
+    .insert({
+      club_id: coach.clubId,
+      created_by: coach.userId,
+      full_name: parsed.data.fullName,
+      birth_date: parsed.data.birthDate || null,
+      category: parsed.data.category || null,
+      position: parsePositions(formData),
+      team: parsed.data.team || null,
+      sex: parseSex(parsed.data.sex),
+      guardian_name: parsed.data.guardianName || null,
+      guardian_phone: parsed.data.guardianPhone || null,
+      instagram: parsed.data.instagram || null,
+      photo_color: photoColor,
+      height_cm: heightCm,
+      weight_kg: weightKg,
+      bmi: computeBmi(heightCm, weightKg),
+    })
+    .select("id")
+    .single();
 
   if (error) {
     return { error: error.message };
   }
+
+  await logAudit({
+    clubId: coach.clubId,
+    entityType: "athlete",
+    entityId: created.id,
+    action: "create",
+    details: { full_name: parsed.data.fullName, category: parsed.data.category || null },
+    performedBy: coach.userId,
+    performedByName: coach.fullName,
+    athleteId: created.id,
+  });
 
   revalidatePath("/athletes");
   revalidatePath("/dashboard");
@@ -150,25 +166,50 @@ export async function updateAthlete(
   const weightKg = parseDecimal(parsed.data.weightKg);
 
   const supabase = await createClient();
+  const AUDITED = "full_name, birth_date, position, sex, guardian_name, guardian_phone, athlete_phone, instagram, height_cm, weight_kg";
+  const { data: before } = await supabase
+    .from("athletes")
+    .select(AUDITED)
+    .eq("id", athleteId)
+    .eq("club_id", coach.clubId)
+    .single();
+
+  const after = {
+    full_name: parsed.data.fullName,
+    birth_date: parsed.data.birthDate || null,
+    position: parsePositions(formData),
+    sex: parseSex(parsed.data.sex),
+    guardian_name: parsed.data.guardianName || null,
+    guardian_phone: parsed.data.guardianPhone || null,
+    athlete_phone: parsed.data.athletePhone || null,
+    instagram: parsed.data.instagram || null,
+    height_cm: heightCm,
+    weight_kg: weightKg,
+  };
+
   const { error } = await supabase
     .from("athletes")
-    .update({
-      full_name: parsed.data.fullName,
-      birth_date: parsed.data.birthDate || null,
-      position: parsePositions(formData),
-      sex: parseSex(parsed.data.sex),
-      guardian_name: parsed.data.guardianName || null,
-      guardian_phone: parsed.data.guardianPhone || null,
-      athlete_phone: parsed.data.athletePhone || null,
-      instagram: parsed.data.instagram || null,
-      height_cm: heightCm,
-      weight_kg: weightKg,
-      bmi: computeBmi(heightCm, weightKg),
-    })
+    .update({ ...after, bmi: computeBmi(heightCm, weightKg) })
     .eq("id", athleteId)
     .eq("club_id", coach.clubId);
 
   if (error) return { error: error.message };
+
+  // Salvar sem mexer em nada é comum (abrir o modal e confirmar), e uma
+  // trilha cheia dessas entradas esconde as alterações que importam.
+  const changes = before ? diffFields(before as Record<string, unknown>, after) : {};
+  if (Object.keys(changes).length > 0) {
+    await logAudit({
+      clubId: coach.clubId,
+      entityType: "athlete",
+      entityId: athleteId,
+      action: "edit",
+      details: { changes },
+      performedBy: coach.userId,
+      performedByName: coach.fullName,
+      athleteId,
+    });
+  }
 
   revalidatePath(`/athletes/${athleteId}/dados`);
   revalidatePath("/athletes");

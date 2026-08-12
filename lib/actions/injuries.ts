@@ -11,6 +11,7 @@ import {
   INJURY_SEVERITIES,
   INJURY_STATUSES,
 } from "@/lib/data/injuries";
+import { logAudit } from "@/lib/actions/auditLog";
 
 function paths(athleteId: string) {
   revalidatePath(`/athletes/${athleteId}/lesoes`);
@@ -52,21 +53,41 @@ export async function createInjury(formData: FormData): Promise<ActionResult> {
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.from("athlete_injuries").insert({
-    club_id: coach.clubId,
-    athlete_id: parsed.data.athleteId,
-    source: parsed.data.source,
-    game_id: parsed.data.source === "Jogo" ? parsed.data.gameId || null : null,
-    body_region: parsed.data.bodyRegion,
-    injury_type: parsed.data.injuryType,
-    severity: parsed.data.severity,
-    description: parsed.data.description || null,
-    occurred_at: parsed.data.occurredAt,
-    expected_return_date: parsed.data.expectedReturnDate || null,
-    treatment_notes: parsed.data.treatmentNotes || null,
-    created_by: coach.userId,
-  });
+  const { data: created, error } = await supabase
+    .from("athlete_injuries")
+    .insert({
+      club_id: coach.clubId,
+      athlete_id: parsed.data.athleteId,
+      source: parsed.data.source,
+      game_id: parsed.data.source === "Jogo" ? parsed.data.gameId || null : null,
+      body_region: parsed.data.bodyRegion,
+      injury_type: parsed.data.injuryType,
+      severity: parsed.data.severity,
+      description: parsed.data.description || null,
+      occurred_at: parsed.data.occurredAt,
+      expected_return_date: parsed.data.expectedReturnDate || null,
+      treatment_notes: parsed.data.treatmentNotes || null,
+      created_by: coach.userId,
+    })
+    .select("id")
+    .single();
   if (error) return { error: error.message };
+
+  await logAudit({
+    clubId: coach.clubId,
+    entityType: "injury",
+    entityId: created.id,
+    action: "create",
+    details: {
+      body_region: parsed.data.bodyRegion,
+      injury_type: parsed.data.injuryType,
+      severity: parsed.data.severity,
+      occurred_at: parsed.data.occurredAt,
+    },
+    performedBy: coach.userId,
+    performedByName: coach.fullName,
+    athleteId: parsed.data.athleteId,
+  });
 
   paths(parsed.data.athleteId);
   return { success: true };
@@ -94,6 +115,12 @@ export async function updateInjury(
   }
 
   const supabase = await createClient();
+  const { data: previous } = await supabase
+    .from("athlete_injuries")
+    .select("status, expected_return_date")
+    .eq("id", injuryId)
+    .eq("club_id", coach.clubId)
+    .single();
   const { error } = await supabase
     .from("athlete_injuries")
     .update({
@@ -106,6 +133,23 @@ export async function updateInjury(
     .eq("club_id", coach.clubId);
   if (error) return { error: error.message };
 
+  await logAudit({
+    clubId: coach.clubId,
+    entityType: "injury",
+    entityId: injuryId,
+    action: "edit",
+    details: {
+      status: { from: previous?.status ?? null, to: parsed.data.status },
+      expected_return_date: {
+        from: previous?.expected_return_date ?? null,
+        to: parsed.data.expectedReturnDate || null,
+      },
+    },
+    performedBy: coach.userId,
+    performedByName: coach.fullName,
+    athleteId,
+  });
+
   paths(athleteId);
   return { success: true };
 }
@@ -113,12 +157,31 @@ export async function updateInjury(
 export async function deleteInjury(injuryId: string, athleteId: string): Promise<ActionResult> {
   const coach = await requireCoach();
   const supabase = await createClient();
+  const { data: previous } = await supabase
+    .from("athlete_injuries")
+    .select("body_region, injury_type, severity, occurred_at")
+    .eq("id", injuryId)
+    .eq("club_id", coach.clubId)
+    .single();
   const { error } = await supabase
     .from("athlete_injuries")
     .delete()
     .eq("id", injuryId)
     .eq("club_id", coach.clubId);
   if (error) return { error: error.message };
+
+  // Apagar histórico de lesão é o tipo de coisa que precisa ter dono: o
+  // registro some da ficha, mas a trilha guarda o que era.
+  await logAudit({
+    clubId: coach.clubId,
+    entityType: "injury",
+    entityId: injuryId,
+    action: "delete",
+    details: { ...(previous ?? {}) },
+    performedBy: coach.userId,
+    performedByName: coach.fullName,
+    athleteId,
+  });
 
   paths(athleteId);
   return { success: true };

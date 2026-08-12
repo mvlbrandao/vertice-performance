@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireCoach, requireAthlete } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { AsaasError, cancelSubscription } from "@/lib/asaas/client";
-import { logFinancialAudit } from "@/lib/actions/auditLog";
+import { logAudit } from "@/lib/actions/auditLog";
 import { CANCELLATION_REASONS } from "@/lib/data/cancellationReasons";
 import type { ActionResult } from "@/lib/actions/athletes";
 import { sendPushToAthlete } from "@/lib/push/send";
@@ -56,7 +56,7 @@ async function cancelAthleteBilling(
 
     for (const c of pendingCharges ?? []) {
       await supabase.from("athlete_charges").update({ status: "Cancelado" }).eq("id", c.id);
-      await logFinancialAudit({
+      await logAudit({
         clubId: params.clubId,
         entityType: "charge",
         entityId: c.id,
@@ -140,6 +140,17 @@ export async function deactivateAthlete(formData: FormData): Promise<ActionResul
     reviewed_at: new Date().toISOString(),
   });
 
+  await logAudit({
+    clubId: coach.clubId,
+    entityType: "athlete",
+    entityId: parsed.data.athleteId,
+    action: "deactivate",
+    details: { reason, cancel_future_charges: cancelFutureCharges },
+    performedBy: coach.userId,
+    performedByName: coach.fullName,
+    athleteId: parsed.data.athleteId,
+  });
+
   invalidateAthletePaths(parsed.data.athleteId);
   return { success: true };
 }
@@ -153,6 +164,17 @@ export async function reactivateAthlete(athleteId: string): Promise<ActionResult
     .eq("id", athleteId)
     .eq("club_id", coach.clubId);
   if (error) return { error: error.message };
+
+  await logAudit({
+    clubId: coach.clubId,
+    entityType: "athlete",
+    entityId: athleteId,
+    action: "reactivate",
+    details: {},
+    performedBy: coach.userId,
+    performedByName: coach.fullName,
+    athleteId,
+  });
 
   invalidateAthletePaths(athleteId);
   return { success: true };

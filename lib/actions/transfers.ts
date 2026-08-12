@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireCoach } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionResult } from "@/lib/actions/athletes";
+import { logAudit } from "@/lib/actions/auditLog";
 
 const transferSchema = z.object({
   toPartnerClubId: z.string().uuid("Selecione o clube de destino."),
@@ -72,6 +73,23 @@ export async function transferAthleteClub(
     .eq("id", athleteId)
     .eq("club_id", coach.clubId);
   if (updateError) return { error: updateError.message };
+
+  await logAudit({
+    clubId: coach.clubId,
+    entityType: "athlete",
+    entityId: athleteId,
+    action: "transfer",
+    details: {
+      from_team: athlete.team,
+      to_team: toClub.name,
+      from_category: athlete.category,
+      to_category: parsed.data.toCategory || null,
+      transferred_at: parsed.data.transferredAt,
+    },
+    performedBy: coach.userId,
+    performedByName: coach.fullName,
+    athleteId,
+  });
 
   revalidatePath(`/athletes/${athleteId}/dados`);
   revalidatePath(`/athletes/${athleteId}/evolucao`);

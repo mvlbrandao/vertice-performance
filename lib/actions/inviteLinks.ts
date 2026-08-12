@@ -7,6 +7,7 @@ import { requireCoach } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { ActionResult } from "@/lib/actions/athletes";
+import { logAudit } from "@/lib/actions/auditLog";
 
 const VALIDITY_DAYS = 7;
 
@@ -51,17 +52,37 @@ export async function createInviteLink(
   const expires = new Date();
   expires.setUTCDate(expires.getUTCDate() + VALIDITY_DAYS);
 
-  const { error } = await supabase.from("invite_links").insert({
-    club_id: coach.clubId,
-    token_hash: hashToken(token),
-    role: parsed.data.role,
-    athlete_id: parsed.data.role === "athlete" ? parsed.data.athleteId! : null,
-    full_name: parsed.data.fullName,
-    title: parsed.data.title || null,
-    created_by: coach.userId,
-    expires_at: expires.toISOString(),
-  });
+  const { data: invite, error } = await supabase
+    .from("invite_links")
+    .insert({
+      club_id: coach.clubId,
+      token_hash: hashToken(token),
+      role: parsed.data.role,
+      athlete_id: parsed.data.role === "athlete" ? parsed.data.athleteId! : null,
+      full_name: parsed.data.fullName,
+      title: parsed.data.title || null,
+      created_by: coach.userId,
+      expires_at: expires.toISOString(),
+    })
+    .select("id")
+    .single();
   if (error) return { error: error.message };
+
+  await logAudit({
+    clubId: coach.clubId,
+    entityType: "access",
+    entityId: invite.id,
+    action: "create",
+    details: {
+      convite: "link",
+      role: parsed.data.role,
+      full_name: parsed.data.fullName,
+      expires_at: expires.toISOString(),
+    },
+    performedBy: coach.userId,
+    performedByName: coach.fullName,
+    athleteId: parsed.data.athleteId || null,
+  });
 
   revalidatePath("/equipe");
   return { success: true, token };
@@ -159,5 +180,20 @@ export async function redeemInviteLink(input: {
   }
 
   await admin.from("invite_links").update({ used_by: created.user.id }).eq("id", invite.id);
+
+  // Quem resgatou ainda não tem sessão, então a política de escrita
+  // (que exige coach) barraria o insert — daí o cliente de serviço.
+  await logAudit({
+    clubId: invite.club_id,
+    entityType: "access",
+    entityId: invite.id,
+    action: "grant",
+    details: { convite: "link", role: invite.role, email: parsed.data.email },
+    performedBy: created.user.id,
+    performedByName: invite.full_name,
+    athleteId: invite.athlete_id,
+    client: admin as never,
+  });
+
   return { success: true };
 }

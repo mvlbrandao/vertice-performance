@@ -11,6 +11,30 @@ export type Json =
   | Json[];
 
 export type UserRole = "coach" | "athlete" | "staff";
+export type AuditEntityType =
+  | "charge"
+  | "expense"
+  | "cash_closure"
+  | "athlete"
+  | "lineup"
+  | "injury"
+  | "access"
+  | "challenge";
+export type AuditActionType =
+  | "status_change"
+  | "due_date_change"
+  | "edit"
+  | "delete"
+  | "reopen"
+  | "create"
+  | "deactivate"
+  | "reactivate"
+  | "transfer"
+  | "publish"
+  | "unpublish"
+  | "grant"
+  | "revoke"
+  | "review";
 export type MediaType = "video" | "image";
 export type ExerciseVideoStatus = "Pendente" | "Avaliado";
 export type MeetingType = "Presencial" | "Videochamada";
@@ -974,30 +998,32 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["expenses"]["Insert"]>;
         Relationships: [];
       };
-      financial_audit_log: {
+      audit_log: {
         Row: {
           id: string;
           club_id: string;
-          entity_type: "charge" | "expense" | "cash_closure";
+          entity_type: AuditEntityType;
           entity_id: string;
-          action: "status_change" | "due_date_change" | "edit" | "delete" | "reopen";
+          action: AuditActionType;
           details: Record<string, unknown>;
-          performed_by: string;
+          performed_by: string | null;
           performed_by_name: string;
           performed_at: string;
+          athlete_id: string | null;
         };
         Insert: {
           id?: string;
           club_id: string;
-          entity_type: "charge" | "expense" | "cash_closure";
+          entity_type: AuditEntityType;
           entity_id: string;
-          action: "status_change" | "due_date_change" | "edit" | "delete" | "reopen";
+          action: AuditActionType;
           details?: Record<string, unknown>;
-          performed_by: string;
+          performed_by?: string | null;
           performed_by_name: string;
           performed_at?: string;
+          athlete_id?: string | null;
         };
-        Update: Partial<Database["public"]["Tables"]["financial_audit_log"]["Insert"]>;
+        Update: Partial<Database["public"]["Tables"]["audit_log"]["Insert"]>;
         Relationships: [];
       };
       daily_cash_closures: {

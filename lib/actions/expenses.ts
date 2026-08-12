@@ -4,7 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requireCoach } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
-import { logFinancialAudit } from "@/lib/actions/auditLog";
+import { logAudit } from "@/lib/actions/auditLog";
 import type { ActionResult } from "@/lib/actions/athletes";
 import type { ChargeStatus } from "@/lib/types/database";
 
@@ -206,7 +206,7 @@ export async function updateExpense(expenseId: string, formData: FormData): Prom
     .eq("club_id", coach.clubId);
   if (error) return { error: error.message };
 
-  await logFinancialAudit({
+  await logAudit({
     clubId: coach.clubId,
     entityType: "expense",
     entityId: expenseId,
@@ -250,7 +250,7 @@ export async function setExpenseStatus(
     .eq("club_id", coach.clubId);
   if (error) return { error: error.message };
 
-  await logFinancialAudit({
+  await logAudit({
     clubId: coach.clubId,
     entityType: "expense",
     entityId: expenseId,
@@ -284,7 +284,7 @@ export async function updateExpenseDueDate(
     .eq("club_id", coach.clubId);
   if (error) return { error: error.message };
 
-  await logFinancialAudit({
+  await logAudit({
     clubId: coach.clubId,
     entityType: "expense",
     entityId: expenseId,

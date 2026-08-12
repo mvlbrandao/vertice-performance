@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/Card";
 import { InviteAthleteModal } from "@/components/athletes/InviteAthleteModal";
+import { InviteLinkButton } from "@/components/invites/InviteLinkButton";
 import { EditAthleteModal } from "@/components/athletes/EditAthleteModal";
 import { TransferClubModal } from "@/components/athletes/TransferClubModal";
 import { DeactivateAthleteModal } from "@/components/athletes/DeactivateAthleteModal";
@@ -151,6 +152,13 @@ export default async function AthleteDadosPage({
                 fullName={athlete.full_name}
                 alreadyProvisioned={!!existingProfile}
               />
+              {!existingProfile && (
+                <InviteLinkButton
+                  role="athlete"
+                  athleteId={athlete.id}
+                  fullName={athlete.full_name}
+                />
+              )}
               <DeactivateAthleteModal
                 athleteId={athlete.id}
                 isActive={athlete.is_active}

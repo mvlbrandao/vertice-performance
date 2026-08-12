@@ -112,6 +112,38 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["push_subscriptions"]["Insert"]>;
         Relationships: [];
       };
+      invite_links: {
+        Row: {
+          id: string;
+          club_id: string;
+          token_hash: string;
+          role: UserRole;
+          athlete_id: string | null;
+          full_name: string;
+          title: string | null;
+          created_by: string;
+          expires_at: string;
+          used_at: string | null;
+          used_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          club_id: string;
+          token_hash: string;
+          role: UserRole;
+          athlete_id?: string | null;
+          full_name: string;
+          title?: string | null;
+          created_by: string;
+          expires_at: string;
+          used_at?: string | null;
+          used_by?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["invite_links"]["Insert"]>;
+        Relationships: [];
+      };
       profiles: {
         Row: {
           id: string;

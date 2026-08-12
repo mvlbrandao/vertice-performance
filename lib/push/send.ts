@@ -2,11 +2,41 @@ import "server-only";
 import webpush from "web-push";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-webpush.setVapidDetails(
-  process.env.VAPID_SUBJECT!,
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!,
-);
+let vapidReady: boolean | null = null;
+
+/**
+ * Configura o web-push na primeira vez que alguém for enviar, não na
+ * importação do módulo.
+ *
+ * Configurar no topo quebrava o build inteiro quando as chaves VAPID não
+ * estavam no ambiente: o `next build` importa cada rota pra coletar dados
+ * de página, o setVapidDetails lançava "No subject set in
+ * vapidDetails.subject" e a publicação parava — mesmo em quem nem usa
+ * notificação. Passou despercebido porque na máquina local as chaves
+ * existem no .env.local e o build passava.
+ *
+ * Faltando configuração, o envio vira no-op: notificação é acessório e não
+ * pode derrubar a ação que a disparou (aprovar desafio, publicar escalação).
+ */
+function ensureVapid(): boolean {
+  if (vapidReady !== null) return vapidReady;
+
+  const subject = process.env.VAPID_SUBJECT;
+  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  const privateKey = process.env.VAPID_PRIVATE_KEY;
+
+  if (!subject || !publicKey || !privateKey) {
+    console.warn(
+      "[push] VAPID_SUBJECT / NEXT_PUBLIC_VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY ausentes — notificações desativadas.",
+    );
+    vapidReady = false;
+    return false;
+  }
+
+  webpush.setVapidDetails(subject, publicKey, privateKey);
+  vapidReady = true;
+  return true;
+}
 
 export interface PushPayload {
   title: string;
@@ -22,6 +52,8 @@ export interface PushPayload {
  * Inscrições que o navegador não reconhece mais (410/404) são removidas.
  */
 export async function sendPushToProfile(profileId: string, payload: PushPayload) {
+  if (!ensureVapid()) return;
+
   const admin = createAdminClient();
   const { data: subscriptions } = await admin
     .from("push_subscriptions")

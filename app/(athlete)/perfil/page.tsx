@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { resolveSignedUrl } from "@/lib/storage/resolveSignedUrl";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { PlayerScoreCard } from "@/components/athletes/PlayerScoreCard";
+import { AthleteHeroCard } from "@/components/athletes/AthleteHeroCard";
 import { ScoreChangeAlert } from "@/components/athletes/ScoreChangeAlert";
 import { computePlayerScore } from "@/lib/scoring";
 import { getScoreChange } from "@/lib/scoreHistory";
@@ -45,14 +45,15 @@ export default async function AthletePerfilPage() {
 
   if (!athlete) return null;
 
-  const [signedPhotoUrl, score, { data: lineupRows }, { data: activeInjuries }] =
+  const today = new Date().toISOString().slice(0, 10);
+  const [signedPhotoUrl, score, { data: lineupRows }, { data: activeInjuries }, { data: upcomingMeetings }] =
     await Promise.all([
       resolveSignedUrl("athlete-photos", athlete.photo_url),
       computePlayerScore(supabase, athlete.id),
       supabase
         .from("game_lineups")
         .select(
-          "status, notes, games(id, opponent, scheduled_date, scheduled_time, lineup_video_url, plays(name))",
+          "status, notes, games(id, opponent, scheduled_date, scheduled_time, location, lineup_video_url, plays(name))",
         )
         .eq("athlete_id", athlete.id),
       supabase
@@ -61,6 +62,14 @@ export default async function AthletePerfilPage() {
         .eq("athlete_id", athlete.id)
         .neq("status", "Recuperado")
         .order("occurred_at", { ascending: false }),
+      supabase
+        .from("meetings")
+        .select("id, title, meeting_type, scheduled_date, scheduled_time, athlete_confirmed")
+        .eq("athlete_id", athlete.id)
+        .eq("status", "Agendado")
+        .gte("scheduled_date", today)
+        .order("scheduled_date", { ascending: true })
+        .limit(5),
     ]);
   const scoreChange = await getScoreChange(supabase, profile.clubId, athlete.id, score);
   const challengePoints = await getAthleteChallengePoints(supabase, athlete.id);
@@ -70,7 +79,6 @@ export default async function AthletePerfilPage() {
     getSystemPercentile(athlete.id, athlete.category),
   ]);
   const hasPain = athlete.current_pain && athlete.current_pain !== "Nenhuma";
-  const today = new Date().toISOString().slice(0, 10);
   const upcomingConvocations = (lineupRows ?? [])
     .map((l) => ({
       status: l.status,
@@ -80,6 +88,7 @@ export default async function AthletePerfilPage() {
         opponent: string;
         scheduled_date: string;
         scheduled_time: string | null;
+        location: string | null;
         lineup_video_url: string | null;
         plays: { name: string } | null;
       } | null,
@@ -89,120 +98,107 @@ export default async function AthletePerfilPage() {
 
   return (
     <div>
-      <Card shadow className="flex gap-4.5 items-center mb-4.5 flex-wrap">
-        {signedPhotoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={signedPhotoUrl}
-            alt={athlete.full_name}
-            className="w-16 h-16 rounded-xl object-cover shrink-0"
-          />
-        ) : (
-          <div
-            className="w-16 h-16 rounded-xl flex items-center justify-center font-display text-[26px] shrink-0"
-            style={{ background: athlete.photo_color ?? "#111", color: "#FFD600" }}
-          >
-            {initials(athlete.full_name)}
-          </div>
-        )}
-        <div className="flex-1 min-w-[200px]">
-          <h2 className="m-0 mb-1 font-sans text-xl font-extrabold">{athlete.full_name}</h2>
-          <div className="flex gap-1.5 flex-wrap">
-            {athlete.category && <Badge tone="green">{athlete.category}</Badge>}
-            {athlete.position?.map((p) => (
-              <Badge key={p} tone="amber">
-                {p}
-              </Badge>
-            ))}
-            {athlete.team && <Badge tone="sky">{athlete.team}</Badge>}
-          </div>
-        </div>
-        <div className="flex gap-6.5 text-center">
-          <div>
-            <b className="font-mono text-lg block">
-              {athlete.height_cm ? `${athlete.height_cm}cm` : "—"}
-            </b>
-            <span className="text-[11px] text-ink-faint">Altura</span>
-          </div>
-          <div>
-            <b className="font-mono text-lg block">
-              {athlete.weight_kg ? `${athlete.weight_kg}kg` : "—"}
-            </b>
-            <span className="text-[11px] text-ink-faint">Peso</span>
-          </div>
-          <div>
-            <b className="font-mono text-lg block">{athlete.bmi ?? "—"}</b>
-            <span className="text-[11px] text-ink-faint">IMC</span>
-          </div>
-        </div>
-      </Card>
-
-      {upcomingConvocations.length > 0 && (
-        <div className="flex flex-col gap-2.5 mb-4">
-          {upcomingConvocations.map((l) => (
-            <Card key={l.game!.id} className="border-l-4 border-l-pitch-dark">
-              <div className="flex items-center justify-between flex-wrap gap-2 mb-1.5">
-                <b className="text-sm">📣 Convocado — vs. {l.game!.opponent}</b>
-                <Badge tone={l.status === "Titular" ? "green" : l.status === "Reserva" ? "sky" : "amber"}>
-                  {l.status}
-                </Badge>
-              </div>
-              <p className="text-xs text-ink-faint m-0 mb-1.5">
-                {l.game!.scheduled_date}
-                {l.game!.scheduled_time ? ` às ${l.game!.scheduled_time.slice(0, 5)}` : ""}
-              </p>
-              {l.notes && (
-                <p className="text-[12.5px] bg-chalk border border-line rounded-sm px-2.5 py-2 m-0 mb-1.5">
-                  {l.notes}
-                </p>
-              )}
-              <div className="flex gap-2 flex-wrap">
-                {l.game!.plays?.name && (
-                  <Link
-                    href="/mesa-tatica"
-                    className="text-xs font-semibold border border-line rounded-sm px-2.5 py-1.5 hover:border-pitch-dark"
-                  >
-                    🎯 Jogada: {l.game!.plays.name}
-                  </Link>
-                )}
-                {l.game!.lineup_video_url && (
-                  <a
-                    href={l.game!.lineup_video_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs font-semibold border border-line rounded-sm px-2.5 py-1.5 hover:border-pitch-dark"
-                  >
-                    ▶ Ver vídeo
-                  </a>
-                )}
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
+      <AthleteHeroCard
+        score={score}
+        photoUrl={signedPhotoUrl}
+        photoColor={athlete.photo_color}
+        initials={initials(athlete.full_name)}
+        fullName={athlete.full_name}
+        category={athlete.category}
+        positions={athlete.position}
+        team={athlete.team}
+        heightCm={athlete.height_cm}
+        weightKg={athlete.weight_kg}
+        bmi={athlete.bmi}
+        challengePoints={challengePoints}
+      />
 
       <ScoreChangeAlert result={scoreChange} warnings={score.warnings} />
 
-      <div className="mb-4">
-        <PlayerScoreCard
-          score={score}
-          photoUrl={signedPhotoUrl}
-          photoColor={athlete.photo_color}
-          initials={initials(athlete.full_name)}
-          fullName={athlete.full_name}
-          position={athlete.position?.join(", ") || null}
-          challengePoints={challengePoints}
-        />
+      <div className="grid lg:grid-cols-2 gap-4 mb-4">
+        <Card>
+          <h3 className="mt-0 mb-3">🏆 Próximos jogos</h3>
+          {upcomingConvocations.length === 0 ? (
+            <p className="text-[12.5px] text-ink-faint m-0">Nenhuma convocação por enquanto.</p>
+          ) : (
+            <div className="flex flex-col gap-2.5">
+              {upcomingConvocations.map((l) => (
+                <div key={l.game!.id} className="border-l-[3px] border-l-pitch-dark pl-3 py-0.5">
+                  <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                    <b className="text-[13.5px]">vs. {l.game!.opponent}</b>
+                    <Badge
+                      tone={l.status === "Titular" ? "green" : l.status === "Reserva" ? "sky" : "amber"}
+                    >
+                      {l.status}
+                    </Badge>
+                  </div>
+                  <span className="text-xs text-ink-faint block">
+                    {l.game!.scheduled_date}
+                    {l.game!.scheduled_time ? ` às ${l.game!.scheduled_time.slice(0, 5)}` : ""}
+                    {l.game!.location ? ` · ${l.game!.location}` : ""}
+                  </span>
+                  {l.notes && (
+                    <p className="text-[12px] bg-chalk border border-line rounded-sm px-2 py-1.5 mt-1.5 mb-0">
+                      {l.notes}
+                    </p>
+                  )}
+                  {(l.game!.plays?.name || l.game!.lineup_video_url) && (
+                    <div className="flex gap-1.5 flex-wrap mt-1.5">
+                      {l.game!.plays?.name && (
+                        <Link
+                          href="/mesa-tatica"
+                          className="text-[11px] font-semibold border border-line rounded-sm px-2 py-1 hover:border-pitch-dark"
+                        >
+                          🎯 {l.game!.plays.name}
+                        </Link>
+                      )}
+                      {l.game!.lineup_video_url && (
+                        <a
+                          href={l.game!.lineup_video_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[11px] font-semibold border border-line rounded-sm px-2 py-1 hover:border-pitch-dark"
+                        >
+                          ▶ Vídeo
+                        </a>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+
+        <Card>
+          <h3 className="mt-0 mb-3">🗓️ Próximos encontros</h3>
+          {!upcomingMeetings || upcomingMeetings.length === 0 ? (
+            <p className="text-[12.5px] text-ink-faint m-0">Nenhum encontro agendado.</p>
+          ) : (
+            <div className="flex flex-col gap-2.5">
+              {upcomingMeetings.map((m) => (
+                <div key={m.id} className="border-l-[3px] border-l-amber pl-3 py-0.5">
+                  <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                    <b className="text-[13.5px]">{m.title}</b>
+                    {m.athlete_confirmed && <Badge tone="green">Confirmado</Badge>}
+                  </div>
+                  <span className="text-xs text-ink-faint block">
+                    {m.scheduled_date}
+                    {m.scheduled_time ? ` às ${m.scheduled_time.slice(0, 5)}` : ""} · {m.meeting_type}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
       </div>
+
 
       <div className="grid lg:grid-cols-2 gap-4">
         <Card>
           <h3 className="mt-0 mb-3">Meus dados</h3>
           <Row k="Nascimento" v={athlete.birth_date ?? "—"} />
           <Row k="Responsável" v={athlete.guardian_name ?? "—"} />
-          <Row k="Categoria" v={athlete.category ?? "—"} />
-          <Row k="Posição" v={athlete.position?.join(", ") || "—"} />
-          <Row k="Time" v={athlete.team ?? "—"} />
           <Row k="Na plataforma desde" v={athlete.joined_at ?? "—"} />
         </Card>
         <Card>

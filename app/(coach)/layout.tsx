@@ -12,6 +12,7 @@ const navItems: NavItem[] = [
     label: "Financeiro",
     children: [
       { href: "/contas-a-receber", icon: "💳", label: "Contas a Receber" },
+      { href: "/inadimplencia", icon: "🔔", label: "Inadimplência" },
       { href: "/contas-a-pagar", icon: "💸", label: "Contas a Pagar" },
       { href: "/relatorios", icon: "📈", label: "Relatórios" },
       { href: "/caixa-do-dia", icon: "🗄️", label: "Caixa do Dia" },

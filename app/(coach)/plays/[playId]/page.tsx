@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { getSessionProfile } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { PlayEditor } from "@/components/plays/PlayEditor";
@@ -27,6 +28,12 @@ export default async function EditPlayPage({
   ]);
 
   if (!play) return null;
+
+  // A lista não oferece "Editar" pra jogada padrão, mas a URL direta chegava
+  // aqui. O treinador editava, salvava, via "sucesso" — e nada mudava: a
+  // política de escrita casa por club_id, e jogada global não tem clube.
+  // Melhor não abrir o editor do que prometer um salvamento que não ocorre.
+  if (play.is_global) redirect("/plays");
 
   const teams = (teamRows ?? []).map((t) => t.name);
   const frames = (play.frames as unknown as PlayFrame[]) ?? [];

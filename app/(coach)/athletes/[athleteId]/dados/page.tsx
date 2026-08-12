@@ -13,6 +13,8 @@ import { getAthleteChallengePoints } from "@/lib/challengePoints";
 import { resolveSignedUrl } from "@/lib/storage/resolveSignedUrl";
 import { initials } from "@/lib/utils/initials";
 import { INJURY_SEVERITY_META } from "@/lib/data/injuries";
+import { ScoreHistoryChart } from "@/components/athletes/ScoreHistoryChart";
+import { getScoreHistory } from "@/lib/scoreHistoryPoints";
 import { Badge } from "@/components/ui/Badge";
 
 function Row({ k, v, danger }: { k: string; v: string; danger?: boolean }) {
@@ -85,6 +87,7 @@ export default async function AthleteDadosPage({
     resolveSignedUrl("athlete-photos", athlete.photo_url),
   ]);
   const challengePoints = await getAthleteChallengePoints(supabase, athleteId);
+  const scoreHistory = await getScoreHistory(supabase, athleteId);
 
   const totalCheckins = checkins?.length ?? 0;
   const trainingPct = totalCheckins
@@ -224,6 +227,14 @@ export default async function AthleteDadosPage({
           )}
         </Card>
       </div>
+
+      <Card className="mt-4">
+        <h3 className="mt-0 mb-1">Evolução do score</h3>
+        <p className="text-xs text-ink-faint mt-0 mb-3">
+          Cada ponto é uma medição registrada automaticamente quando o score mudou.
+        </p>
+        <ScoreHistoryChart points={scoreHistory} />
+      </Card>
     </div>
   );
 }

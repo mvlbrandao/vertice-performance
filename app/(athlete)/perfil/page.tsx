@@ -13,6 +13,8 @@ import { initials } from "@/lib/utils/initials";
 import { INJURY_SEVERITY_META } from "@/lib/data/injuries";
 import { AthleteComparisonCard } from "@/components/scouting/AthleteComparisonCard";
 import { getClubPeerCloud, getSystemPercentile } from "@/lib/scouting/peerScoring";
+import { ScoreHistoryChart } from "@/components/athletes/ScoreHistoryChart";
+import { getScoreHistory } from "@/lib/scoreHistoryPoints";
 
 function Row({ k, v }: { k: string; v: string }) {
   return (
@@ -73,6 +75,7 @@ export default async function AthletePerfilPage() {
     ]);
   const scoreChange = await getScoreChange(supabase, profile.clubId, athlete.id, score);
   const challengePoints = await getAthleteChallengePoints(supabase, athlete.id);
+  const scoreHistory = await getScoreHistory(supabase, athlete.id);
   const [categoryCloud, clubCloud, systemPercentile] = await Promise.all([
     getClubPeerCloud(profile.clubId, athlete.id, athlete.category),
     getClubPeerCloud(profile.clubId, athlete.id),
@@ -234,6 +237,14 @@ export default async function AthletePerfilPage() {
           )}
         </Card>
       </div>
+
+      <Card className="mt-4">
+        <h3 className="mt-0 mb-1">Minha evolução no score</h3>
+        <p className="text-xs text-ink-faint mt-0 mb-3">
+          Toque nas dimensões pra comparar as curvas.
+        </p>
+        <ScoreHistoryChart points={scoreHistory} />
+      </Card>
 
       <Card className="mt-4">
         <h3 className="mt-0 mb-3">Onde eu estou — Ofensivo × Defensivo</h3>

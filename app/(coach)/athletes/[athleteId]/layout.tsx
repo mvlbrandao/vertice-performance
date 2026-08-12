@@ -37,7 +37,7 @@ export default async function AthleteDetailLayout({
 
   return (
     <div>
-      <Card shadow className="flex gap-4.5 items-center mb-4.5 flex-wrap">
+      <Card shadow className="flex gap-4.5 items-center mb-4.5 flex-wrap print:hidden">
         <AthletePhotoUploader
           athleteId={athlete.id}
           clubId={athlete.club_id}

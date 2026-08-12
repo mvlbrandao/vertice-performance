@@ -1,4 +1,4 @@
-const CACHE = "vertice-v2";
+const CACHE = "vertice-v3";
 const SHELL = ["/icon-192.png", "/icon-512.png", "/manifest.json"];
 
 self.addEventListener("install", (event) => {
@@ -37,7 +37,12 @@ self.addEventListener("fetch", (event) => {
   // pode servir do cache primeiro. Sem isso a página até abria offline, mas
   // vinha sem CSS nenhum — HTML cru (descoberto testando com o servidor
   // desligado de verdade).
-  const isStaticAsset = url.pathname.startsWith("/_next/static/");
+  //
+  // Em desenvolvimento isso não vale: o Turbopack reaproveita o nome do
+  // arquivo entre recompilações, então o cache-first passa a servir código
+  // velho e a tela para de refletir o que foi editado.
+  const isDev = ["localhost", "127.0.0.1"].includes(self.location.hostname);
+  const isStaticAsset = !isDev && url.pathname.startsWith("/_next/static/");
   if (isStaticAsset) {
     event.respondWith(
       caches.match(request).then(

@@ -14,10 +14,11 @@ export function AthleteTabs({ athleteId }: { athleteId: string }) {
     { href: `/athletes/${athleteId}/anamnese`, label: "Anamnese" },
     { href: `/athletes/${athleteId}/lesoes`, label: "Lesões" },
     { href: `/athletes/${athleteId}/financeiro`, label: "Financeiro" },
+    { href: `/athletes/${athleteId}/relatorio`, label: "📄 Relatório" },
   ];
 
   return (
-    <div className="flex gap-0.5 border-b-2 border-line mb-5 overflow-x-auto">
+    <div className="flex gap-0.5 border-b-2 border-line mb-5 overflow-x-auto print:hidden">
       {tabs.map((t) => {
         const active = pathname === t.href;
         return (

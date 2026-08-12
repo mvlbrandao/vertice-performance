@@ -76,7 +76,7 @@ export function NotificationPrompt() {
   if (!visible) return null;
 
   return (
-    <div className="flex items-center gap-3.5 bg-pitch-dark text-chalk rounded-md px-4 py-3.5 mb-4 flex-wrap">
+    <div className="flex items-center gap-3.5 bg-pitch-dark text-chalk rounded-md px-4 py-3.5 mb-4 flex-wrap print:hidden">
       <span className="text-2xl shrink-0">🔔</span>
       <div className="flex-1 min-w-[220px]">
         <b className="block text-sm">Ative as notificações</b>

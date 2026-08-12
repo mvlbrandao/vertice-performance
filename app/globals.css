@@ -60,3 +60,35 @@ h3,
   background: var(--amber);
   color: #111;
 }
+
+/* Impressão do relatório do atleta: o PDF é enviado ao responsável, então
+   sai só o conteúdo — sem menu lateral, sem faixas de instalar app/ativar
+   notificações e sem os botões da própria tela. */
+@media print {
+  @page {
+    margin: 12mm;
+  }
+
+  aside,
+  nav,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  .report-root {
+    max-width: none;
+  }
+
+  .report-root .border {
+    border-color: #ddd !important;
+  }
+
+  /* Evita quebrar um bloco no meio ao virar a página. */
+  section {
+    break-inside: avoid;
+  }
+}

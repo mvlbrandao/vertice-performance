@@ -9,6 +9,7 @@ import {
   isAsaasFeeTransaction,
   AsaasError,
 } from "@/lib/asaas/client";
+import { getClubAsaasCredentials } from "@/lib/asaas/credentials";
 
 function formatCents(cents: number) {
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -90,7 +91,8 @@ export default async function RelatoriosPage({
   let feesError: string | null = null;
   if (process.env.ASAAS_API_KEY) {
     try {
-      const all = await listFinancialTransactions(start, end);
+      const creds = await getClubAsaasCredentials(profile!.clubId);
+      const all = creds ? await listFinancialTransactions(creds, start, end) : [];
       feeTransactions = all.filter((t) => isAsaasFeeTransaction(t.type));
     } catch (e) {
       feesError = e instanceof AsaasError ? e.message : "Não foi possível buscar as taxas no Asaas.";

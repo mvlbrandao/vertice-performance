@@ -4,7 +4,9 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ResolveDataRequestButton } from "@/components/privacy/ResolveDataRequestButton";
+import { headers } from "next/headers";
 import { AsaasConnectionCard } from "@/components/config/AsaasConnectionCard";
+import { getClubAsaasStatus } from "@/lib/actions/clubAsaas";
 
 const SECURITY_ITEMS = [
   "Autenticação por e-mail e senha (Supabase Auth)",
@@ -17,8 +19,24 @@ const SECURITY_ITEMS = [
 export default async function CoachConfigPage() {
   const profile = await getSessionProfile();
   const supabase = await createClient();
-  const configured = !!process.env.ASAAS_API_KEY;
-  const isSandbox = (process.env.ASAAS_API_BASE_URL ?? "").includes("sandbox");
+  // A conta Asaas agora é do clube, não do ambiente. O status vem do banco
+  // e da própria API do Asaas, não de uma variável do servidor.
+  const asaas = await getClubAsaasStatus();
+
+  const { data: club } = await supabase
+    .from("clubs")
+    .select("asaas_account_name, asaas_connected_at")
+    .eq("id", profile!.clubId)
+    .maybeSingle();
+
+  // O endereço de webhook precisa ser absoluto pro clube colar no Asaas, e
+  // muda entre local, preview e produção — então vem do host da requisição.
+  const h = await headers();
+  const host = h.get("host") ?? "vertice-performance.vercel.app";
+  // x-forwarded-proto porque atrás do proxy da Vercel o request chega em
+  // http; fixar https deixava o endereço de webhook errado em localhost.
+  const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+  const baseUrl = `${proto}://${host}`;
   const withdrawGuardConfigured = !!process.env.ASAAS_WITHDRAW_WEBHOOK_TOKEN;
 
   const [{ data: requests }, { data: securityEvents }] = await Promise.all([
@@ -105,25 +123,14 @@ export default async function CoachConfigPage() {
           acontece direto no checkout hospedado do Asaas.
         </p>
 
-        {!configured ? (
-          <div className="bg-[#FDE8E8] border border-[#F5AAAA] text-[#8B0000] rounded-md px-3.5 py-3 text-[12.5px]">
-            Integração não configurada. Defina <code>ASAAS_API_KEY</code> e{" "}
-            <code>ASAAS_API_BASE_URL</code> nas variáveis de ambiente do servidor.
-          </div>
-        ) : (
-          <AsaasConnectionCard isSandbox={isSandbox} />
-        )}
-
-        <div className="mt-4 pt-4 border-t border-line">
-          <div className="flex items-center gap-2 mb-1">
-            <b className="text-[12.5px]">Webhook de cobranças</b>
-            <Badge tone="green">Configurado</Badge>
-          </div>
-          <p className="text-[12.5px] text-ink-soft mt-0 mb-0">
-            Aponta pra <code>/api/webhooks/asaas</code> — atualiza o status do lançamento
-            automaticamente quando o Asaas confirma um pagamento (cartão, PIX ou boleto).
-          </p>
-        </div>
+        <AsaasConnectionCard
+          connected={asaas.connected}
+          accountName={club?.asaas_account_name ?? null}
+          connectedAt={club?.asaas_connected_at ?? null}
+          sandbox={!!asaas.sandbox}
+          webhookPath={asaas.webhookPath ?? null}
+          baseUrl={baseUrl}
+        />
 
         <div className="mt-3.5 pt-3.5 border-t border-line">
           <div className="flex items-center gap-2 mb-1">

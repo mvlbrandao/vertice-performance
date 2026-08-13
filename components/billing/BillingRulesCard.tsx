@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { getCustomerNotifications, AsaasError } from "@/lib/asaas/client";
+import { getClubAsaasCredentials } from "@/lib/asaas/credentials";
 
 const EVENT_LABEL: Record<string, string> = {
   PAYMENT_CREATED: "Cobrança criada",
@@ -48,12 +49,21 @@ function ChannelBadge({ label, active }: { label: string; active: boolean }) {
   );
 }
 
-export async function BillingRulesCard({ asaasCustomerId }: { asaasCustomerId: string | null }) {
-  if (!asaasCustomerId || !process.env.ASAAS_API_KEY) return null;
+export async function BillingRulesCard({
+  asaasCustomerId,
+  clubId,
+}: {
+  asaasCustomerId: string | null;
+  clubId: string;
+}) {
+  if (!asaasCustomerId) return null;
 
   let notifications;
   try {
-    notifications = await getCustomerNotifications(asaasCustomerId);
+    // A conta é a do clube, não mais uma chave global de ambiente.
+    const creds = await getClubAsaasCredentials(clubId);
+    if (!creds) return null;
+    notifications = creds ? await getCustomerNotifications(creds, asaasCustomerId) : [];
   } catch (e) {
     const message = e instanceof AsaasError ? e.message : "Não foi possível buscar a régua de cobrança.";
     return (

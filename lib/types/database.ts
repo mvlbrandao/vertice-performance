@@ -89,6 +89,8 @@ export interface Database {
           owner_profile_id: string | null;
           asaas_customer_id: string | null;
           asaas_subscription_id: string | null;
+          asaas_account_name: string | null;
+          asaas_connected_at: string | null;
           is_demo: boolean;
           canceled_at: string | null;
           nutrition_entitlement: boolean;
@@ -105,6 +107,8 @@ export interface Database {
           owner_profile_id?: string | null;
           asaas_customer_id?: string | null;
           asaas_subscription_id?: string | null;
+          asaas_account_name?: string | null;
+          asaas_connected_at?: string | null;
           is_demo?: boolean;
           canceled_at?: string | null;
           nutrition_entitlement?: boolean;
@@ -154,6 +158,22 @@ export interface Database {
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["push_subscriptions"]["Insert"]>;
+        Relationships: [];
+      };
+      club_asaas_credentials: {
+        Row: {
+          club_id: string;
+          api_key_encrypted: string;
+          webhook_token: string;
+          updated_at: string;
+        };
+        Insert: {
+          club_id: string;
+          api_key_encrypted: string;
+          webhook_token: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["club_asaas_credentials"]["Insert"]>;
         Relationships: [];
       };
       invite_links: {

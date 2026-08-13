@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requireCoach } from "@/lib/auth/guards";
+import { getClubAsaasCredentials } from "@/lib/asaas/credentials";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionResult } from "@/lib/actions/athletes";
 import {
@@ -34,9 +35,11 @@ function isValidCpf(cpf: string) {
 export async function testAsaasConnection(): Promise<
   { success: true; name: string; email: string } | { success: false; error: string }
 > {
-  await requireCoach();
+  const coach = await requireCoach();
   try {
-    const account = await getMyAccount();
+    const creds = await getClubAsaasCredentials(coach.clubId);
+    if (!creds) return { success: false, error: "Este clube ainda não conectou uma conta Asaas." };
+    const account = await getMyAccount(creds);
     return { success: true, name: account.name, email: account.email };
   } catch (e) {
     if (e instanceof AsaasError) return { success: false, error: e.message };
@@ -111,13 +114,18 @@ export async function createRecurringBilling(formData: FormData): Promise<Action
   }
 
   try {
+    // A credencial é resolvida a cada operação, não guardada em módulo: é
+    // o que garante que a cobrança vá pra conta do clube certo.
+    const creds = await getClubAsaasCredentials(coach.clubId);
+    if (!creds) return { error: "Conecte a conta Asaas do clube em Configurações antes de cobrar." };
+
     let customerId = athlete.asaas_customer_id;
     if (!customerId) {
-      const existing = await findCustomerByCpf(athlete.guardian_cpf);
+      const existing = await findCustomerByCpf(creds, athlete.guardian_cpf);
       if (existing) {
         customerId = existing.id;
       } else {
-        const created = await createCustomer({
+        const created = await createCustomer(creds, {
           name: athlete.guardian_name || athlete.full_name,
           cpfCnpj: athlete.guardian_cpf,
           email: athlete.guardian_email,
@@ -131,7 +139,7 @@ export async function createRecurringBilling(formData: FormData): Promise<Action
         .eq("id", parsed.data.athleteId);
     }
 
-    const subscription = await createSubscription({
+    const subscription = await createSubscription(creds, {
       customer: customerId,
       billingType: parsed.data.billingType,
       value: amountValue,
@@ -140,7 +148,7 @@ export async function createRecurringBilling(formData: FormData): Promise<Action
       description: parsed.data.description,
     });
 
-    const checkoutUrl = await getSubscriptionPaymentLink(subscription.id).catch(() => null);
+    const checkoutUrl = await getSubscriptionPaymentLink(creds, subscription.id).catch(() => null);
 
     const { error: insertError } = await supabase.from("athlete_billing_subscriptions").insert({
       club_id: coach.clubId,
@@ -169,7 +177,8 @@ export async function cancelRecurringBilling(
 ): Promise<ActionResult> {
   const coach = await requireCoach();
   try {
-    await cancelSubscription(asaasSubscriptionId);
+    const creds = await getClubAsaasCredentials(coach.clubId);
+    if (creds) await cancelSubscription(creds, asaasSubscriptionId);
   } catch (e) {
     if (e instanceof AsaasError && e.status !== 404) return { error: e.message };
   }

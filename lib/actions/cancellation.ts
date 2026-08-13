@@ -6,6 +6,7 @@ import { requireCoach, requireAthlete } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { AsaasError, cancelSubscription } from "@/lib/asaas/client";
 import { logAudit } from "@/lib/actions/auditLog";
+import { getClubAsaasCredentials } from "@/lib/asaas/credentials";
 import { CANCELLATION_REASONS } from "@/lib/data/cancellationReasons";
 import type { ActionResult } from "@/lib/actions/athletes";
 import { sendPushToAthlete } from "@/lib/push/send";
@@ -29,6 +30,7 @@ async function cancelAthleteBilling(
     performedByName: string;
   },
 ) {
+  const creds = await getClubAsaasCredentials(params.clubId);
   const { data: subs } = await supabase
     .from("athlete_billing_subscriptions")
     .select("id, asaas_subscription_id")
@@ -37,7 +39,7 @@ async function cancelAthleteBilling(
 
   for (const sub of subs ?? []) {
     try {
-      await cancelSubscription(sub.asaas_subscription_id);
+      if (creds) await cancelSubscription(creds, sub.asaas_subscription_id);
     } catch (e) {
       if (!(e instanceof AsaasError && e.status === 404)) {
         // Segue mesmo se o Asaas falhar — a assinatura é marcada

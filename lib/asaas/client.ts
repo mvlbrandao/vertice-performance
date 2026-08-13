@@ -5,8 +5,21 @@ import "server-only";
  * nunca deve chegar ao client. Autenticação do Asaas é pelo header
  * "access_token" (não é Bearer).
  */
-const BASE_URL = process.env.ASAAS_API_BASE_URL;
-const API_KEY = process.env.ASAAS_API_KEY;
+import type { AsaasCredentials } from "@/lib/asaas/credentials";
+
+/**
+ * A credencial vem por parâmetro, não do ambiente. Antes era uma constante
+ * de módulo — a nossa chave, usada para todo mundo. Num sistema com vários
+ * clubes isso mandaria o dinheiro dos responsáveis de um clube pra conta de
+ * outro; passar a credencial explicitamente torna impossível esquecer de
+ * qual conta se está falando.
+ */
+export class AsaasNotConnectedError extends Error {
+  constructor() {
+    super("Este clube ainda não conectou uma conta Asaas.");
+    this.name = "AsaasNotConnectedError";
+  }
+}
 
 export class AsaasError extends Error {
   constructor(
@@ -19,15 +32,18 @@ export class AsaasError extends Error {
   }
 }
 
-async function asaasFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  if (!BASE_URL || !API_KEY) {
-    throw new AsaasError("Integração Asaas não configurada (faltam variáveis de ambiente).", 0, null);
-  }
-  const res = await fetch(`${BASE_URL}${path}`, {
+async function asaasFetch<T>(
+  creds: AsaasCredentials | null,
+  path: string,
+  init?: RequestInit,
+): Promise<T> {
+  if (!creds) throw new AsaasNotConnectedError();
+
+  const res = await fetch(`${creds.baseUrl}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
-      access_token: API_KEY,
+      access_token: creds.apiKey,
       ...init?.headers,
     },
     cache: "no-store",
@@ -44,26 +60,27 @@ async function asaasFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
 export type AsaasAccount = { name: string; email: string; walletId: string };
 
-export async function getMyAccount() {
-  return asaasFetch<AsaasAccount>("/myAccount");
+export async function getMyAccount(creds: AsaasCredentials) {
+  return asaasFetch<AsaasAccount>(creds, "/myAccount");
 }
 
 export type AsaasCustomer = { id: string; name: string; cpfCnpj: string; email: string | null };
 
-export async function findCustomerByCpf(cpfCnpj: string) {
+export async function findCustomerByCpf(creds: AsaasCredentials, cpfCnpj: string) {
   const res = await asaasFetch<{ data: AsaasCustomer[] }>(
+    creds,
     `/customers?cpfCnpj=${encodeURIComponent(cpfCnpj)}`,
   );
   return res.data[0] ?? null;
 }
 
-export async function createCustomer(input: {
+export async function createCustomer(creds: AsaasCredentials, input: {
   name: string;
   cpfCnpj: string;
   email?: string;
   externalReference?: string;
 }) {
-  return asaasFetch<AsaasCustomer>("/customers", {
+  return asaasFetch<AsaasCustomer>(creds, "/customers", {
     method: "POST",
     body: JSON.stringify(input),
   });
@@ -78,7 +95,7 @@ export type AsaasSubscription = {
   status: string;
 };
 
-export async function createSubscription(input: {
+export async function createSubscription(creds: AsaasCredentials, input: {
   customer: string;
   billingType: "CREDIT_CARD" | "PIX" | "BOLETO" | "UNDEFINED";
   value: number;
@@ -86,20 +103,21 @@ export async function createSubscription(input: {
   cycle: "MONTHLY";
   description: string;
 }) {
-  return asaasFetch<AsaasSubscription>("/subscriptions", {
+  return asaasFetch<AsaasSubscription>(creds, "/subscriptions", {
     method: "POST",
     body: JSON.stringify(input),
   });
 }
 
-export async function cancelSubscription(subscriptionId: string) {
-  return asaasFetch<{ deleted: boolean }>(`/subscriptions/${subscriptionId}`, {
+export async function cancelSubscription(creds: AsaasCredentials, subscriptionId: string) {
+  return asaasFetch<{ deleted: boolean }>(creds, `/subscriptions/${subscriptionId}`, {
     method: "DELETE",
   });
 }
 
-export async function getSubscriptionPaymentLink(subscriptionId: string) {
+export async function getSubscriptionPaymentLink(creds: AsaasCredentials, subscriptionId: string) {
   const res = await asaasFetch<{ data: { invoiceUrl: string }[] }>(
+    creds,
     `/subscriptions/${subscriptionId}/payments`,
   );
   return res.data[0]?.invoiceUrl ?? null;
@@ -123,11 +141,16 @@ const FEE_TYPES = new Set([
 ]);
 
 /** Busca todas as páginas de extrato do período (limit máximo do Asaas é 100/página). */
-export async function listFinancialTransactions(startDate: string, finishDate: string) {
+export async function listFinancialTransactions(
+  creds: AsaasCredentials,
+  startDate: string,
+  finishDate: string,
+) {
   const all: AsaasFinancialTransaction[] = [];
   let offset = 0;
   for (;;) {
     const res = await asaasFetch<{ data: AsaasFinancialTransaction[]; hasMore: boolean }>(
+      creds,
       `/financialTransactions?startDate=${startDate}&finishDate=${finishDate}&limit=100&offset=${offset}`,
     );
     all.push(...res.data);
@@ -159,8 +182,9 @@ export type AsaasNotification = {
 };
 
 /** Régua de cobrança: regras de lembrete (e-mail/SMS/WhatsApp/ligação) configuradas para o cliente no Asaas. */
-export async function getCustomerNotifications(customerId: string) {
+export async function getCustomerNotifications(creds: AsaasCredentials, customerId: string) {
   const res = await asaasFetch<{ data: AsaasNotification[] }>(
+    creds,
     `/customers/${customerId}/notifications`,
   );
   return res.data;

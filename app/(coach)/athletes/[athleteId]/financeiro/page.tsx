@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getSessionProfile } from "@/lib/auth/session";
 import { Card } from "@/components/ui/Card";
 import { NewChargeModal } from "@/components/billing/NewChargeModal";
 import { ChargesList } from "@/components/billing/ChargesList";
@@ -17,6 +18,7 @@ export default async function AthleteFinanceiroPage({
   params: Promise<{ athleteId: string }>;
 }) {
   const { athleteId } = await params;
+  const profile = await getSessionProfile();
   const supabase = await createClient();
 
   const [{ data: charges }, { data: athlete }, { data: subscriptions }] = await Promise.all([
@@ -76,7 +78,7 @@ export default async function AthleteFinanceiroPage({
         }))}
       />
 
-      <BillingRulesCard asaasCustomerId={athlete?.asaas_customer_id ?? null} />
+      <BillingRulesCard asaasCustomerId={athlete?.asaas_customer_id ?? null} clubId={profile!.clubId} />
 
       <div className="grid grid-cols-2 gap-3 mb-4">
         <Card>

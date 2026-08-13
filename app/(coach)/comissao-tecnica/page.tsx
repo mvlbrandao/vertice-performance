@@ -2,7 +2,7 @@ import { getSessionProfile } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { computePlayerScore } from "@/lib/scoring";
+import { computePlayerScores } from "@/lib/scoring";
 import { ComissaoTecnicaClient, type ScoutAthlete } from "@/components/scouting/ComissaoTecnicaClient";
 
 export default async function ComissaoTecnicaPage() {
@@ -16,21 +16,23 @@ export default async function ComissaoTecnicaPage() {
     .eq("is_active", true)
     .order("full_name", { ascending: true });
 
-  const scouted: ScoutAthlete[] = await Promise.all(
-    (athletes ?? []).map(async (a) => {
-      const score = await computePlayerScore(supabase, a.id);
-      return {
-        id: a.id,
-        full_name: a.full_name,
-        team: a.team,
-        category: a.category,
-        attack: score.attack,
-        defense: score.defense,
-        overall: score.overall,
-        warnings: score.warnings,
-      };
-    }),
-  );
+  // Uma consulta em lote no lugar de seis por atleta: com 180 atletas, o
+  // gráfico levava quase 9 segundos para montar.
+  const scores = await computePlayerScores(supabase, (athletes ?? []).map((a) => a.id));
+
+  const scouted: ScoutAthlete[] = (athletes ?? []).map((a) => {
+    const score = scores.get(a.id);
+    return {
+      id: a.id,
+      full_name: a.full_name,
+      team: a.team,
+      category: a.category,
+      attack: score?.attack ?? 50,
+      defense: score?.defense ?? 50,
+      overall: score?.overall ?? 50,
+      warnings: score?.warnings ?? [],
+    };
+  });
 
   return (
     <div>

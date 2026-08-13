@@ -6,7 +6,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { NewAthleteModal } from "@/components/athletes/NewAthleteModal";
 import { AthletesGrid } from "@/components/athletes/AthletesGrid";
 import { getPartnerClubOptions } from "@/lib/data/partnerClubs";
-import { computePlayerScore } from "@/lib/scoring";
+import { computePlayerScores } from "@/lib/scoring";
 
 export default async function AthletesPage() {
   const profile = await getSessionProfile();
@@ -23,14 +23,16 @@ export default async function AthletesPage() {
     getPartnerClubOptions(supabase, profile!.clubId),
   ]);
 
+  // Pontuação de todos numa tacada. Antes era uma chamada por atleta, com
+  // seis consultas cada: com 180 atletas a tela levava 11 segundos.
+  const scores = await computePlayerScores(supabase, (athletes ?? []).map((a) => a.id));
+
   const athletesWithPhotos = await Promise.all(
-    (athletes ?? []).map(async (a) => {
-      const [signedPhotoUrl, score] = await Promise.all([
-        resolveSignedUrl("athlete-photos", a.photo_url),
-        computePlayerScore(supabase, a.id),
-      ]);
-      return { ...a, signedPhotoUrl, score: score.overall };
-    }),
+    (athletes ?? []).map(async (a) => ({
+      ...a,
+      signedPhotoUrl: await resolveSignedUrl("athlete-photos", a.photo_url),
+      score: scores.get(a.id)?.overall ?? 50,
+    })),
   );
 
   return (

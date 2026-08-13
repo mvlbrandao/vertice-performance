@@ -91,6 +91,10 @@ export interface Database {
           asaas_subscription_id: string | null;
           asaas_account_name: string | null;
           asaas_connected_at: string | null;
+          max_athletes_override: number | null;
+          courtesy_until: string | null;
+          price_cents_override: number | null;
+          courtesy_reason: string | null;
           is_demo: boolean;
           canceled_at: string | null;
           nutrition_entitlement: boolean;
@@ -109,6 +113,10 @@ export interface Database {
           asaas_subscription_id?: string | null;
           asaas_account_name?: string | null;
           asaas_connected_at?: string | null;
+          max_athletes_override?: number | null;
+          courtesy_until?: string | null;
+          price_cents_override?: number | null;
+          courtesy_reason?: string | null;
           is_demo?: boolean;
           canceled_at?: string | null;
           nutrition_entitlement?: boolean;
@@ -158,6 +166,28 @@ export interface Database {
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["push_subscriptions"]["Insert"]>;
+        Relationships: [];
+      };
+      platform_settings: {
+        Row: {
+          id: boolean;
+          plan_name: string;
+          price_cents: number;
+          trial_days: number;
+          max_athletes: number;
+          retention_days: number;
+          updated_at: string;
+        };
+        Insert: {
+          id?: boolean;
+          plan_name?: string;
+          price_cents?: number;
+          trial_days?: number;
+          max_athletes?: number;
+          retention_days?: number;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["platform_settings"]["Insert"]>;
         Relationships: [];
       };
       club_asaas_credentials: {

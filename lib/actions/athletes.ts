@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireCoach } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { logAudit, diffFields } from "@/lib/actions/auditLog";
+import { getAthleteUsage } from "@/lib/platform/license";
 
 const athleteSchema = z.object({
   fullName: z.string().trim().min(1, "Nome é obrigatório."),
@@ -60,6 +61,15 @@ function parseSex(raw: string | undefined): "M" | "F" | null {
 
 export async function createAthlete(formData: FormData): Promise<ActionResult> {
   const coach = await requireCoach();
+
+  // Cota da licença. Conta só atletas ativos: desativar precisa liberar a
+  // vaga, senão o clube pagaria por quem já saiu.
+  const usage = await getAthleteUsage(coach.clubId);
+  if (!usage.hasRoom) {
+    return {
+      error: `Sua licença permite ${usage.max} atletas ativos e todos estão ocupados. Desative um atleta ou amplie o plano.`,
+    };
+  }
 
   const parsed = athleteSchema.safeParse({
     fullName: formData.get("fullName"),

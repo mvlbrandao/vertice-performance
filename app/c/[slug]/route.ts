@@ -27,10 +27,18 @@ export async function GET(
   const { slug } = await params;
   const admin = createAdminClient();
 
-  const { data } = await admin.rpc("club_by_slug", { p_slug: slug.toLowerCase() });
+  const { data, error } = await admin.rpc("club_by_slug", { p_slug: slug.toLowerCase() });
   const club = Array.isArray(data) ? data[0] : null;
 
   const origin = new URL(request.url).origin;
+
+  // Falha de consulta não é slug errado. Tratar as duas do mesmo jeito foi
+  // o que escondeu um problema de ambiente em produção: o link do clube
+  // dizia "esse link não existe" enquanto o clube estava lá, intacto.
+  if (error) {
+    console.error("[/c/slug] falha ao resolver o clube:", error.message, error.code ?? "");
+    return NextResponse.redirect(`${origin}/login?clube=erro`);
+  }
 
   if (!club || club.status === "bloqueado") {
     // Link errado ou clube encerrado: manda pro login normal em vez de

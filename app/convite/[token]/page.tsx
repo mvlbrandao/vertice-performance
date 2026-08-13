@@ -11,16 +11,22 @@ export default async function ConvitePage({
   const { token } = await params;
   const admin = createAdminClient();
 
-  const { data: invite } = await admin
+  const { data: invite, error } = await admin
     .from("invite_links")
     .select("full_name, role, expires_at, used_at, clubs(name)")
     .eq("token_hash", createHash("sha256").update(token).digest("hex"))
     .maybeSingle();
 
+  // Consulta que falhou não é convite inexistente. Dizer "não existe" pra
+  // quem tem um convite válido manda a pessoa embora por um problema nosso.
+  if (error) console.error("[convite] falha ao buscar o convite:", error.message);
+
   const clubName = (invite?.clubs as unknown as { name: string } | null)?.name ?? "seu clube";
   const invalido =
-    !invite || !!invite.used_at || new Date(invite.expires_at) < new Date();
-  const motivo = !invite
+    !!error || !invite || !!invite.used_at || new Date(invite.expires_at) < new Date();
+  const motivo = error
+    ? "Não conseguimos validar o convite agora. Tente de novo em alguns minutos."
+    : !invite
     ? "Este link de convite não existe."
     : invite.used_at
       ? "Este convite já foi usado. Se a conta é sua, entre normalmente pela tela de login."

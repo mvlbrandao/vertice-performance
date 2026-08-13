@@ -1,8 +1,16 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPlatformSettings } from "@/lib/platform/license";
+import { seedDemoClub, DEMO_SLUG } from "@/lib/demo/generator";
 
 /**
+ * Manutenção diária: expurgo de clube cancelado e restauração da demo.
+ *
+ * As duas coisas na mesma rota de propósito. O plano atual da Vercel
+ * permite dois agendamentos diários, e os dois já estão ocupados
+ * (lembrete de cobrança e este) — juntar aqui evita subir de plano antes
+ * de haver cliente pagando, que foi a decisão do produto.
+ *
  * Expurgo de clube cancelado, passado o prazo de retenção.
  *
  * Não é faxina: é obrigação. A LGPD manda não guardar dado pessoal além do
@@ -92,7 +100,24 @@ async function run(request: Request) {
     apagados.push(club.name);
   }
 
-  return NextResponse.json({ ok: true, retencaoDias: settings.retentionDays, apagados });
+  // Restaura a demo por último: ela é grande e demorada, e uma falha aqui
+  // não pode impedir o expurgo, que é obrigação legal. Por isso o catch —
+  // o resultado reporta os dois separadamente.
+  let demo: string;
+  try {
+    const r = await seedDemoClub();
+    demo = `recriada (${r.atletas} atletas, ${r.profissionais} profissionais)`;
+  } catch (e) {
+    console.error("[demo] falha ao restaurar:", (e as Error).message);
+    demo = `falhou: ${(e as Error).message}`;
+  }
+
+  return NextResponse.json({
+    ok: true,
+    retencaoDias: settings.retentionDays,
+    apagados,
+    demo: { slug: DEMO_SLUG, resultado: demo },
+  });
 }
 
 export const GET = run;

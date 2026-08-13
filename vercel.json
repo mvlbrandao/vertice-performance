@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/billing-reminders",
       "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/cron/club-retention",
+      "schedule": "30 5 * * *"
     }
   ]
 }

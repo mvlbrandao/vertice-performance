@@ -95,6 +95,7 @@ export interface Database {
           courtesy_until: string | null;
           price_cents_override: number | null;
           courtesy_reason: string | null;
+          signup_ip: string | null;
           is_demo: boolean;
           canceled_at: string | null;
           nutrition_entitlement: boolean;
@@ -117,6 +118,7 @@ export interface Database {
           courtesy_until?: string | null;
           price_cents_override?: number | null;
           courtesy_reason?: string | null;
+          signup_ip?: string | null;
           is_demo?: boolean;
           canceled_at?: string | null;
           nutrition_entitlement?: boolean;

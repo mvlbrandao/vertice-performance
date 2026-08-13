@@ -25,9 +25,13 @@ const MOTIVO: Record<string, { titulo: string; texto: string }> = {
 };
 
 /**
- * Tela que o dono vê quando o clube perde acesso — e a única que carrega
- * nesse estado, por isso usa o guard que ignora a licença. Sem essa
- * exceção, o bloqueio redirecionaria para si mesmo em laço.
+ * Tela que o dono vê quando o clube perde acesso.
+ *
+ * Fora do grupo (coach) de propósito, e não só por usar o guard que ignora
+ * a licença: o layout daquele grupo chama requireCoach(), que bloqueia e
+ * manda pra cá — o que fazia a página redirecionar pra si mesma em laço.
+ * Descoberto testando com um clube de teste vencido: /assinatura respondia
+ * 307 indefinidamente.
  */
 export default async function AssinaturaPage() {
   const coach = await requireCoachIgnoringLicense();
@@ -38,7 +42,8 @@ export default async function AssinaturaPage() {
   const emCortesia = !!license.courtesyUntil && new Date(license.courtesyUntil) > new Date();
 
   return (
-    <div className="max-w-2xl">
+    <div className="min-h-screen bg-chalk p-5 sm:p-8">
+      <div className="max-w-2xl mx-auto">
       <h1 className="text-[28px] m-0 mb-1">Assinatura</h1>
       <div className="text-xs text-ink-faint mb-4">{license.clubName}</div>
 
@@ -108,6 +113,7 @@ export default async function AssinaturaPage() {
           </p>
         </Card>
       )}
+      </div>
     </div>
   );
 }

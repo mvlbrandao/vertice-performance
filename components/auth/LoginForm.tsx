@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -111,6 +112,12 @@ export function LoginForm({
             <h2 className="text-[30px] mb-0.5 font-display">Entrar</h2>
             <p className="text-[13.5px] text-ink-soft">
               Acesse com o e-mail e senha cadastrados pelo seu clube.
+            </p>
+            <p className="text-[12.5px] text-ink-faint mt-1.5 mb-0">
+              Ainda não tem clube?{" "}
+              <Link href="/cadastro" className="font-semibold text-ink underline">
+                Criar grátis
+              </Link>
             </p>
             {aviso && (
               <p className="text-[12.5px] text-clay bg-clay/10 border border-clay/25 rounded-sm px-2.5 py-2 mt-2.5 m-0">

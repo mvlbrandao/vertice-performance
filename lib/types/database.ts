@@ -11,6 +11,8 @@ export type Json =
   | Json[];
 
 export type UserRole = "coach" | "athlete" | "staff";
+/** Situação do clube como cliente do SaaS. Ver 0054_club_lifecycle.sql. */
+export type ClubStatus = "trial" | "ativo" | "atrasado" | "bloqueado" | "cancelado";
 export type AuditEntityType =
   | "charge"
   | "expense"
@@ -80,6 +82,15 @@ export interface Database {
         Row: {
           id: string;
           name: string;
+          slug: string;
+          status: ClubStatus;
+          trial_ends_at: string | null;
+          plan: string | null;
+          owner_profile_id: string | null;
+          asaas_customer_id: string | null;
+          asaas_subscription_id: string | null;
+          is_demo: boolean;
+          canceled_at: string | null;
           nutrition_entitlement: boolean;
           storage_quota_bytes: number;
           created_at: string;
@@ -87,6 +98,15 @@ export interface Database {
         Insert: {
           id?: string;
           name: string;
+          slug: string;
+          status?: ClubStatus;
+          trial_ends_at?: string | null;
+          plan?: string | null;
+          owner_profile_id?: string | null;
+          asaas_customer_id?: string | null;
+          asaas_subscription_id?: string | null;
+          is_demo?: boolean;
+          canceled_at?: string | null;
           nutrition_entitlement?: boolean;
           storage_quota_bytes?: number;
           created_at?: string;
@@ -1274,6 +1294,16 @@ export interface Database {
       my_profile: {
         Args: Record<string, never>;
         Returns: { club_id: string; role: UserRole; athlete_id: string | null }[];
+      };
+      club_by_slug: {
+        Args: { p_slug: string };
+        Returns: {
+          id: string;
+          name: string;
+          slug: string;
+          status: ClubStatus;
+          is_demo: boolean;
+        }[];
       };
     };
     Enums: {

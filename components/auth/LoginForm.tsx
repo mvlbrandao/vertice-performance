@@ -12,7 +12,15 @@ const FEATURES = [
   { icon: "💰", label: "Financeiro e cobrança integrados" },
 ];
 
-export function LoginForm() {
+export function LoginForm({
+  clubName,
+  isDemo,
+  aviso,
+}: {
+  clubName?: string | null;
+  isDemo?: boolean;
+  aviso?: string;
+}) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -85,10 +93,30 @@ export function LoginForm() {
 
         <form onSubmit={handleSubmit} className="p-8 sm:p-10 flex flex-col gap-4.5 gap-[18px] justify-center">
           <div>
+            {clubName && (
+              <div className="flex items-center gap-1.5 flex-wrap mb-1.5">
+                <span className="text-[11px] font-bold uppercase tracking-wide text-ink-faint">
+                  Acesso de
+                </span>
+                <span className="text-[12.5px] font-bold px-2 py-0.5 rounded-sm bg-pitch-dark text-chalk">
+                  {clubName}
+                </span>
+                {isDemo && (
+                  <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-sm border border-amber text-amber">
+                    demonstração
+                  </span>
+                )}
+              </div>
+            )}
             <h2 className="text-[30px] mb-0.5 font-display">Entrar</h2>
             <p className="text-[13.5px] text-ink-soft">
               Acesse com o e-mail e senha cadastrados pelo seu clube.
             </p>
+            {aviso && (
+              <p className="text-[12.5px] text-clay bg-clay/10 border border-clay/25 rounded-sm px-2.5 py-2 mt-2.5 m-0">
+                {aviso}
+              </p>
+            )}
           </div>
           <Field label="E-mail">
             <Input

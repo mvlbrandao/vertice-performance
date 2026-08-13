@@ -1,0 +1,18 @@
+-- Falha crítica encontrada no teste de segurança, e a mais grave de todas:
+-- com um token normal de ATLETA, dava pra alterar a própria linha em
+-- `profiles` e virar 'coach', pular pra outro clube e apontar athlete_id
+-- pra ficha de outro atleta. Testado: um atleta do clube A virou staff do
+-- clube B lendo a ficha de outra pessoa. Isso destrói o isolamento inteiro
+-- — todo o RLS do sistema decide acesso a partir de my_profile(), que lê
+-- justamente essa linha.
+--
+-- A policy "update own profile" era de quando se imaginava o usuário
+-- editando o próprio nome. Isso nunca chegou à interface: hoje não existe
+-- nenhuma escrita em `profiles` a partir de sessão de usuário — todas as
+-- que existem (convite, provisionamento, staff) usam service role, que não
+-- passa por RLS. Era código morto servindo de porta.
+--
+-- Sem policy de UPDATE, nenhuma sessão de usuário escreve em profiles.
+-- Isso é garantia estrutural: não depende de lembrar de proteger cada
+-- coluna sensível que aparecer depois.
+drop policy "update own profile" on profiles;

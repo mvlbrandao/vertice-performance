@@ -1,0 +1,17 @@
+-- Falha crítica encontrada no teste de segurança: com um token normal de
+-- treinador, dava pra alterar a própria linha em `clubs` direto pela API e
+-- se conceder cortesia até 2099, cota de 99999 atletas, preço zero e
+-- situação 'ativo'. Isso derruba o modelo de cobrança inteiro — qualquer
+-- pessoa com login de treinador usaria o sistema de graça pra sempre.
+--
+-- A policy "coach updates own club" vinha de quando o treinador editava o
+-- nome do clube pela tela. Essa edição já não existe, e hoje o único código
+-- que escreve em `clubs` usa service role (painel da plataforma e conexão
+-- do Asaas), que não passa por RLS. Ou seja: a policy era código morto que
+-- só servia de porta.
+--
+-- Some com ela. As colunas comerciais (cortesia, cota, preço, situação,
+-- prazo de teste) passam a ser inalcançáveis por qualquer sessão de
+-- usuário, o que é uma garantia estrutural — não depende de lembrar de
+-- proteger cada coluna nova que vier depois.
+drop policy "coach updates own club" on clubs;

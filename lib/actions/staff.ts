@@ -108,14 +108,27 @@ export async function updateStaffAreas(
   areas: string[],
 ): Promise<ActionResult> {
   const coach = await requireCoach();
-  const supabase = await createClient();
-  const { error } = await supabase
+
+  // Client de serviço porque não existe mais policy de escrita em
+  // `profiles` — ela permitia que um atleta virasse treinador de outro
+  // clube. Esta ação escreve no perfil de OUTRA pessoa, então nunca teria
+  // funcionado pela policy antiga (que só permitia id = auth.uid()): ela
+  // falhava em silêncio, atualizando zero linhas sem devolver erro.
+  //
+  // A checagem de escopo passa a ser explícita aqui: precisa ser staff, do
+  // clube deste treinador. É o mesmo filtro de antes, agora com efeito.
+  const admin = createAdminClient();
+  const { data: updated, error } = await admin
     .from("profiles")
     .update({ staff_areas: areas })
     .eq("id", staffProfileId)
     .eq("club_id", coach.clubId)
-    .eq("role", "staff");
+    .eq("role", "staff")
+    .select("id");
   if (error) return { error: error.message };
+  if (!updated || updated.length === 0) {
+    return { error: "Profissional não encontrado neste clube." };
+  }
 
   await logAudit({
     clubId: coach.clubId,

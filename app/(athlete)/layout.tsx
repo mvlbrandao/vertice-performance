@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { requireAthlete } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { AppShell, type NavItem } from "@/components/layout/AppShell";
+import { DemoBanner } from "@/components/demo/DemoBanner";
 
 const navItems: NavItem[] = [
   { href: "/perfil", icon: "🪪", label: "Meu Perfil" },
@@ -35,6 +36,7 @@ export default async function AthleteLayout({
 
   return (
     <AppShell navItems={navItems} userName={profile.fullName} roleLabel={roleLabel}>
+      <DemoBanner />
       {children}
     </AppShell>
   );

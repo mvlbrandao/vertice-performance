@@ -46,6 +46,51 @@ const FRAQUEZAS = ["Perde a posição no recuo","Finalização com a perna não 
 const OPORTUNIDADES = ["Pode assumir a cobrança de faltas","Encaixa bem como pivô fixo","Perfil para capitania na categoria","Tem espaço para jogar no sub acima","Pode virar referência na saída de bola"];
 const AMEACAS = ["Histórico de dor no tornozelo","Frequência irregular nos treinos","Sobrecarga por jogar em dois times","Crescimento rápido exigindo controle de carga","Baixa adesão às orientações de dieta"];
 
+const EXERCICIOS = [
+  ["Agachamento com salto", "Força explosiva de membros inferiores", "Físico"],
+  ["Prancha isométrica 3×40s", "Estabilidade de core", "Físico"],
+  ["Escada de agilidade", "Coordenação e troca rápida de apoio", "Físico"],
+  ["Finalização de primeira em movimento", "20 repetições cada perna", "Técnico"],
+  ["Domínio orientado sob pressão", "Com marcador nas costas", "Técnico"],
+  ["Passe de trivela em dupla", "Precisão a 8 metros", "Técnico"],
+  ["Saída de goleiro com os pés", "Reposição rápida sob pressão", "Técnico"],
+  ["Corrida intervalada 6×200m", "Capacidade aeróbica", "Físico"],
+  ["Mobilidade de quadril", "Prevenção de lesão", "Preventivo"],
+];
+
+const NOTAS_MENTAIS = [
+  ["Conversa pós-jogo", "Sentiu-se pressionado na cobrança de pênalti, mas assumiu a responsabilidade."],
+  ["Retorno de lesão", "Ansioso para voltar; combinamos progressão gradual de carga."],
+  ["Liderança", "Assumiu a conversa no vestiário no intervalo. Evolução clara de postura."],
+  ["Concentração", "Oscilou no segundo tempo. Trabalhar rotina pré-jogo."],
+  ["Confiança", "Voltou a pedir a bola em situações difíceis."],
+  ["Frustração", "Reagiu mal à substituição. Conversado individualmente."],
+];
+
+const DESAFIOS = [
+  ["100 embaixadinhas sem deixar cair", "Grave em vídeo e poste no Instagram marcando o clube.", "Bronze", 10],
+  ["Semana perfeita de check-in", "Faça check-in todos os dias da semana.", "Bronze", 15],
+  ["10 finalizações no ângulo", "Da marca do pênalti, sem goleiro.", "Prata", 25],
+  ["Treino extra de força por 3 semanas", "Registre cada sessão no app.", "Prata", 30],
+  ["Gol de bicicleta em jogo oficial", "Vale em qualquer competição do clube.", "Ouro", 60],
+  ["Assistência decisiva na final", "Na final de qualquer campeonato.", "Ouro", 50],
+];
+
+const CATEGORIAS_DESPESA = [
+  ["Aluguel de quadra", false], ["Material esportivo", false], ["Arbitragem", false],
+  ["Transporte", false], ["Comissão técnica", true], ["Fisioterapia", true],
+  ["Nutrição", true], ["Marketing", false],
+];
+
+const LESOES = [
+  ["Tornozelo", "Entorse / Ligamento", "Leve (grau 1)"],
+  ["Coxa (posterior)", "Estiramento muscular", "Moderada (grau 2)"],
+  ["Joelho", "Contusão", "Leve (grau 1)"],
+  ["Panturrilha", "Estiramento muscular", "Leve (grau 1)"],
+  ["Virilha / Adutores", "Estiramento muscular", "Moderada (grau 2)"],
+  ["Ombro", "Contusão", "Leve (grau 1)"],
+];
+
 const FOCOS_TREINO = ["Finalização","Saída de bola","Marcação por zona","Transição ofensiva","Bola parada","Condicionamento","Fundamentos de goleiro","Jogo posicional"];
 
 function nomeCompleto(sexo: string) {
@@ -309,6 +354,150 @@ export async function seedDemoClub(): Promise<{ clubId: string; atletas: number;
     }
   }
   await insertMany(admin, "checkins", checkins);
+
+  // ── financeiro ────────────────────────────────────────────────────────
+  // Mensalidade por atleta nos últimos seis meses, com mistura realista de
+  // pago, a vencer e atrasado. Sem isso o painel mostra R$ 0,00 em tudo e a
+  // apresentação perde justamente a parte que fecha venda.
+  const MENSALIDADE_POR_SUB: Record<string, number> = {
+    SUB6: 12000, SUB7: 12000, SUB8: 13000, SUB9: 13000, SUB10: 15000, SUB11: 15000,
+    SUB12: 18000, SUB13: 18000, SUB14: 20000, SUB15: 20000, SUB16: 22000, SUB17: 22000,
+  };
+  const cobrancas: Record<string, unknown>[] = [];
+  const hojeData = new Date(hoje);
+  for (const a of atletas) {
+    const valor = MENSALIDADE_POR_SUB[a.category] ?? 15000;
+    for (let m = 5; m >= 0; m--) {
+      const ref = new Date(Date.UTC(hojeData.getUTCFullYear(), hojeData.getUTCMonth() - m, 10));
+      const venc = ref.toISOString().slice(0, 10);
+      const passado = ref < hojeData;
+      // Inadimplência concentrada em poucos atletas, como na vida real:
+      // um clube não tem 30% de devedores espalhados por igual.
+      const caloteiro = rnd() < 0.12;
+      const status = !passado ? "Pendente" : caloteiro && rnd() < 0.7 ? "Atrasado" : rnd() < 0.94 ? "Pago" : "Atrasado";
+      cobrancas.push({
+        club_id: club.id, athlete_id: a.id,
+        description: `Mensalidade ${String(ref.getUTCMonth() + 1).padStart(2, "0")}/${ref.getUTCFullYear()}`,
+        amount_cents: valor,
+        competence_month: ref.getUTCMonth() + 1, competence_year: ref.getUTCFullYear(),
+        due_date: venc, status,
+        paid_at: status === "Pago" ? new Date(ref.getTime() - inteiro(0, 8) * 86400000).toISOString() : null,
+        payment_method: status === "Pago" ? escolhe(["PIX", "Cartão", "Dinheiro", "Boleto"]) : null,
+        discount_cents: rnd() < 0.06 ? 2000 : 0,
+        created_by: coachId, notes: null,
+      });
+    }
+  }
+  await insertMany(admin, "athlete_charges", cobrancas);
+
+  const categorias = (await insertMany(admin, "expense_categories",
+    CATEGORIAS_DESPESA.map(([nome, prof]) => ({ club_id: club.id, name: nome, requires_professional: prof })),
+  )) as unknown as { id: string; name: string }[];
+
+  const despesas: Record<string, unknown>[] = [];
+  for (let m = 5; m >= 0; m--) {
+    const ref = new Date(Date.UTC(hojeData.getUTCFullYear(), hojeData.getUTCMonth() - m, 5));
+    for (const cat of categorias) {
+      const base = cat.name === "Aluguel de quadra" ? 320000 : cat.name === "Comissão técnica" ? 850000 : inteiro(30000, 180000);
+      despesas.push({
+        club_id: club.id, category_id: cat.id,
+        description: `${cat.name} — ${String(ref.getUTCMonth() + 1).padStart(2, "0")}/${ref.getUTCFullYear()}`,
+        amount_cents: base, due_date: ref.toISOString().slice(0, 10),
+        status: ref < hojeData ? (rnd() < 0.92 ? "Pago" : "Atrasado") : "Pendente",
+        paid_at: ref < hojeData && rnd() < 0.92 ? ref.toISOString() : null,
+        payment_method: null, created_by: coachId, professional_id: null, notes: null,
+      });
+    }
+  }
+  await insertMany(admin, "expenses", despesas);
+
+  // ── treinos prescritos, notas mentais e lesões ────────────────────────
+  const exercicios: Record<string, unknown>[] = [];
+  const notas: Record<string, unknown>[] = [];
+  for (const a of atletas) {
+    for (let e = 0; e < inteiro(4, 9); e++) {
+      const [nome, desc, foco] = escolhe(EXERCICIOS);
+      exercicios.push({
+        athlete_id: a.id, club_id: club.id, prescribed_by: coachId, name: nome,
+        description: desc, focus: foco, done: rnd() < 0.72,
+        scheduled_date: dia(-inteiro(0, 30)), video_url: null, swot_item_id: null,
+      });
+    }
+    if (rnd() < 0.45) {
+      const [titulo, corpo] = escolhe(NOTAS_MENTAIS);
+      notas.push({
+        athlete_id: a.id, club_id: club.id, author_id: coachId, title: titulo, body: corpo,
+        confidence_score: inteiro(4, 10), video_url: null, entry_date: dia(-inteiro(1, 60)), swot_item_id: null,
+      });
+    }
+  }
+  await insertMany(admin, "exercises", exercicios);
+  await insertMany(admin, "mental_notes", notas);
+
+  const lesoes: Record<string, unknown>[] = [];
+  for (const a of atletas) {
+    if (rnd() > 0.14) continue;
+    const [regiao, tipo, gravidade] = escolhe(LESOES);
+    const quando = dia(-inteiro(3, 90));
+    const emTratamento = rnd() < 0.4;
+    lesoes.push({
+      club_id: club.id, athlete_id: a.id, source: "Avulso", body_region: regiao,
+      injury_type: tipo, severity: gravidade, occurred_at: quando,
+      description: "Relatado após o treino.",
+      expected_return_date: emTratamento ? dia(inteiro(3, 25)) : null,
+      status: emTratamento ? "Em tratamento" : "Recuperado",
+      treatment_notes: emTratamento ? "Fisioterapia 3× por semana, carga progressiva." : "Alta liberada.",
+      created_by: coachId,
+    });
+  }
+  await insertMany(admin, "athlete_injuries", lesoes);
+
+  // ── desafios ─────────────────────────────────────────────────────────
+  const desafios = (await insertMany(admin, "challenges",
+    DESAFIOS.map(([titulo, desc, tier, pontos]) => ({
+      club_id: club.id, title: titulo, description: desc, tier, points: pontos,
+      status: "Ativo", created_by: coachId, athlete_id: null, target_position: null,
+    })),
+  )) as unknown as { id: string; points: number }[];
+
+  const envios: Record<string, unknown>[] = [];
+  for (const a of atletas) {
+    if (rnd() > 0.3) continue;
+    const d = escolhe(desafios);
+    const avaliado = rnd() < 0.7;
+    const aprovado = avaliado && rnd() < 0.75;
+    envios.push({
+      club_id: club.id, challenge_id: d.id, athlete_id: a.id,
+      instagram_url: "https://instagram.com/p/demo", notes: "Segue o vídeo do desafio!",
+      status: avaliado ? (aprovado ? "Aprovado" : "Rejeitado") : "Pendente",
+      points_awarded: aprovado ? d.points : null,
+      reviewed_by: avaliado ? coachId : null,
+      reviewed_at: avaliado ? new Date().toISOString() : null,
+      review_notes: avaliado ? (aprovado ? "Boa execução!" : "Repita com o vídeo completo.") : null,
+    });
+  }
+  await insertMany(admin, "challenge_submissions", envios);
+
+  // ── histórico de score: dá curva ao gráfico de evolução ───────────────
+  const snapshots: Record<string, unknown>[] = [];
+  for (const a of atletas) {
+    let base = inteiro(42, 68);
+    for (let s = 5; s >= 0; s--) {
+      base = Math.max(30, Math.min(95, base + inteiro(-3, 5)));
+      snapshots.push({
+        club_id: club.id, athlete_id: a.id, overall: base,
+        attack: Math.max(30, Math.min(99, base + inteiro(-12, 12))),
+        defense: Math.max(30, Math.min(99, base + inteiro(-12, 12))),
+        discipline: inteiro(75, 99), physical: Math.max(30, Math.min(99, base + inteiro(-10, 10))),
+        mental: Math.max(30, Math.min(99, base + inteiro(-10, 10))),
+        commitment: Math.max(30, Math.min(99, base + inteiro(-8, 12))),
+        development: Math.max(30, Math.min(99, base + inteiro(-8, 8))),
+        computed_at: new Date(hoje.getTime() - s * 14 * 86400000).toISOString(),
+        acknowledged: true,
+      });
+    }
+  }
+  await insertMany(admin, "athlete_score_snapshots", snapshots);
 
   return { clubId: club.id, atletas: atletas.length, profissionais: perfisStaff.length };
 }

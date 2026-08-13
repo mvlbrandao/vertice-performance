@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getSessionProfile } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { LoginForm } from "@/components/auth/LoginForm";
-import { CLUB_SLUG_COOKIE } from "@/app/c/[slug]/route";
+import { CLUB_SLUG_COOKIE } from "@/lib/clubLink";
 
 type Search = Promise<{ clube?: string }>;
 

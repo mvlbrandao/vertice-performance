@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { CLUB_SLUG_COOKIE } from "@/lib/clubLink";
 
 /**
  * Link próprio do cliente: /c/nome-do-clube.
@@ -18,7 +19,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * Usa o client de serviço porque quem abre o link ainda não tem sessão —
  * mas só chama club_by_slug, que devolve nome e situação e mais nada.
  */
-export const CLUB_SLUG_COOKIE = "vertice-clube";
+
 
 export async function GET(
   request: Request,

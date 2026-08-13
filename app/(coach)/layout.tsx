@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { requireCoach } from "@/lib/auth/guards";
 import { AppShell, type NavItem } from "@/components/layout/AppShell";
 import { HelpButton } from "@/components/help/HelpButton";
+import { DemoBanner } from "@/components/demo/DemoBanner";
 
 const navItems: NavItem[] = [
   { href: "/dashboard", icon: "📊", label: "Painel" },
@@ -41,6 +42,7 @@ export default async function CoachLayout({
 
   return (
     <AppShell navItems={navItems} userName={profile.fullName} roleLabel="Treinador(a) / Staff">
+      <DemoBanner />
       {children}
       <HelpButton />
     </AppShell>

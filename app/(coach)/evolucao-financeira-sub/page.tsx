@@ -3,12 +3,13 @@ import { getSessionProfile } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { hojeISO } from "@/lib/utils/date";
 
 function formatCents(cents: number) {
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return hojeISO();
 }
 function monthKey(iso: string) {
   return iso.slice(0, 7);

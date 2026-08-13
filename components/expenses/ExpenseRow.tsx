@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 import { setExpenseStatus, deleteExpense, updateExpenseDueDate } from "@/lib/actions/expenses";
 import { EditExpenseModal } from "@/components/expenses/EditExpenseModal";
 import type { ChargeStatus } from "@/lib/types/database";
+import { hojeISO } from "@/lib/utils/date";
 
 const STATUS_TONE: Record<ChargeStatus, "green" | "amber" | "clay" | "dark"> = {
   Pago: "green",
@@ -19,7 +20,7 @@ function formatCents(cents: number) {
 }
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return hojeISO();
 }
 
 export function ExpenseRow({

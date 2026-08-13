@@ -15,6 +15,7 @@ import { AthleteComparisonCard } from "@/components/scouting/AthleteComparisonCa
 import { getClubPeerCloud, getSystemPercentile } from "@/lib/scouting/peerScoring";
 import { ScoreHistoryChart } from "@/components/athletes/ScoreHistoryChart";
 import { getScoreHistory } from "@/lib/scoreHistoryPoints";
+import { hojeISO } from "@/lib/utils/date";
 
 function Row({ k, v }: { k: string; v: string }) {
   return (
@@ -47,7 +48,7 @@ export default async function AthletePerfilPage() {
 
   if (!athlete) return null;
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = hojeISO();
   const [signedPhotoUrl, score, { data: lineupRows }, { data: activeInjuries }, { data: upcomingMeetings }] =
     await Promise.all([
       resolveSignedUrl("athlete-photos", athlete.photo_url),

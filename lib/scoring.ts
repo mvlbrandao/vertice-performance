@@ -1,5 +1,6 @@
 import "server-only";
 import type { createClient } from "@/lib/supabase/server";
+import { hojeISO } from "@/lib/utils/date";
 
 export interface PlayerScore {
   overall: number;
@@ -44,7 +45,7 @@ export async function computePlayerScore(
   supabase: Awaited<ReturnType<typeof createClient>>,
   athleteId: string,
 ): Promise<PlayerScore> {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = hojeISO();
   const [
     { data: events },
     { data: exercises },

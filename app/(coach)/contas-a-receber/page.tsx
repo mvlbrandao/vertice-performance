@@ -6,12 +6,13 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ChargeRow } from "@/components/billing/ChargeRow";
 import { cn } from "@/lib/utils/cn";
 import type { ChargeStatus } from "@/lib/types/database";
+import { hojeISO } from "@/lib/utils/date";
 
 function formatCents(cents: number) {
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return hojeISO();
 }
 
 const FILTERS: { value: string; label: string }[] = [

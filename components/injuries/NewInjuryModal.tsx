@@ -12,6 +12,7 @@ import {
   INJURY_SEVERITIES,
   INJURY_SEVERITY_META,
 } from "@/lib/data/injuries";
+import { hojeISO } from "@/lib/utils/date";
 
 const selectClass =
   "w-full px-3 py-2.5 border border-line rounded-sm bg-white text-sm focus:outline focus:outline-2 focus:outline-amber focus:outline-offset-1 focus:border-amber";
@@ -47,7 +48,7 @@ export function NewInjuryModal({
               </select>
             </Field>
             <Field label="Data">
-              <Input name="occurredAt" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} />
+              <Input name="occurredAt" type="date" required defaultValue={hojeISO()} />
             </Field>
           </div>
           {source === "Jogo" && (

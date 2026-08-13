@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/Badge";
 import { setChargeStatus, deleteCharge, updateChargeDueDate } from "@/lib/actions/billing";
 import type { ChargeStatus } from "@/lib/types/database";
+import { hojeISO } from "@/lib/utils/date";
 
 const MONTHS = [
   "Jan",
@@ -34,7 +35,7 @@ function formatCents(cents: number) {
 }
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return hojeISO();
 }
 
 export function ChargeRow({

@@ -6,9 +6,10 @@ import { requireCoach } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { logAudit } from "@/lib/actions/auditLog";
 import type { ActionResult } from "@/lib/actions/athletes";
+import { hojeISO } from "@/lib/utils/date";
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return hojeISO();
 }
 
 const closeSchema = z.object({

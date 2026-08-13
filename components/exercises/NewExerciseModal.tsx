@@ -6,6 +6,7 @@ import { Field, Input } from "@/components/ui/Field";
 import { createExercise } from "@/lib/actions/exercises";
 import { useFormModal } from "@/lib/utils/useFormModal";
 import { getFocusTagSuggestions } from "@/lib/data/swotCatalog";
+import { hojeISO } from "@/lib/utils/date";
 
 export function NewExerciseModal({
   athleteId,
@@ -66,7 +67,7 @@ export function NewExerciseModal({
             <Input
               name="scheduledDate"
               type="date"
-              defaultValue={new Date().toISOString().slice(0, 10)}
+              defaultValue={hojeISO()}
             />
           </Field>
           <Field label="Link do vídeo (opcional)">

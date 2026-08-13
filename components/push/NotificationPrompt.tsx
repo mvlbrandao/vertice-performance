@@ -7,6 +7,7 @@ import {
   isPushSupported,
   getExistingSubscription,
   subscribeToPushBrowser,
+  serializeSubscription,
   PushConfigError,
 } from "@/lib/push/subscribeClient";
 
@@ -22,12 +23,25 @@ export function NotificationPrompt() {
 
     async function evaluate() {
       if (!isPushSupported()) return;
-      if (localStorage.getItem(DISMISS_KEY)) return;
       if (Notification.permission === "denied") return;
 
-      const shouldShow =
-        Notification.permission !== "granted" || !(await getExistingSubscription());
-      if (!cancelled && shouldShow) setVisible(true);
+      const existing =
+        Notification.permission === "granted" ? await getExistingSubscription() : null;
+
+      if (existing) {
+        // Reconcilia navegador e servidor. A inscrição vive no navegador, mas
+        // quem recebe o push é o profile gravado no banco — e os dois saem de
+        // sincronia em dois casos reais: a linha some do banco (e o aviso
+        // ficava escondido, porque só olhava o navegador, deixando a pessoa
+        // sem notificação achando que estava tudo certo), ou duas pessoas usam
+        // o mesmo aparelho no clube — aí a inscrição continua apontando pro
+        // primeiro que entrou. O upsert por endpoint corrige os dois.
+        await subscribeToPush(serializeSubscription(existing));
+        return;
+      }
+
+      if (localStorage.getItem(DISMISS_KEY)) return;
+      if (!cancelled) setVisible(true);
     }
 
     evaluate();

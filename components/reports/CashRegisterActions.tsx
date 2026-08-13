@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Field";
 import { closeCashRegister, reopenCashRegister } from "@/lib/actions/cashClosure";
+import { hojeISO } from "@/lib/utils/date";
 
 export function CloseCashRegisterButton({ closureDate }: { closureDate: string }) {
   const router = useRouter();
@@ -47,7 +48,7 @@ export function CloseCashRegisterButton({ closureDate }: { closureDate: string }
 }
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return hojeISO();
 }
 
 export function ReopenCashRegisterButton({ closureDate }: { closureDate: string }) {

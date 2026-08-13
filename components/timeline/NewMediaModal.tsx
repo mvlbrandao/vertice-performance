@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Field";
 import { uploadMediaItem } from "@/lib/storage/upload";
 import { createMediaItemRecord } from "@/lib/actions/media";
+import { hojeISO } from "@/lib/utils/date";
 
 export function NewMediaModal({
   clubId,
@@ -83,7 +84,7 @@ export function NewMediaModal({
             <Input
               name="entryDate"
               type="date"
-              defaultValue={new Date().toISOString().slice(0, 10)}
+              defaultValue={hojeISO()}
             />
           </Field>
           <Field label="Arquivo (foto ou vídeo)">

@@ -7,6 +7,7 @@ import { Field, Input } from "@/components/ui/Field";
 import { transferAthleteClub } from "@/lib/actions/transfers";
 import { useFormModal } from "@/lib/utils/useFormModal";
 import type { PartnerClubOption } from "@/lib/types/partnerClubs";
+import { hojeISO } from "@/lib/utils/date";
 
 export function TransferClubModal({
   athleteId,
@@ -74,7 +75,7 @@ export function TransferClubModal({
               name="transferredAt"
               type="date"
               required
-              defaultValue={new Date().toISOString().slice(0, 10)}
+              defaultValue={hojeISO()}
             />
           </Field>
           {error && <div className="text-clay text-[12.5px] font-medium">{error}</div>}

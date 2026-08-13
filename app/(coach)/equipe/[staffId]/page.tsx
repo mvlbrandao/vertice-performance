@@ -8,12 +8,13 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { StaffAccessModal } from "@/components/staff/StaffAccessModal";
 import { StaffProfileTabs } from "@/components/staff/StaffProfileTabs";
 import { ExpenseRow } from "@/components/expenses/ExpenseRow";
+import { hojeISO } from "@/lib/utils/date";
 
 function formatCents(cents: number) {
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return hojeISO();
 }
 
 export default async function StaffProfilePage({

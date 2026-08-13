@@ -23,6 +23,17 @@ export async function getExistingSubscription() {
   return registration.pushManager.getSubscription();
 }
 
+/** Formato que a server action espera, a partir de uma inscrição do navegador. */
+export function serializeSubscription(subscription: PushSubscription) {
+  const json = subscription.toJSON();
+  return {
+    endpoint: json.endpoint!,
+    p256dh: json.keys!.p256dh,
+    auth: json.keys!.auth,
+    userAgent: navigator.userAgent,
+  };
+}
+
 export class PushConfigError extends Error {}
 
 export async function subscribeToPushBrowser() {

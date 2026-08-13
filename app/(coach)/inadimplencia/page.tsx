@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { OverdueRow } from "@/components/billing/OverdueRow";
 import { AGING_BUCKETS, getOverdueByAthlete } from "@/lib/billing/overdue";
+import { hojeISO } from "@/lib/utils/date";
 
 function formatCents(cents: number) {
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -12,7 +13,7 @@ function formatCents(cents: number) {
 export default async function InadimplenciaPage() {
   const profile = await getSessionProfile();
   const supabase = await createClient();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = hojeISO();
 
   const [overdue, { data: club }] = await Promise.all([
     getOverdueByAthlete(supabase, profile!.clubId, today),

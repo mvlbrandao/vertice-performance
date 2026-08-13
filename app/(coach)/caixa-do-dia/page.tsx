@@ -7,12 +7,13 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { CloseCashRegisterButton, ReopenCashRegisterButton } from "@/components/reports/CashRegisterActions";
 import { NewCashMovementModal } from "@/components/reports/NewCashMovementModal";
 import { DeleteCashMovementButton } from "@/components/reports/DeleteCashMovementButton";
+import { hojeISO } from "@/lib/utils/date";
 
 function formatCents(cents: number) {
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return hojeISO();
 }
 function addDaysISO(iso: string, days: number) {
   const [y, m, d] = iso.split("-").map(Number);

@@ -8,9 +8,10 @@ import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { computePlayerScore } from "@/lib/scoring";
 import { overallColor, scoreStars } from "@/lib/utils/scoreColor";
+import { hojeISO } from "@/lib/utils/date";
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return hojeISO();
 }
 function daysFromNowISO(days: number) {
   const d = new Date();

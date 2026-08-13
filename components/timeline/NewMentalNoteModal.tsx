@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Field";
 import { createMentalNote } from "@/lib/actions/timeline";
 import { useFormModal } from "@/lib/utils/useFormModal";
+import { hojeISO } from "@/lib/utils/date";
 
 export function NewMentalNoteModal({
   athleteId,
@@ -31,7 +32,7 @@ export function NewMentalNoteModal({
             <Input
               name="entryDate"
               type="date"
-              defaultValue={new Date().toISOString().slice(0, 10)}
+              defaultValue={hojeISO()}
             />
           </Field>
           <Field label="Observações">

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPushToAthlete } from "@/lib/push/send";
 import { sendEmail } from "@/lib/email/send";
+import { hojeISO, somaDias } from "@/lib/utils/date";
 
 /**
  * Lembrete automático de cobrança. Chamado por agendamento (Vercel Cron) ou
@@ -13,11 +14,6 @@ import { sendEmail } from "@/lib/email/send";
  * a idempotência vem de só mirar essas datas exatas — rodando uma vez por
  * dia, cada cobrança cai em cada janela no máximo uma vez.
  */
-function addDays(iso: string, days: number) {
-  const [y, m, d] = iso.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
-}
-
 function formatCents(cents: number) {
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
@@ -29,11 +25,11 @@ async function run(request: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = hojeISO();
   const windows = [
-    { due: addDays(today, 3), kind: "prev" as const },
+    { due: somaDias(today, 3), kind: "prev" as const },
     { due: today, kind: "hoje" as const },
-    { due: addDays(today, -1), kind: "vencida" as const },
+    { due: somaDias(today, -1), kind: "vencida" as const },
   ];
 
   const admin = createAdminClient();

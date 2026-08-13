@@ -6,12 +6,13 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { NewExpenseModal } from "@/components/expenses/NewExpenseModal";
 import { ExpenseRow } from "@/components/expenses/ExpenseRow";
 import { cn } from "@/lib/utils/cn";
+import { hojeISO } from "@/lib/utils/date";
 
 function formatCents(cents: number) {
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return hojeISO();
 }
 
 const FILTERS: { value: string; label: string }[] = [

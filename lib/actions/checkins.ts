@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireAthlete } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionResult } from "@/lib/actions/athletes";
+import { hojeISO } from "@/lib/utils/date";
 
 const checkinSchema = z.object({
   fatigue: z.coerce.number().min(1).max(5),
@@ -28,7 +29,7 @@ export async function submitCheckin(formData: FormData): Promise<ActionResult> {
   }
 
   const supabase = await createClient();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = hojeISO();
   const { error } = await supabase.from("checkins").upsert(
     {
       athlete_id: athlete.athleteId,

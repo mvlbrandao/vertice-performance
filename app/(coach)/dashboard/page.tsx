@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { computePlayerScore } from "@/lib/scoring";
 import { overallColor, scoreStars } from "@/lib/utils/scoreColor";
 import { hojeISO } from "@/lib/utils/date";
+import { PrimeirosPassos, type Passo } from "@/components/onboarding/PrimeirosPassos";
 
 function todayISO() {
   return hojeISO();
@@ -158,8 +159,57 @@ export default async function DashboardPage() {
     }),
   );
 
+  // Cada passo é medido pelo estado real do clube, não por um "já vi isso"
+  // guardado à parte: assim o checklist não mente se alguém apagar o que
+  // tinha criado, e um clube que já usa o sistema nunca vê a lista.
+  const [{ count: jogosCount }, { count: cobrancasCount }, { count: jogadasCount }] =
+    await Promise.all([
+      supabase.from("games").select("id", { count: "exact", head: true }).eq("club_id", clubId),
+      supabase
+        .from("athlete_charges")
+        .select("id", { count: "exact", head: true })
+        .eq("club_id", clubId),
+      supabase
+        .from("plays")
+        .select("id", { count: "exact", head: true })
+        .eq("club_id", clubId),
+    ]);
+
+  const passos: Passo[] = [
+    {
+      chave: "atleta",
+      titulo: "Cadastre seu primeiro atleta",
+      descricao: "É a base de tudo: ficha, score, financeiro e convocação partem daqui.",
+      href: "/athletes",
+      feito: (athletesCount ?? 0) > 0,
+    },
+    {
+      chave: "jogo",
+      titulo: "Crie um jogo e monte a escalação",
+      descricao: "Ao publicar, os convocados recebem aviso no celular.",
+      href: "/jogos",
+      feito: (jogosCount ?? 0) > 0,
+    },
+    {
+      chave: "cobranca",
+      titulo: "Lance uma cobrança",
+      descricao: "Na ficha do atleta, aba Financeiro — mensalidade, matrícula ou avulsa.",
+      href: "/contas-a-receber",
+      feito: (cobrancasCount ?? 0) > 0,
+    },
+    {
+      chave: "jogada",
+      titulo: "Monte uma jogada na mesa tática",
+      descricao: "Ou parta de uma das jogadas padrão que já vêm prontas.",
+      href: "/plays",
+      feito: (jogadasCount ?? 0) > 0,
+    },
+  ];
+
   return (
     <div>
+      <PrimeirosPassos passos={passos} />
+
       <div className="text-xs text-ink-faint uppercase tracking-wide mb-0.5">
         Painel do treinador
       </div>

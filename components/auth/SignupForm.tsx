@@ -11,9 +11,11 @@ import { signup } from "@/lib/actions/signup";
 export function SignupForm({
   trialDays,
   maxAthletes,
+  vindoDaDemo,
 }: {
   trialDays: number;
   maxAthletes: number;
+  vindoDaDemo?: boolean;
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
@@ -40,6 +42,10 @@ export function SignupForm({
     // pessoa digitar a mesma senha duas vezes em dez segundos, e é onde se
     // perde quem acabou de decidir experimentar.
     const supabase = createClient();
+    // Encerra a sessão da demonstração antes de entrar na nova: sem isso o
+    // navegador guardaria duas sessões e a pessoa poderia voltar ao clube
+    // de demonstração sem entender por quê.
+    if (vindoDaDemo) await supabase.auth.signOut();
     const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
     setPending(false);
 
@@ -75,6 +81,11 @@ export function SignupForm({
         <p className="text-[13.5px] text-ink-soft m-0">
           {trialDays} dias grátis, até {maxAthletes} atletas. Sem cartão agora.
         </p>
+        {vindoDaDemo && (
+          <p className="text-[12.5px] text-ink-faint mt-1.5 mb-0">
+            Você sai da demonstração e entra no seu próprio clube, vazio e pronto para uso.
+          </p>
+        )}
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-[18px]">

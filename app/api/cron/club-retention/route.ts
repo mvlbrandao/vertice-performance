@@ -17,6 +17,23 @@ import { getPlatformSettings } from "@/lib/platform/license";
  * um clube por engano no painel não dispara nada, porque 'bloqueado' e
  * 'cancelado' são estados distintos de propósito.
  */
+/**
+ * Tudo que carrega club_id. O que depende de atleta cai por cascade quando
+ * o atleta cai, então a ordem interna não importa — só importa que atletas
+ * venha antes dos perfis que os criaram.
+ */
+const TABELAS_DO_CLUBE = [
+  "athlete_swot_items", "athlete_swot_cycles", "athlete_billing_subscriptions",
+  "athlete_cancellation_requests", "athlete_charges", "athlete_club_transfers",
+  "athlete_injuries", "athlete_score_snapshots", "athlete_staff_access", "audit_log",
+  "cash_movements", "challenge_submissions", "challenges", "checkins",
+  "club_asaas_credentials", "daily_cash_closures", "data_requests", "diet_items",
+  "exercise_videos", "exercises", "expenses", "expense_categories", "game_events",
+  "game_lineups", "game_reports", "games", "competitions", "invite_links", "media_items",
+  "meetings", "mental_notes", "plays", "sub_staff_assignments", "partner_club_categories",
+  "partner_clubs", "asaas_security_events", "athletes",
+] as const;
+
 async function run(request: Request) {
   const secret = process.env.CRON_SECRET;
   const auth = request.headers.get("authorization");
@@ -43,11 +60,25 @@ async function run(request: Request) {
 
   const apagados: string[] = [];
   for (const club of vencidos ?? []) {
-    // Contas de acesso não somem por cascade do clube: elas vivem em
-    // auth.users, fora do alcance da FK. Sem isso, sobrariam logins órfãos
-    // que ainda autenticam e não levam a lugar nenhum.
     const { data: perfis } = await admin.from("profiles").select("id").eq("club_id", club.id);
     await admin.from("clubs").update({ owner_profile_id: null }).eq("id", club.id);
+
+    // A ordem não é a óbvia. `profiles.club_id` é RESTRICT, então o clube
+    // não sai enquanto houver perfil; e `athletes.created_by` também é
+    // RESTRICT, então o perfil não sai enquanto houver atleta. Apagar o
+    // clube e deixar o cascade resolver trava nessa dupla — só não
+    // apareceu no primeiro teste porque o clube usado não tinha atletas.
+    //
+    // Contas de acesso vêm por último e à parte: vivem em auth.users, fora
+    // do alcance da FK, e sem isso sobrariam logins órfãos que ainda
+    // autenticam e não levam a lugar nenhum.
+    for (const tabela of TABELAS_DO_CLUBE) {
+      const { error: tabelaError } = await admin.from(tabela).delete().eq("club_id", club.id);
+      if (tabelaError) {
+        console.error(`[retencao] falha ao limpar ${tabela} de ${club.name}:`, tabelaError.message);
+      }
+    }
+
     for (const p of perfis ?? []) {
       await admin.from("profiles").delete().eq("id", p.id);
       await admin.auth.admin.deleteUser(p.id).catch(() => {});

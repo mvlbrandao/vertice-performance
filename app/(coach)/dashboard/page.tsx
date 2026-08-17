@@ -10,6 +10,7 @@ import { computePlayerScore } from "@/lib/scoring";
 import { overallColor, scoreStars } from "@/lib/utils/scoreColor";
 import { hojeISO } from "@/lib/utils/date";
 import { PrimeirosPassos, type Passo } from "@/components/onboarding/PrimeirosPassos";
+import { getOnboardingStepStatus } from "@/lib/onboarding/checklist";
 
 function todayISO() {
   return hojeISO();
@@ -159,21 +160,7 @@ export default async function DashboardPage() {
     }),
   );
 
-  // Cada passo é medido pelo estado real do clube, não por um "já vi isso"
-  // guardado à parte: assim o checklist não mente se alguém apagar o que
-  // tinha criado, e um clube que já usa o sistema nunca vê a lista.
-  const [{ count: jogosCount }, { count: cobrancasCount }, { count: jogadasCount }] =
-    await Promise.all([
-      supabase.from("games").select("id", { count: "exact", head: true }).eq("club_id", clubId),
-      supabase
-        .from("athlete_charges")
-        .select("id", { count: "exact", head: true })
-        .eq("club_id", clubId),
-      supabase
-        .from("plays")
-        .select("id", { count: "exact", head: true })
-        .eq("club_id", clubId),
-    ]);
+  const passoStatus = await getOnboardingStepStatus(supabase, clubId);
 
   const passos: Passo[] = [
     {
@@ -181,28 +168,28 @@ export default async function DashboardPage() {
       titulo: "Cadastre seu primeiro atleta",
       descricao: "É a base de tudo: ficha, score, financeiro e convocação partem daqui.",
       href: "/athletes",
-      feito: (athletesCount ?? 0) > 0,
+      feito: passoStatus.atleta,
     },
     {
       chave: "jogo",
       titulo: "Crie um jogo e monte a escalação",
       descricao: "Ao publicar, os convocados recebem aviso no celular.",
       href: "/jogos",
-      feito: (jogosCount ?? 0) > 0,
+      feito: passoStatus.jogo,
     },
     {
       chave: "cobranca",
       titulo: "Lance uma cobrança",
       descricao: "Na ficha do atleta, aba Financeiro — mensalidade, matrícula ou avulsa.",
       href: "/contas-a-receber",
-      feito: (cobrancasCount ?? 0) > 0,
+      feito: passoStatus.cobranca,
     },
     {
       chave: "jogada",
       titulo: "Monte uma jogada na mesa tática",
       descricao: "Ou parta de uma das jogadas padrão que já vêm prontas.",
       href: "/plays",
-      feito: (jogadasCount ?? 0) > 0,
+      feito: passoStatus.jogada,
     },
   ];
 

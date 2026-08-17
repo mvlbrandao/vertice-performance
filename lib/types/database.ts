@@ -100,6 +100,9 @@ export interface Database {
           canceled_at: string | null;
           nutrition_entitlement: boolean;
           storage_quota_bytes: number;
+          billing_cpf_cnpj: string | null;
+          converted_at: string | null;
+          asaas_checkout_url: string | null;
           created_at: string;
         };
         Insert: {
@@ -123,9 +126,40 @@ export interface Database {
           canceled_at?: string | null;
           nutrition_entitlement?: boolean;
           storage_quota_bytes?: number;
+          billing_cpf_cnpj?: string | null;
+          converted_at?: string | null;
+          asaas_checkout_url?: string | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["clubs"]["Insert"]>;
+        Relationships: [];
+      };
+      platform_charges: {
+        Row: {
+          id: string;
+          club_id: string;
+          description: string;
+          amount_cents: number;
+          due_date: string;
+          status: ChargeStatus;
+          paid_at: string | null;
+          asaas_payment_id: string | null;
+          asaas_subscription_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          club_id: string;
+          description: string;
+          amount_cents: number;
+          due_date: string;
+          status?: ChargeStatus;
+          paid_at?: string | null;
+          asaas_payment_id?: string | null;
+          asaas_subscription_id?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["platform_charges"]["Insert"]>;
         Relationships: [];
       };
       asaas_security_events: {

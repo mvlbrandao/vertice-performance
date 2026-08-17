@@ -3,6 +3,10 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getPlatformSettings } from "@/lib/platform/license";
 import { PlatformSettingsForm } from "@/components/platform/PlatformSettingsForm";
 import { ClubAdminRow } from "@/components/platform/ClubAdminRow";
+import { LeadFunnel } from "@/components/platform/LeadFunnel";
+import { buildLeadFunnel } from "@/lib/platform/leads";
+import { getPlatformBillingOverview } from "@/lib/platform/billingOverview";
+import { hojeISO, somaDias } from "@/lib/utils/date";
 
 function formatCents(cents: number) {
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -22,7 +26,7 @@ export default async function PlataformaPage() {
   const { data: clubs } = await admin
     .from("clubs")
     .select(
-      "id, name, slug, status, trial_ends_at, courtesy_until, courtesy_reason, max_athletes_override, price_cents_override, asaas_account_name, is_demo, created_at",
+      "id, name, slug, status, trial_ends_at, courtesy_until, courtesy_reason, max_athletes_override, price_cents_override, asaas_account_name, is_demo, created_at, owner_profile_id, billing_cpf_cnpj, asaas_customer_id, asaas_subscription_id, asaas_checkout_url, converted_at",
     )
     .order("created_at", { ascending: false });
 
@@ -45,6 +49,29 @@ export default async function PlataformaPage() {
     0,
   );
 
+  const naoDemo = lista.filter((c) => !c.is_demo);
+  const today = hojeISO();
+  const weekAhead = somaDias(today, 7);
+  const monthStart = `${today.slice(0, 7)}-01`;
+
+  const [leads, billingOverview] = await Promise.all([
+    buildLeadFunnel(naoDemo, porClube),
+    getPlatformBillingOverview(admin, today, weekAhead, monthStart),
+  ]);
+
+  const cohort = (dias: number) => naoDemo.filter((c) => new Date(c.created_at) >= new Date(somaDias(today, -dias)));
+  const conversoes30 = cohort(30).filter((c) => c.status === "ativo" || c.status === "atrasado").length;
+  const conversoes90 = cohort(90).filter((c) => c.status === "ativo" || c.status === "atrasado").length;
+  const convertidosComTempo = naoDemo.filter((c) => c.converted_at);
+  const tempoMedioConversaoDias = convertidosComTempo.length
+    ? Math.round(
+        convertidosComTempo.reduce(
+          (sum, c) => sum + (new Date(c.converted_at!).getTime() - new Date(c.created_at).getTime()) / 86_400_000,
+          0,
+        ) / convertidosComTempo.length,
+      )
+    : null;
+
   return (
     <div className="p-5 sm:p-7 max-w-[1200px] mx-auto">
       <div className="mb-5">
@@ -63,6 +90,18 @@ export default async function PlataformaPage() {
 
       <PlatformSettingsForm settings={settings} />
 
+      <h2 className="text-[19px] mt-6 mb-3">Funil de leads</h2>
+      <LeadFunnel
+        leads={leads}
+        recebidoMesCents={billingOverview.recebidoMesCents}
+        aReceber7DiasCents={billingOverview.aReceber7DiasCents}
+        conversoes30={conversoes30}
+        cohort30={cohort(30).length}
+        conversoes90={conversoes90}
+        cohort90={cohort(90).length}
+        tempoMedioConversaoDias={tempoMedioConversaoDias}
+      />
+
       <h2 className="text-[19px] mt-6 mb-3">Clubes</h2>
       <div className="flex flex-col gap-2.5">
         {lista.map((club) => (
@@ -72,6 +111,7 @@ export default async function PlataformaPage() {
             atletasAtivos={porClube.get(club.id) ?? 0}
             cotaPadrao={settings.maxAthletes}
             precoPadraoCents={settings.priceCents}
+            overdue={billingOverview.overdueByClub.get(club.id) ?? null}
           />
         ))}
       </div>

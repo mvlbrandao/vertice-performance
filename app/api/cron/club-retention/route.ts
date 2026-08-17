@@ -39,7 +39,7 @@ const TABELAS_DO_CLUBE = [
   "exercise_videos", "exercises", "expenses", "expense_categories", "game_events",
   "game_lineups", "game_reports", "games", "competitions", "invite_links", "media_items",
   "meetings", "mental_notes", "plays", "sub_staff_assignments", "partner_club_categories",
-  "partner_clubs", "asaas_security_events", "athletes",
+  "partner_clubs", "asaas_security_events", "platform_charges", "athletes",
 ] as const;
 
 async function run(request: Request) {

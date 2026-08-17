@@ -12,7 +12,9 @@ import {
   setClubOverrides,
   setClubStatus,
 } from "@/lib/actions/platformAdmin";
+import { startClubSubscription, cancelClubSubscription } from "@/lib/actions/platformBilling";
 import type { ClubStatus } from "@/lib/types/database";
+import type { ClubOverdue } from "@/lib/platform/billingOverview";
 
 interface Club {
   id: string;
@@ -27,6 +29,10 @@ interface Club {
   asaas_account_name: string | null;
   is_demo: boolean;
   created_at: string;
+  billing_cpf_cnpj: string | null;
+  asaas_customer_id: string | null;
+  asaas_subscription_id: string | null;
+  asaas_checkout_url: string | null;
 }
 
 const TONE: Record<ClubStatus, "green" | "sky" | "amber" | "clay" | "dark"> = {
@@ -51,11 +57,13 @@ export function ClubAdminRow({
   atletasAtivos,
   cotaPadrao,
   precoPadraoCents,
+  overdue,
 }: {
   club: Club;
   atletasAtivos: number;
   cotaPadrao: number;
   precoPadraoCents: number;
+  overdue: ClubOverdue | null;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -206,6 +214,84 @@ export function ClubAdminRow({
                 {s}
               </Button>
             ))}
+          </div>
+
+          <div className="pt-3 border-t border-line">
+            <span className="text-[11px] font-bold uppercase tracking-wide text-ink-faint block mb-2">
+              Cobrança da plataforma (sandbox)
+            </span>
+            {club.asaas_subscription_id ? (
+              <div className="flex flex-col items-start gap-1.5 text-[12.5px]">
+                <div className="flex items-center gap-1.5">
+                  <span>Assinatura ativa</span>
+                  {overdue ? (
+                    <Badge tone="clay">
+                      atrasado {overdue.maxDaysLate}d · {formatCents(overdue.totalCents)}
+                    </Badge>
+                  ) : (
+                    <Badge tone="green">em dia</Badge>
+                  )}
+                </div>
+                {club.asaas_checkout_url && (
+                  <a
+                    href={club.asaas_checkout_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[11.5px] underline break-all text-ink-faint"
+                  >
+                    {club.asaas_checkout_url}
+                  </a>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  type="button"
+                  disabled={pending}
+                  onClick={() => run(cancelClubSubscription, new FormData())}
+                >
+                  Cancelar cobrança
+                </Button>
+              </div>
+            ) : (
+              <form
+                action={(fd) => run(startClubSubscription, fd)}
+                className="flex items-end gap-2 flex-wrap"
+              >
+                <Field label="CPF/CNPJ do responsável">
+                  <Input
+                    name="cpfCnpj"
+                    defaultValue={club.billing_cpf_cnpj ?? ""}
+                    placeholder="somente números"
+                    className="w-40"
+                    required
+                  />
+                </Field>
+                <Field label="Valor (R$)">
+                  <Input
+                    name="amountReais"
+                    inputMode="decimal"
+                    defaultValue={(preco / 100).toFixed(2).replace(".", ",")}
+                    className="w-28"
+                    required
+                  />
+                </Field>
+                <Field label="Forma">
+                  <select
+                    name="billingType"
+                    defaultValue="UNDEFINED"
+                    className="px-3 py-2.5 border border-line rounded-sm bg-white text-sm"
+                  >
+                    <option value="UNDEFINED">A escolher</option>
+                    <option value="CREDIT_CARD">Cartão</option>
+                    <option value="PIX">Pix</option>
+                    <option value="BOLETO">Boleto</option>
+                  </select>
+                </Field>
+                <Button variant="outline" size="sm" type="submit" disabled={pending}>
+                  Iniciar cobrança
+                </Button>
+              </form>
+            )}
           </div>
         </div>
       )}

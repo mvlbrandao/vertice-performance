@@ -85,7 +85,12 @@ export function AppShell({
                   {isOpen && (
                     <div className="flex flex-col gap-1 mt-1 ml-[18px] pl-2.5 border-l border-amber/15">
                       {item.children.map((child) => {
-                        const active = isActive(child.href);
+                        // Exato, não por prefixo: itens-filho são páginas
+                        // completas, e um filho cujo link é prefixo de
+                        // outro (caso de Dispersão = /comissao-tecnica,
+                        // prefixo de /comissao-tecnica/planejamento) não
+                        // pode acender junto com o irmão mais específico.
+                        const active = pathname === child.href;
                         return (
                           <Link
                             key={child.href}

@@ -5,20 +5,16 @@ import Link from "next/link";
 import {
   DndContext,
   DragOverlay,
-  MouseSensor,
-  TouchSensor,
   useDraggable,
   useDroppable,
-  useSensor,
-  useSensors,
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Field";
-import { PlayerScoreCard } from "@/components/athletes/PlayerScoreCard";
 import { initials } from "@/lib/utils/initials";
+import { overallColor, scoreStars } from "@/lib/utils/scoreColor";
 import type { PlayerScore } from "@/lib/scoring";
 import {
   createPlanningColumn,
@@ -74,27 +70,50 @@ function AthleteCard({ athlete }: { athlete: PlanningAthlete }) {
       ref={setNodeRef}
       {...listeners}
       {...attributes}
-      style={
-        transform
+      style={{
+        touchAction: "none",
+        ...(transform
           ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`, zIndex: 20 }
-          : undefined
-      }
-      className={`rounded-lg overflow-hidden cursor-grab active:cursor-grabbing select-none ${
+          : undefined),
+      }}
+      className={`bg-paper border border-line rounded-md p-2.5 cursor-grab active:cursor-grabbing select-none ${
         isDragging ? "opacity-40" : ""
       }`}
     >
-      <PlayerScoreCard
-        score={athlete.score}
-        photoUrl={athlete.photoUrl}
-        photoColor={athlete.photoColor}
-        initials={initials(athlete.fullName)}
-        fullName={athlete.fullName}
-        position={[athlete.category, athlete.position].filter(Boolean).join(" · ") || null}
-      />
-      <div className="bg-pitch-dark px-4 pb-2.5 -mt-1 flex items-center justify-between">
+      <div className="flex items-center gap-2 mb-1.5">
+        {athlete.photoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={athlete.photoUrl}
+            alt={athlete.fullName}
+            className="w-9 h-9 rounded-md object-cover shrink-0"
+          />
+        ) : (
+          <div
+            className="w-9 h-9 rounded-md flex items-center justify-center font-display text-xs shrink-0"
+            style={{ background: athlete.photoColor ?? "#111", color: "#FFD600" }}
+          >
+            {initials(athlete.fullName)}
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
+          <b className="block text-[12.5px] truncate leading-tight">{athlete.fullName}</b>
+          <span className="text-[10.5px] text-ink-faint truncate block">
+            {[athlete.category, athlete.position].filter(Boolean).join(" · ") || "—"}
+          </span>
+        </div>
+        <div className="flex flex-col items-center shrink-0" style={{ color: overallColor(athlete.score.overall) }}>
+          <span className="text-[9px] leading-none">
+            {"★".repeat(scoreStars(athlete.score.overall))}
+            {"☆".repeat(3 - scoreStars(athlete.score.overall))}
+          </span>
+          <span className="font-display text-[13px] leading-none mt-0.5">{athlete.score.overall}</span>
+        </div>
+      </div>
+      <div className="flex items-center justify-between pt-1.5 border-t border-line">
         {dias !== null ? (
-          <span className={`text-[10.5px] ${dias >= 21 ? "text-clay font-semibold" : "text-white/50"}`}>
-            há {dias}d nessa etapa
+          <span className={`text-[10px] ${dias >= 21 ? "text-clay font-semibold" : "text-ink-faint"}`}>
+            há {dias}d
           </span>
         ) : (
           <span />
@@ -103,7 +122,7 @@ function AthleteCard({ athlete }: { athlete: PlanningAthlete }) {
           href={`/athletes/${athlete.id}/dados`}
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
-          className="text-[10.5px] font-bold text-amber hover:underline"
+          className="text-[10px] font-bold text-pitch-dark hover:underline"
         >
           Abrir ficha →
         </Link>
@@ -251,7 +270,7 @@ function DroppableColumn({
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
 
   return (
-    <div className="flex flex-col w-[22rem] shrink-0 bg-white border border-line rounded-md overflow-hidden">
+    <div className="flex flex-col w-64 shrink-0 bg-white border border-line rounded-md overflow-hidden">
       <ColumnHeader column={column} count={cards.length} isFirst={isFirst} isLast={isLast} pending={pending} run={run} />
       <div
         ref={setNodeRef}
@@ -280,14 +299,6 @@ export function PlanningBoard({
   const [category, setCategory] = useState(ALL);
   const [novaColuna, setNovaColuna] = useState("");
   const [draggingId, setDraggingId] = useState<string | null>(null);
-
-  // Distância mínima no mouse (não rouba o clique normal); atraso no toque
-  // (não rouba o gesto de rolar a lista de colunas no celular — sem isso,
-  // qualquer toque no card tentava iniciar um arraste).
-  const sensors = useSensors(
-    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
-  );
 
   const categories = useMemo(
     () => Array.from(new Set(athletes.map((a) => a.category).filter(Boolean))).sort() as string[],
@@ -362,10 +373,10 @@ export function PlanningBoard({
 
       {error && <p className="text-clay text-[12.5px] font-medium mb-2">{error}</p>}
 
-      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className="flex items-start gap-3 overflow-x-auto pb-3">
           {semEtapa.length > 0 && (
-            <div className="flex flex-col w-[22rem] shrink-0 bg-white border border-dashed border-line rounded-md overflow-hidden">
+            <div className="flex flex-col w-64 shrink-0 bg-white border border-dashed border-line rounded-md overflow-hidden">
               <div className="px-2.5 py-2 border-b border-line flex items-center justify-between">
                 <Badge tone="dark">Sem etapa</Badge>
                 <span className="text-[11px] text-ink-faint font-mono">{semEtapa.length}</span>

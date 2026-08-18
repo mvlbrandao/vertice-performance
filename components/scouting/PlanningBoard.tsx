@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import Link from "next/link";
 import {
   DndContext,
   DragOverlay,
@@ -16,6 +17,9 @@ import {
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Field";
+import { PlayerScoreCard } from "@/components/athletes/PlayerScoreCard";
+import { initials } from "@/lib/utils/initials";
+import type { PlayerScore } from "@/lib/scoring";
 import {
   createPlanningColumn,
   deletePlanningColumn,
@@ -35,7 +39,10 @@ export interface PlanningAthlete {
   id: string;
   fullName: string;
   category: string | null;
-  overall: number;
+  position: string | null;
+  photoUrl: string | null;
+  photoColor: string | null;
+  score: PlayerScore;
   columnId: string | null;
   note: string | null;
   movedAt: string | null;
@@ -72,21 +79,34 @@ function AthleteCard({ athlete }: { athlete: PlanningAthlete }) {
           ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`, zIndex: 20 }
           : undefined
       }
-      className={`bg-paper border border-line rounded-md px-2.5 py-2 cursor-grab active:cursor-grabbing select-none ${
+      className={`rounded-lg overflow-hidden cursor-grab active:cursor-grabbing select-none ${
         isDragging ? "opacity-40" : ""
       }`}
     >
-      <div className="text-[13px] font-semibold truncate">{athlete.fullName}</div>
-      <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-        {athlete.category && (
-          <span className="text-[10.5px] text-ink-faint font-mono">{athlete.category}</span>
-        )}
-        <span className="text-[10.5px] font-bold text-ink-soft">{athlete.overall}</span>
-        {dias !== null && (
-          <span className={`text-[10px] ${dias >= 21 ? "text-clay font-semibold" : "text-ink-faint"}`}>
-            há {dias}d
+      <PlayerScoreCard
+        score={athlete.score}
+        photoUrl={athlete.photoUrl}
+        photoColor={athlete.photoColor}
+        initials={initials(athlete.fullName)}
+        fullName={athlete.fullName}
+        position={[athlete.category, athlete.position].filter(Boolean).join(" · ") || null}
+      />
+      <div className="bg-pitch-dark px-4 pb-2.5 -mt-1 flex items-center justify-between">
+        {dias !== null ? (
+          <span className={`text-[10.5px] ${dias >= 21 ? "text-clay font-semibold" : "text-white/50"}`}>
+            há {dias}d nessa etapa
           </span>
+        ) : (
+          <span />
         )}
+        <Link
+          href={`/athletes/${athlete.id}/dados`}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+          className="text-[10.5px] font-bold text-amber hover:underline"
+        >
+          Abrir ficha →
+        </Link>
       </div>
     </div>
   );
@@ -231,7 +251,7 @@ function DroppableColumn({
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
 
   return (
-    <div className="flex flex-col w-64 shrink-0 bg-white border border-line rounded-md overflow-hidden">
+    <div className="flex flex-col w-[22rem] shrink-0 bg-white border border-line rounded-md overflow-hidden">
       <ColumnHeader column={column} count={cards.length} isFirst={isFirst} isLast={isLast} pending={pending} run={run} />
       <div
         ref={setNodeRef}
@@ -345,7 +365,7 @@ export function PlanningBoard({
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className="flex items-start gap-3 overflow-x-auto pb-3">
           {semEtapa.length > 0 && (
-            <div className="flex flex-col w-64 shrink-0 bg-white border border-dashed border-line rounded-md overflow-hidden">
+            <div className="flex flex-col w-[22rem] shrink-0 bg-white border border-dashed border-line rounded-md overflow-hidden">
               <div className="px-2.5 py-2 border-b border-line flex items-center justify-between">
                 <Badge tone="dark">Sem etapa</Badge>
                 <span className="text-[11px] text-ink-faint font-mono">{semEtapa.length}</span>

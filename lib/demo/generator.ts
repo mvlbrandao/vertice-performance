@@ -1,5 +1,6 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { DEFAULT_PLANNING_COLUMNS } from "@/lib/data/planningDefaults";
 
 /**
  * Geração do clube de demonstração.
@@ -139,12 +140,12 @@ export const TABELAS_DO_CLUBE = [
   "athlete_swot_items", "athlete_swot_cycles", "athlete_billing_subscriptions",
   "athlete_cancellation_requests", "athlete_charges", "athlete_club_transfers",
   "athlete_injuries", "athlete_score_snapshots", "athlete_staff_access", "audit_log",
-  "cash_movements", "challenge_submissions", "challenges", "checkins",
+  "athlete_planning_stage", "cash_movements", "challenge_submissions", "challenges", "checkins",
   "club_asaas_credentials", "daily_cash_closures", "data_requests", "diet_items",
   "exercise_videos", "exercises", "expenses", "expense_categories", "game_events",
   "game_lineups", "game_reports", "games", "competitions", "invite_links", "media_items",
   "meetings", "mental_notes", "plays", "sub_staff_assignments", "partner_club_categories",
-  "partner_clubs", "asaas_security_events", "athletes",
+  "partner_clubs", "asaas_security_events", "planning_columns", "athletes",
 ] as const;
 
 export async function apagarClube(admin: Admin, clubId: string) {
@@ -199,6 +200,13 @@ export async function seedDemoClub(): Promise<{ clubId: string; atletas: number;
   await admin.from("profiles").insert({ id: coachId, club_id: club.id, role: "coach", full_name: "Direção Vértice Demo" });
   await admin.from("clubs").update({ owner_profile_id: coachId }).eq("id", club.id);
 
+  const colunasPlanejamento = (await insertMany(
+    admin,
+    "planning_columns",
+    DEFAULT_PLANNING_COLUMNS.map((c) => ({ club_id: club.id, ...c })),
+  )) as unknown as { id: string; position: number }[];
+  colunasPlanejamento.sort((a, b) => a.position - b.position);
+
   const { data: timeCasa } = await admin
     .from("partner_clubs")
     .insert({ club_id: club.id, name: "Vértice Demo", is_managed: true, color_1: "#111111", color_2: "#FFD600", color_3: "#FFFFFF" })
@@ -232,6 +240,29 @@ export async function seedDemoClub(): Promise<{ clubId: string; atletas: number;
     if (!porSub.has(a.category)) porSub.set(a.category, []);
     porSub.get(a.category)!.push(a);
   }
+
+  // Curva em sino: a maioria em desenvolvimento, poucos recém-diagnosticados
+  // ou já consolidados — pra o board de planejamento não nascer com tudo
+  // amontoado numa coluna só.
+  const PESOS_ETAPA = [0.15, 0.25, 0.3, 0.2, 0.1];
+  function colunaAleatoria() {
+    let r = rnd();
+    for (let i = 0; i < PESOS_ETAPA.length; i++) {
+      r -= PESOS_ETAPA[i];
+      if (r <= 0) return colunasPlanejamento[i];
+    }
+    return colunasPlanejamento[colunasPlanejamento.length - 1];
+  }
+  await insertMany(
+    admin,
+    "athlete_planning_stage",
+    atletas.map((a) => ({
+      club_id: club.id,
+      athlete_id: a.id,
+      column_id: colunaAleatoria().id,
+      moved_at: new Date(hoje.getTime() - inteiro(2, 60) * 86400000).toISOString(),
+    })),
+  );
 
   // Acesso do atleta: sem isso a demo mostra só o lado do treinador, e a
   // área do atleta — que é metade do produto — fica invisível.

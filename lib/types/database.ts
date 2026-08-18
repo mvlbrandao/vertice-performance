@@ -162,6 +162,46 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["platform_charges"]["Insert"]>;
         Relationships: [];
       };
+      planning_columns: {
+        Row: {
+          id: string;
+          club_id: string;
+          name: string;
+          position: number;
+          color: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          club_id: string;
+          name: string;
+          position: number;
+          color?: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["planning_columns"]["Insert"]>;
+        Relationships: [];
+      };
+      athlete_planning_stage: {
+        Row: {
+          id: string;
+          club_id: string;
+          athlete_id: string;
+          column_id: string | null;
+          note: string | null;
+          moved_at: string;
+        };
+        Insert: {
+          id?: string;
+          club_id: string;
+          athlete_id: string;
+          column_id?: string | null;
+          note?: string | null;
+          moved_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["athlete_planning_stage"]["Insert"]>;
+        Relationships: [];
+      };
       asaas_security_events: {
         Row: {
           id: string;

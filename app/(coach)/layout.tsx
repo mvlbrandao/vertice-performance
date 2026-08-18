@@ -25,7 +25,15 @@ const navItems: NavItem[] = [
   },
   { href: "/plays", icon: "🎯", label: "Mesa Tática" },
   { href: "/jogos", icon: "🏆", label: "Jogos" },
-  { href: "/comissao-tecnica", icon: "🔬", label: "Comissão Técnica" },
+  {
+    href: "/comissao-tecnica",
+    icon: "🔬",
+    label: "Comissão Técnica",
+    children: [
+      { href: "/comissao-tecnica", icon: "📈", label: "Dispersão" },
+      { href: "/comissao-tecnica/planejamento", icon: "🗂️", label: "Planejamento" },
+    ],
+  },
   { href: "/desafios-gestao", icon: "🎖️", label: "Desafios" },
   { href: "/clube", icon: "🏟️", label: "Clubes" },
   { href: "/equipe", icon: "🧑‍⚕️", label: "Equipe" },

@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getPlatformSettings } from "@/lib/platform/license";
 import { somaDias, hojeISO } from "@/lib/utils/date";
 import { translateAuthError } from "@/lib/utils/authErrors";
+import { DEFAULT_PLANNING_COLUMNS } from "@/lib/data/planningDefaults";
 
 const signupSchema = z.object({
   clubName: z.string().trim().min(2, "Informe o nome do clube.").max(60, "Nome muito longo."),
@@ -117,6 +118,12 @@ export async function signup(formData: FormData): Promise<SignupResult> {
   if (clubError || !club) {
     return { error: clubError?.message ?? "Não foi possível criar o clube." };
   }
+
+  // Melhor esforço: as colunas padrão do planejamento não podem travar o
+  // cadastro se falharem por algum motivo.
+  await admin
+    .from("planning_columns")
+    .insert(DEFAULT_PLANNING_COLUMNS.map((c) => ({ club_id: club.id, ...c })));
 
   const { data: created, error: userError } = await admin.auth.admin.createUser({
     email: parsed.data.email,

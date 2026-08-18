@@ -13,6 +13,7 @@ import {
   setClubStatus,
 } from "@/lib/actions/platformAdmin";
 import { startClubSubscription, cancelClubSubscription } from "@/lib/actions/platformBilling";
+import { hojeISO, somaDias } from "@/lib/utils/date";
 import type { ClubStatus } from "@/lib/types/database";
 import type { ClubOverdue } from "@/lib/platform/billingOverview";
 
@@ -137,9 +138,10 @@ export function ClubAdminRow({
           >
             <Field label="Cortesia até">
               <Input
+                key={club.courtesy_until ?? "sem-cortesia"}
                 name="ate"
                 type="date"
-                defaultValue={club.courtesy_until?.slice(0, 10) ?? ""}
+                defaultValue={club.courtesy_until?.slice(0, 10) ?? somaDias(hojeISO(), 30)}
                 required
               />
             </Field>

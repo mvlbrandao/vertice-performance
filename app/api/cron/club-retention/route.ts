@@ -34,12 +34,12 @@ const TABELAS_DO_CLUBE = [
   "athlete_swot_items", "athlete_swot_cycles", "athlete_billing_subscriptions",
   "athlete_cancellation_requests", "athlete_charges", "athlete_club_transfers",
   "athlete_injuries", "athlete_score_snapshots", "athlete_staff_access", "audit_log",
-  "cash_movements", "challenge_submissions", "challenges", "checkins",
+  "athlete_planning_stage", "cash_movements", "challenge_submissions", "challenges", "checkins",
   "club_asaas_credentials", "daily_cash_closures", "data_requests", "diet_items",
   "exercise_videos", "exercises", "expenses", "expense_categories", "game_events",
   "game_lineups", "game_reports", "games", "competitions", "invite_links", "media_items",
   "meetings", "mental_notes", "plays", "sub_staff_assignments", "partner_club_categories",
-  "partner_clubs", "asaas_security_events", "platform_charges", "athletes",
+  "partner_clubs", "asaas_security_events", "platform_charges", "planning_columns", "athletes",
 ] as const;
 
 async function run(request: Request) {

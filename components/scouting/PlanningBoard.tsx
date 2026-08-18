@@ -4,8 +4,12 @@ import { useMemo, useState, useTransition } from "react";
 import {
   DndContext,
   DragOverlay,
+  MouseSensor,
+  TouchSensor,
   useDraggable,
   useDroppable,
+  useSensor,
+  useSensors,
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
@@ -257,6 +261,14 @@ export function PlanningBoard({
   const [novaColuna, setNovaColuna] = useState("");
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
+  // Distância mínima no mouse (não rouba o clique normal); atraso no toque
+  // (não rouba o gesto de rolar a lista de colunas no celular — sem isso,
+  // qualquer toque no card tentava iniciar um arraste).
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+  );
+
   const categories = useMemo(
     () => Array.from(new Set(athletes.map((a) => a.category).filter(Boolean))).sort() as string[],
     [athletes],
@@ -330,7 +342,7 @@ export function PlanningBoard({
 
       {error && <p className="text-clay text-[12.5px] font-medium mb-2">{error}</p>}
 
-      <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className="flex items-start gap-3 overflow-x-auto pb-3">
           {semEtapa.length > 0 && (
             <div className="flex flex-col w-64 shrink-0 bg-white border border-dashed border-line rounded-md overflow-hidden">

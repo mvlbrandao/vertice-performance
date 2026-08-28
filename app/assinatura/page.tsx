@@ -3,6 +3,8 @@ import { getClubLicense } from "@/lib/platform/license";
 import { getAthleteUsage } from "@/lib/platform/license";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { SupportContactLinks } from "@/components/billing/SupportContactLinks";
+import { PromisePaymentButton } from "@/components/billing/PromisePaymentButton";
 
 function formatCents(cents: number) {
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -50,7 +52,20 @@ export default async function AssinaturaPage() {
       {motivo && (
         <Card className="mb-4 border-clay/40">
           <h2 className="text-[19px] m-0 mb-1.5">{motivo.titulo}</h2>
-          <p className="text-[13.5px] text-ink-soft m-0">{motivo.texto}</p>
+          <p className="text-[13.5px] text-ink-soft m-0 mb-3">{motivo.texto}</p>
+
+          {license.status !== "cancelado" && !license.paymentPromiseUsedAt && (
+            <div className="pt-3 mb-3 border-t border-line">
+              <PromisePaymentButton />
+            </div>
+          )}
+
+          <div className="pt-3 border-t border-line">
+            <span className="text-[11px] font-bold uppercase tracking-wide text-ink-faint block mb-1.5">
+              Ou fale com o suporte
+            </span>
+            <SupportContactLinks clubName={license.clubName} />
+          </div>
         </Card>
       )}
 

@@ -1,6 +1,7 @@
 import { getSessionProfile } from "@/lib/auth/session";
 import { redirect } from "next/navigation";
 import { getClubLicense } from "@/lib/platform/license";
+import { SupportContactLinks } from "@/components/billing/SupportContactLinks";
 
 /**
  * O que atleta e profissional veem quando o clube perde acesso.
@@ -13,11 +14,13 @@ export default async function AcessoSuspensoPage() {
   if (!profile) redirect("/login");
 
   // Se o acesso voltou, não deixa a pessoa presa nesta tela.
+  let clubName = "o clube";
   try {
     const license = await getClubLicense(profile.clubId);
     if (license.allowed) {
       redirect(profile.role === "coach" ? "/dashboard" : profile.role === "staff" ? "/meus-atletas" : "/perfil");
     }
+    clubName = license.clubName;
   } catch {
     // Falha ao consultar não deve prender ninguém aqui.
   }
@@ -34,9 +37,15 @@ export default async function AcessoSuspensoPage() {
           O acesso do seu clube está temporariamente suspenso. Nenhum dado foi perdido — assim
           que a situação for regularizada, tudo volta como estava.
         </p>
-        <p className="text-[13px] text-ink-faint m-0">
+        <p className="text-[13px] text-ink-faint m-0 mb-4">
           Fale com quem administra o clube para saber mais.
         </p>
+        <div className="pt-3 border-t border-line">
+          <span className="text-[11px] font-bold uppercase tracking-wide text-ink-faint block mb-1.5">
+            Se não conseguir falar com quem administra, fale com o suporte
+          </span>
+          <SupportContactLinks clubName={clubName} />
+        </div>
       </div>
     </div>
   );

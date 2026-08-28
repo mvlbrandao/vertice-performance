@@ -26,7 +26,7 @@ export default async function PlataformaPage() {
   const { data: clubs } = await admin
     .from("clubs")
     .select(
-      "id, name, slug, status, trial_ends_at, courtesy_until, courtesy_reason, max_athletes_override, price_cents_override, asaas_account_name, is_demo, created_at, owner_profile_id, billing_cpf_cnpj, asaas_customer_id, asaas_subscription_id, asaas_checkout_url, converted_at",
+      "id, name, slug, status, trial_ends_at, courtesy_until, courtesy_reason, max_athletes_override, price_cents_override, asaas_account_name, is_demo, created_at, owner_profile_id, billing_cpf_cnpj, asaas_customer_id, asaas_subscription_id, asaas_checkout_url, converted_at, payment_promise_used_at",
     )
     .order("created_at", { ascending: false });
 

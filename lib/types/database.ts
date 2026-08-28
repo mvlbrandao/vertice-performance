@@ -103,6 +103,7 @@ export interface Database {
           billing_cpf_cnpj: string | null;
           converted_at: string | null;
           asaas_checkout_url: string | null;
+          payment_promise_used_at: string | null;
           created_at: string;
         };
         Insert: {
@@ -129,6 +130,7 @@ export interface Database {
           billing_cpf_cnpj?: string | null;
           converted_at?: string | null;
           asaas_checkout_url?: string | null;
+          payment_promise_used_at?: string | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["clubs"]["Insert"]>;

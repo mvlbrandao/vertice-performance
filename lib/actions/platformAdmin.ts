@@ -138,6 +138,23 @@ export async function revokeCourtesy(formData: FormData): Promise<ActionResult> 
   return { success: true };
 }
 
+/** Devolve ao clube o direito à liberação automática de 48h por promessa de pagamento. */
+export async function resetPaymentPromise(formData: FormData): Promise<ActionResult> {
+  await requirePlatformAdmin();
+  const parsed = clubActionSchema.safeParse({ clubId: formData.get("clubId") });
+  if (!parsed.success) return { error: "Clube inválido." };
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("clubs")
+    .update({ payment_promise_used_at: null })
+    .eq("id", parsed.data.clubId);
+  if (error) return { error: error.message };
+
+  revalidatePath("/plataforma");
+  return { success: true };
+}
+
 const overrideSchema = z.object({
   clubId: z.string().uuid(),
   maxAthletes: z.string().optional(),

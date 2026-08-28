@@ -25,6 +25,8 @@ export interface ClubLicense {
   allowed: boolean;
   /** Por que está bloqueado, quando estiver. */
   blockedReason: "trial_expirado" | "assinatura" | "cancelado" | null;
+  /** Já usou a liberação automática de 48h por promessa de pagamento (uma vez só). */
+  paymentPromiseUsedAt: string | null;
 }
 
 export interface PlatformSettings {
@@ -72,7 +74,7 @@ export const getClubLicense = cache(async (clubId: string): Promise<ClubLicense>
     admin
       .from("clubs")
       .select(
-        "id, name, status, trial_ends_at, courtesy_until, courtesy_reason, max_athletes_override, price_cents_override",
+        "id, name, status, trial_ends_at, courtesy_until, courtesy_reason, max_athletes_override, price_cents_override, payment_promise_used_at",
       )
       .eq("id", clubId)
       .maybeSingle(),
@@ -123,6 +125,7 @@ export const getClubLicense = cache(async (clubId: string): Promise<ClubLicense>
     daysLeft: referencia ? diffDays(referencia) : null,
     allowed,
     blockedReason,
+    paymentPromiseUsedAt: c.payment_promise_used_at,
   };
 });
 

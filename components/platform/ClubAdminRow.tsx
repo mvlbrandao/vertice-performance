@@ -9,6 +9,7 @@ import {
   extendTrial,
   grantCourtesy,
   revokeCourtesy,
+  resetPaymentPromise,
   setClubOverrides,
   setClubStatus,
 } from "@/lib/actions/platformAdmin";
@@ -34,6 +35,7 @@ interface Club {
   asaas_customer_id: string | null;
   asaas_subscription_id: string | null;
   asaas_checkout_url: string | null;
+  payment_promise_used_at: string | null;
 }
 
 const TONE: Record<ClubStatus, "green" | "sky" | "amber" | "clay" | "dark"> = {
@@ -163,6 +165,24 @@ export function ClubAdminRow({
               </Button>
             )}
           </form>
+
+          {club.payment_promise_used_at && (
+            <div className="flex items-center gap-2 flex-wrap text-[12px] text-ink-faint">
+              <span>
+                Já usou a liberação automática de promessa de pagamento em{" "}
+                {new Date(club.payment_promise_used_at).toLocaleDateString("pt-BR")}.
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                type="button"
+                disabled={pending}
+                onClick={() => run(resetPaymentPromise, new FormData())}
+              >
+                Liberar nova promessa
+              </Button>
+            </div>
+          )}
 
           <form
             action={(fd) => run(setClubOverrides, fd)}

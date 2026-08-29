@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { requireCoach, requireAthlete } from "@/lib/auth/guards";
+import { requireCoachOrStaff, requireAthlete } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionResult } from "@/lib/actions/athletes";
 import { sendPushToAthlete } from "@/lib/push/send";
@@ -23,7 +23,7 @@ const meetingSchema = z.object({
 });
 
 export async function createMeeting(formData: FormData): Promise<ActionResult> {
-  const coach = await requireCoach();
+  const coach = await requireCoachOrStaff();
   const parsed = meetingSchema.safeParse({
     targetType: formData.get("targetType") ?? "athlete",
     athleteId: formData.get("athleteId") ?? "",
@@ -125,21 +125,23 @@ export async function createMeeting(formData: FormData): Promise<ActionResult> {
   }
 
   revalidatePath("/agenda");
+  revalidatePath("/meus-atletas/agenda");
   revalidatePath("/dashboard");
   return { success: true };
 }
 
 export async function saveMeetingNotes(meetingId: string, notes: string): Promise<ActionResult> {
-  await requireCoach();
+  await requireCoachOrStaff();
   const supabase = await createClient();
   const { error } = await supabase.from("meetings").update({ notes }).eq("id", meetingId);
   if (error) return { error: error.message };
   revalidatePath("/agenda");
+  revalidatePath("/meus-atletas/agenda");
   return { success: true };
 }
 
 export async function cancelMeeting(meetingId: string): Promise<ActionResult> {
-  await requireCoach();
+  await requireCoachOrStaff();
   const supabase = await createClient();
   const { error } = await supabase
     .from("meetings")
@@ -147,12 +149,13 @@ export async function cancelMeeting(meetingId: string): Promise<ActionResult> {
     .eq("id", meetingId);
   if (error) return { error: error.message };
   revalidatePath("/agenda");
+  revalidatePath("/meus-atletas/agenda");
   revalidatePath("/dashboard");
   return { success: true };
 }
 
 export async function completeMeeting(meetingId: string): Promise<ActionResult> {
-  await requireCoach();
+  await requireCoachOrStaff();
   const supabase = await createClient();
   const { error } = await supabase
     .from("meetings")
@@ -160,6 +163,7 @@ export async function completeMeeting(meetingId: string): Promise<ActionResult> 
     .eq("id", meetingId);
   if (error) return { error: error.message };
   revalidatePath("/agenda");
+  revalidatePath("/meus-atletas/agenda");
   revalidatePath("/dashboard");
   return { success: true };
 }

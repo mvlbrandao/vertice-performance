@@ -66,8 +66,8 @@ export function StaffAccessModal({
         <div className="mb-4 pb-4 border-b border-line">
           <b className="text-[13px] block mb-1">Áreas liberadas no sistema</b>
           <p className="text-[12.5px] text-ink-soft mt-0 mb-2.5">
-            Controla o que {staffName} pode ver/fazer, além de quais atletas — ex.: alguém do
-            financeiro não precisa enxergar anamnese ou treino.
+            Controla o que {staffName} pode ver/fazer, além de quais atletas — ex.: um
+            preparador físico não precisa enxergar anamnese, e ninguém da equipe vê financeiro.
           </p>
           <div className="flex flex-wrap gap-2">
             {STAFF_AREAS.map((area) => {

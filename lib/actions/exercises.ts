@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { requireCoach, requireAthlete } from "@/lib/auth/guards";
+import { requireCoach, requireCoachOrStaff, requireAthlete } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionResult } from "@/lib/actions/athletes";
 
@@ -16,8 +16,13 @@ const exerciseSchema = z.object({
   swotItemId: z.string().uuid().optional().or(z.literal("")),
 });
 
+/**
+ * Coach prescreve pra qualquer atleta do clube; staff só pra quem foi
+ * concedido com nível "manage" e área "treino" — a RLS de `exercises`
+ * (0024/0028) é quem decide isso de verdade, aqui só resolve o profile.
+ */
 export async function createExercise(formData: FormData): Promise<ActionResult> {
-  const coach = await requireCoach();
+  const profile = await requireCoachOrStaff();
   const parsed = exerciseSchema.safeParse({
     athleteId: formData.get("athleteId"),
     name: formData.get("name"),
@@ -34,8 +39,8 @@ export async function createExercise(formData: FormData): Promise<ActionResult> 
   const supabase = await createClient();
   const { error } = await supabase.from("exercises").insert({
     athlete_id: parsed.data.athleteId,
-    club_id: coach.clubId,
-    prescribed_by: coach.userId,
+    club_id: profile.clubId,
+    prescribed_by: profile.userId,
     name: parsed.data.name,
     description: parsed.data.description || null,
     focus: parsed.data.focus || null,
@@ -46,6 +51,7 @@ export async function createExercise(formData: FormData): Promise<ActionResult> 
 
   if (error) return { error: error.message };
   revalidatePath(`/athletes/${parsed.data.athleteId}/treino`);
+  revalidatePath(`/meus-atletas/${parsed.data.athleteId}/treino`);
   if (parsed.data.swotItemId) {
     revalidatePath(`/athletes/${parsed.data.athleteId}/anamnese`);
   }

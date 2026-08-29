@@ -31,7 +31,14 @@ type Injury = {
 const selectClass =
   "px-2.5 py-1.5 border border-line rounded-sm bg-white text-xs focus:outline focus:outline-2 focus:outline-amber focus:outline-offset-1 focus:border-amber";
 
-export function InjuryCard({ injury }: { injury: Injury }) {
+export function InjuryCard({
+  injury,
+  canManage = true,
+}: {
+  injury: Injury;
+  /** false pra staff só-leitura (nível "view") — some editar/excluir. */
+  canManage?: boolean;
+}) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [pending, setPending] = useState(false);
@@ -80,7 +87,7 @@ export function InjuryCard({ injury }: { injury: Injury }) {
           </div>
         </div>
         <div className="flex gap-1.5 items-center">
-          {confirming ? (
+          {!canManage ? null : confirming ? (
             <>
               <span className="text-xs text-ink-faint">Excluir esta lesão?</span>
               <Button variant="danger" size="sm" onClick={handleDelete} disabled={pending}>

@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { requireCoach } from "@/lib/auth/guards";
+import { requireCoach, requireCoachOrStaff } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionResult } from "@/lib/actions/athletes";
 
@@ -54,7 +54,7 @@ const mentalNoteSchema = z.object({
 });
 
 export async function createMentalNote(formData: FormData): Promise<ActionResult> {
-  const coach = await requireCoach();
+  const profile = await requireCoachOrStaff();
   const parsed = mentalNoteSchema.safeParse({
     athleteId: formData.get("athleteId"),
     title: formData.get("title"),
@@ -71,8 +71,8 @@ export async function createMentalNote(formData: FormData): Promise<ActionResult
   const supabase = await createClient();
   const { error } = await supabase.from("mental_notes").insert({
     athlete_id: parsed.data.athleteId,
-    club_id: coach.clubId,
-    author_id: coach.userId,
+    club_id: profile.clubId,
+    author_id: profile.userId,
     title: parsed.data.title,
     body: parsed.data.body || "—",
     confidence_score: parsed.data.score,
@@ -83,5 +83,6 @@ export async function createMentalNote(formData: FormData): Promise<ActionResult
 
   if (error) return { error: error.message };
   revalidatePath(`/athletes/${parsed.data.athleteId}/evolucao`);
+  revalidatePath(`/meus-atletas/${parsed.data.athleteId}/evolucao`);
   return { success: true };
 }

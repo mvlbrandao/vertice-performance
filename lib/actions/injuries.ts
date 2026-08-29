@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { requireCoach } from "@/lib/auth/guards";
+import { requireCoachOrStaff } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionResult } from "@/lib/actions/athletes";
 import {
@@ -16,6 +16,7 @@ import { logAudit } from "@/lib/actions/auditLog";
 function paths(athleteId: string) {
   revalidatePath(`/athletes/${athleteId}/lesoes`);
   revalidatePath(`/athletes/${athleteId}/dados`);
+  revalidatePath(`/meus-atletas/${athleteId}/lesoes`);
 }
 
 const createSchema = z.object({
@@ -32,7 +33,7 @@ const createSchema = z.object({
 });
 
 export async function createInjury(formData: FormData): Promise<ActionResult> {
-  const coach = await requireCoach();
+  const profile = await requireCoachOrStaff();
   const parsed = createSchema.safeParse({
     athleteId: formData.get("athleteId"),
     source: formData.get("source"),
@@ -56,7 +57,7 @@ export async function createInjury(formData: FormData): Promise<ActionResult> {
   const { data: created, error } = await supabase
     .from("athlete_injuries")
     .insert({
-      club_id: coach.clubId,
+      club_id: profile.clubId,
       athlete_id: parsed.data.athleteId,
       source: parsed.data.source,
       game_id: parsed.data.source === "Jogo" ? parsed.data.gameId || null : null,
@@ -67,14 +68,14 @@ export async function createInjury(formData: FormData): Promise<ActionResult> {
       occurred_at: parsed.data.occurredAt,
       expected_return_date: parsed.data.expectedReturnDate || null,
       treatment_notes: parsed.data.treatmentNotes || null,
-      created_by: coach.userId,
+      created_by: profile.userId,
     })
     .select("id")
     .single();
   if (error) return { error: error.message };
 
   await logAudit({
-    clubId: coach.clubId,
+    clubId: profile.clubId,
     entityType: "injury",
     entityId: created.id,
     action: "create",
@@ -84,8 +85,8 @@ export async function createInjury(formData: FormData): Promise<ActionResult> {
       severity: parsed.data.severity,
       occurred_at: parsed.data.occurredAt,
     },
-    performedBy: coach.userId,
-    performedByName: coach.fullName,
+    performedBy: profile.userId,
+    performedByName: profile.fullName,
     athleteId: parsed.data.athleteId,
   });
 
@@ -104,7 +105,7 @@ export async function updateInjury(
   athleteId: string,
   formData: FormData,
 ): Promise<ActionResult> {
-  const coach = await requireCoach();
+  const profile = await requireCoachOrStaff();
   const parsed = updateSchema.safeParse({
     status: formData.get("status"),
     expectedReturnDate: formData.get("expectedReturnDate") ?? "",
@@ -119,7 +120,7 @@ export async function updateInjury(
     .from("athlete_injuries")
     .select("status, expected_return_date")
     .eq("id", injuryId)
-    .eq("club_id", coach.clubId)
+    .eq("club_id", profile.clubId)
     .single();
   const { error } = await supabase
     .from("athlete_injuries")
@@ -130,11 +131,11 @@ export async function updateInjury(
       updated_at: new Date().toISOString(),
     })
     .eq("id", injuryId)
-    .eq("club_id", coach.clubId);
+    .eq("club_id", profile.clubId);
   if (error) return { error: error.message };
 
   await logAudit({
-    clubId: coach.clubId,
+    clubId: profile.clubId,
     entityType: "injury",
     entityId: injuryId,
     action: "edit",
@@ -145,8 +146,8 @@ export async function updateInjury(
         to: parsed.data.expectedReturnDate || null,
       },
     },
-    performedBy: coach.userId,
-    performedByName: coach.fullName,
+    performedBy: profile.userId,
+    performedByName: profile.fullName,
     athleteId,
   });
 
@@ -155,31 +156,31 @@ export async function updateInjury(
 }
 
 export async function deleteInjury(injuryId: string, athleteId: string): Promise<ActionResult> {
-  const coach = await requireCoach();
+  const profile = await requireCoachOrStaff();
   const supabase = await createClient();
   const { data: previous } = await supabase
     .from("athlete_injuries")
     .select("body_region, injury_type, severity, occurred_at")
     .eq("id", injuryId)
-    .eq("club_id", coach.clubId)
+    .eq("club_id", profile.clubId)
     .single();
   const { error } = await supabase
     .from("athlete_injuries")
     .delete()
     .eq("id", injuryId)
-    .eq("club_id", coach.clubId);
+    .eq("club_id", profile.clubId);
   if (error) return { error: error.message };
 
   // Apagar histórico de lesão é o tipo de coisa que precisa ter dono: o
   // registro some da ficha, mas a trilha guarda o que era.
   await logAudit({
-    clubId: coach.clubId,
+    clubId: profile.clubId,
     entityType: "injury",
     entityId: injuryId,
     action: "delete",
     details: { ...(previous ?? {}) },
-    performedBy: coach.userId,
-    performedByName: coach.fullName,
+    performedBy: profile.userId,
+    performedByName: profile.fullName,
     athleteId,
   });
 

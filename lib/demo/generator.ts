@@ -33,10 +33,12 @@ const SUBS = Array.from({ length: 12 }, (_, i) => `SUB${i + 6}`); // SUB6..SUB17
 
 // `apelido` é o que entra no e-mail: usar a primeira área geraria o mesmo
 // endereço para preparador e fisioterapeuta, que compartilham "fisico".
+// Áreas aqui precisam bater com lib/data/staffAreas.ts — são o que
+// controla o RLS de verdade (has_staff_area), não só um rótulo.
 const PROFISSIONAIS = [
-  { apelido: "preparador", titulo: "Preparador(a) físico(a)", areas: ["fisico"] },
-  { apelido: "fisio", titulo: "Fisioterapeuta", areas: ["fisico", "saude"] },
-  { apelido: "nutri", titulo: "Nutricionista", areas: ["nutricao"] },
+  { apelido: "preparador", titulo: "Preparador(a) físico(a)", areas: ["treino", "jogos"] },
+  { apelido: "fisio", titulo: "Fisioterapeuta", areas: ["treino", "saude"] },
+  { apelido: "nutri", titulo: "Nutricionista", areas: ["saude"] },
 ];
 
 const ADVERSARIOS = ["Falcões FC","Tigres do Norte","Leões da Serra","Real Sub Clube","Nova Geração FC","Estrela Azul FC","Atlético Litoral","Grêmio Municipal","Sport Base","União Futsal"];

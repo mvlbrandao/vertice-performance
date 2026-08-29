@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { requireCoach } from "@/lib/auth/guards";
+import { requireCoachOrStaff } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionResult } from "@/lib/actions/athletes";
 
@@ -23,7 +23,7 @@ export async function createMediaItemRecord(input: {
   entryDate?: string;
   swotItemId?: string;
 }): Promise<ActionResult> {
-  const coach = await requireCoach();
+  const profile = await requireCoachOrStaff();
   const parsed = mediaSchema.safeParse(input);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
@@ -32,8 +32,8 @@ export async function createMediaItemRecord(input: {
   const supabase = await createClient();
   const { error } = await supabase.from("media_items").insert({
     athlete_id: parsed.data.athleteId,
-    club_id: coach.clubId,
-    author_id: coach.userId,
+    club_id: profile.clubId,
+    author_id: profile.userId,
     label: parsed.data.label,
     media_type: parsed.data.mediaType,
     storage_path: parsed.data.storagePath,
@@ -44,5 +44,6 @@ export async function createMediaItemRecord(input: {
 
   if (error) return { error: error.message };
   revalidatePath(`/athletes/${parsed.data.athleteId}/evolucao`);
+  revalidatePath(`/meus-atletas/${parsed.data.athleteId}/evolucao`);
   return { success: true };
 }

@@ -59,6 +59,20 @@ export async function requireStaff(): Promise<SessionProfile> {
   return profile;
 }
 
+/**
+ * Ações que coach e staff dividem (prescrever treino, agendar encontro,
+ * registrar lesão) — a diferença de alcance entre os dois nunca é checada
+ * aqui, é a RLS (has_athlete_access/has_athlete_manage_access + staff_areas)
+ * quem decide linha a linha o que cada um pode ler ou gravar.
+ */
+export async function requireCoachOrStaff(): Promise<SessionProfile> {
+  const profile = await getSessionProfile();
+  if (!profile) redirect("/login");
+  if (profile.role !== "coach" && profile.role !== "staff") redirect(roleHome(profile.role));
+  await enforceLicense(profile);
+  return profile;
+}
+
 /** Para a própria tela de assinatura, que precisa carregar mesmo bloqueado. */
 export async function requireCoachIgnoringLicense(): Promise<SessionProfile> {
   const profile = await getSessionProfile();

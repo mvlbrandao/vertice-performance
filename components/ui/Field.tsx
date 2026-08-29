@@ -1,4 +1,4 @@
-import { InputHTMLAttributes, LabelHTMLAttributes, ReactNode } from "react";
+import { InputHTMLAttributes, LabelHTMLAttributes, ReactNode, Ref } from "react";
 import { cn } from "@/lib/utils/cn";
 
 export function Field({
@@ -22,10 +22,12 @@ export function Field({
 
 export function Input({
   className,
+  ref,
   ...props
-}: InputHTMLAttributes<HTMLInputElement>) {
+}: InputHTMLAttributes<HTMLInputElement> & { ref?: Ref<HTMLInputElement> }) {
   return (
     <input
+      ref={ref}
       className={cn(
         "px-3 py-2.5 border border-line rounded-sm bg-white text-sm focus:outline focus:outline-2 focus:outline-amber focus:outline-offset-1 focus:border-amber",
         className,

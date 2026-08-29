@@ -50,6 +50,34 @@ export async function createMeeting(formData: FormData): Promise<ActionResult> {
 
   const supabase = await createClient();
 
+  const targetAthleteIds =
+    parsed.data.targetType === "athlete"
+      ? [parsed.data.athleteId!]
+      : (
+          await supabase
+            .from("athletes")
+            .select("id")
+            .eq("club_id", coach.clubId)
+            .eq("team", parsed.data.targetTeam!)
+        ).data?.map((a) => a.id) ?? [];
+
+  const { data: sameSlot } = await supabase
+    .from("meetings")
+    .select("title, athlete_id, created_by")
+    .eq("club_id", coach.clubId)
+    .eq("scheduled_date", parsed.data.date)
+    .eq("scheduled_time", parsed.data.time)
+    .eq("status", "Agendado");
+
+  const conflict = (sameSlot ?? []).find(
+    (m) => m.created_by === coach.userId || targetAthleteIds.includes(m.athlete_id),
+  );
+  if (conflict) {
+    return {
+      error: `Já existe um encontro marcado nesse horário: "${conflict.title}". Escolha outro horário.`,
+    };
+  }
+
   const base = {
     club_id: coach.clubId,
     created_by: coach.userId,
@@ -80,26 +108,20 @@ export async function createMeeting(formData: FormData): Promise<ActionResult> {
     if (parsed.data.swotItemId) revalidatePath(`/athletes/${parsed.data.athleteId}/anamnese`);
     await sendPushToAthlete(parsed.data.athleteId!, notifyPayload);
   } else {
-    const { data: teamAthletes, error: athletesError } = await supabase
-      .from("athletes")
-      .select("id")
-      .eq("club_id", coach.clubId)
-      .eq("team", parsed.data.targetTeam!);
-    if (athletesError) return { error: athletesError.message };
-    if (!teamAthletes || teamAthletes.length === 0) {
+    if (targetAthleteIds.length === 0) {
       return { error: "Nenhum atleta encontrado nesse time." };
     }
 
     const batchId = crypto.randomUUID();
     const { error } = await supabase.from("meetings").insert(
-      teamAthletes.map((a) => ({
+      targetAthleteIds.map((id) => ({
         ...base,
-        athlete_id: a.id,
+        athlete_id: id,
         batch_id: batchId,
       })),
     );
     if (error) return { error: error.message };
-    await Promise.all(teamAthletes.map((a) => sendPushToAthlete(a.id, notifyPayload)));
+    await Promise.all(targetAthleteIds.map((id) => sendPushToAthlete(id, notifyPayload)));
   }
 
   revalidatePath("/agenda");

@@ -1,7 +1,9 @@
 import { getSessionProfile } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
 import { DataRequestButtons } from "@/components/privacy/DataRequestButtons";
+import { DownloadExportButton } from "@/components/privacy/DownloadExportButton";
 
 const DATA_ITEMS = [
   ["Dados pessoais", "nome, nascimento, categoria, posição"],
@@ -21,6 +23,12 @@ export default async function AthletePrivacidadePage() {
         .eq("id", profile.athleteId)
         .single()
     : { data: null };
+
+  const { data: myRequests } = await supabase
+    .from("data_requests")
+    .select("id, request_type, status, created_at")
+    .order("created_at", { ascending: false })
+    .limit(5);
 
   return (
     <div>
@@ -62,6 +70,28 @@ export default async function AthletePrivacidadePage() {
             Você pode solicitar uma cópia ou a exclusão dos seus dados a qualquer momento.
           </p>
           <DataRequestButtons />
+
+          {myRequests && myRequests.length > 0 && (
+            <div className="mt-4 pt-3.5 border-t border-line flex flex-col gap-2">
+              {myRequests.map((r) => (
+                <div key={r.id} className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <span className="text-[12.5px] block">
+                      {r.request_type === "export" ? "📄 Exportação" : "🗑️ Exclusão"}
+                    </span>
+                    <span className="text-[11px] text-ink-faint">
+                      {new Date(r.created_at).toLocaleDateString("pt-BR")}
+                    </span>
+                  </div>
+                  {r.status === "Concluído" && r.request_type === "export" ? (
+                    <DownloadExportButton requestId={r.id} />
+                  ) : (
+                    <Badge tone={r.status === "Concluído" ? "green" : "amber"}>{r.status}</Badge>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </Card>
       </div>
     </div>

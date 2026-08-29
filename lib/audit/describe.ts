@@ -39,6 +39,8 @@ export const ACTION_LABEL: Record<AuditActionType, string> = {
   grant: "Acesso concedido",
   revoke: "Acesso revogado",
   review: "Avaliação",
+  anonymize: "Exclusão de dados (LGPD)",
+  export: "Exportação de dados (LGPD)",
 };
 
 const FIELD_LABEL: Record<string, string> = {

@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ResolveDataRequestButton } from "@/components/privacy/ResolveDataRequestButton";
+import { DownloadExportButton } from "@/components/privacy/DownloadExportButton";
 import { headers } from "next/headers";
 import { AsaasConnectionCard } from "@/components/config/AsaasConnectionCard";
 import { getClubAsaasStatus } from "@/lib/actions/clubAsaas";
@@ -42,7 +43,7 @@ export default async function CoachConfigPage() {
   const [{ data: requests }, { data: securityEvents }] = await Promise.all([
     supabase
       .from("data_requests")
-      .select("id, request_type, status, created_at, athletes(full_name)")
+      .select("id, request_type, status, created_at, error_message, athletes(full_name)")
       .eq("club_id", profile!.clubId)
       .order("created_at", { ascending: false }),
     supabase
@@ -98,16 +99,25 @@ export default async function CoachConfigPage() {
                 <div className="flex-1 min-w-0">
                   <b className="text-sm block">
                     {r.request_type === "export" ? "📄 Exportação" : "🗑️ Exclusão"} —{" "}
-                    {(r.athletes as unknown as { full_name: string } | null)?.full_name}
+                    {(r.athletes as unknown as { full_name: string } | null)?.full_name ?? "—"}
                   </b>
                   <span className="text-xs text-ink-faint">
                     {new Date(r.created_at).toLocaleDateString("pt-BR")}
                   </span>
+                  {r.status === "Falhou" && r.error_message && (
+                    <span className="text-xs text-clay block">Falhou: {r.error_message}</span>
+                  )}
                 </div>
                 {r.status === "Concluído" ? (
-                  <Badge tone="green">Concluído</Badge>
+                  r.request_type === "export" ? (
+                    <DownloadExportButton requestId={r.id} />
+                  ) : (
+                    <Badge tone="green">Concluído</Badge>
+                  )
+                ) : r.status === "Falhou" ? (
+                  <Badge tone="clay">Falhou</Badge>
                 ) : (
-                  <ResolveDataRequestButton requestId={r.id} />
+                  <ResolveDataRequestButton requestId={r.id} requestType={r.request_type} />
                 )}
               </div>
             ))

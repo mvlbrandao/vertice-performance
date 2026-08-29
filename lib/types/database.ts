@@ -36,7 +36,9 @@ export type AuditActionType =
   | "unpublish"
   | "grant"
   | "revoke"
-  | "review";
+  | "review"
+  | "anonymize"
+  | "export";
 export type MediaType = "video" | "image";
 export type ExerciseVideoStatus = "Pendente" | "Avaliado";
 export type MeetingType = "Presencial" | "Videochamada";
@@ -48,7 +50,7 @@ export type SwotItemStatus = "Aberto" | "Concluído";
 export type SwotCycleStatus = "Aberto" | "Fechado";
 export type ChargeStatus = "Pendente" | "Pago" | "Atrasado" | "Cancelado";
 export type DataRequestType = "export" | "deletion";
-export type DataRequestStatus = "Pendente" | "Em andamento" | "Concluído";
+export type DataRequestStatus = "Pendente" | "Em andamento" | "Concluído" | "Falhou";
 export type PlayTargetType = "athlete" | "team";
 export type AthleteSex = "M" | "F";
 export type GameTargetType = "athlete" | "team";
@@ -780,6 +782,9 @@ export interface Database {
           status: DataRequestStatus;
           created_at: string;
           resolved_at: string | null;
+          resolved_by: string | null;
+          export_path: string | null;
+          error_message: string | null;
         };
         Insert: {
           id?: string;
@@ -790,6 +795,9 @@ export interface Database {
           status?: DataRequestStatus;
           created_at?: string;
           resolved_at?: string | null;
+          resolved_by?: string | null;
+          export_path?: string | null;
+          error_message?: string | null;
         };
         Update: Partial<
           Database["public"]["Tables"]["data_requests"]["Insert"]

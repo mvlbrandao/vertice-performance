@@ -26,7 +26,9 @@ export type AuditAction =
   | "unpublish"
   | "grant"
   | "revoke"
-  | "review";
+  | "review"
+  | "anonymize"
+  | "export";
 
 export async function logAudit(params: {
   clubId: string;

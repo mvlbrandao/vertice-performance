@@ -16,6 +16,8 @@ import { getClubPeerCloud, getSystemPercentile } from "@/lib/scouting/peerScorin
 import { ScoreHistoryChart } from "@/components/athletes/ScoreHistoryChart";
 import { getScoreHistory } from "@/lib/scoreHistoryPoints";
 import { hojeISO } from "@/lib/utils/date";
+import { getVisibleAnnouncements } from "@/lib/data/announcements";
+import { AnnouncementsCard } from "@/components/announcements/AnnouncementsCard";
 
 function Row({ k, v }: { k: string; v: string }) {
   return (
@@ -49,8 +51,14 @@ export default async function AthletePerfilPage() {
   if (!athlete) return null;
 
   const today = hojeISO();
-  const [signedPhotoUrl, score, { data: lineupRows }, { data: activeInjuries }, { data: upcomingMeetings }] =
-    await Promise.all([
+  const [
+    signedPhotoUrl,
+    score,
+    { data: lineupRows },
+    { data: activeInjuries },
+    { data: upcomingMeetings },
+    announcements,
+  ] = await Promise.all([
       resolveSignedUrl("athlete-photos", athlete.photo_url),
       computePlayerScore(supabase, athlete.id),
       supabase
@@ -73,6 +81,7 @@ export default async function AthletePerfilPage() {
         .gte("scheduled_date", today)
         .order("scheduled_date", { ascending: true })
         .limit(5),
+      getVisibleAnnouncements(supabase, profile.clubId, profile.userId),
     ]);
   const scoreChange = await getScoreChange(supabase, profile.clubId, athlete.id, score);
   const challengePoints = await getAthleteChallengePoints(supabase, athlete.id);
@@ -118,6 +127,8 @@ export default async function AthletePerfilPage() {
       />
 
       <ScoreChangeAlert result={scoreChange} warnings={score.warnings} />
+
+      <AnnouncementsCard announcements={announcements} />
 
       <div className="grid lg:grid-cols-2 gap-4 mb-4">
         <Card>

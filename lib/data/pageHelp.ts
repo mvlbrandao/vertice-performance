@@ -41,6 +41,15 @@ export const PAGE_HELP: Record<string, PageHelp> = {
       "O atleta confirma pelo app; você acompanha quem confirmou.",
     ],
   },
+  "/comunicados": {
+    titulo: "Mural de avisos",
+    resumo: "Comunicado do treinador pro time todo, por categoria ou por time específico.",
+    acoes: [
+      "“+ Novo aviso” publica e já notifica por push quem estiver no alvo escolhido.",
+      "Sem time nem categoria selecionados, o aviso alcança todo o clube.",
+      "O atleta vê o aviso no perfil dele; staff vê se tiver acesso a algum atleta do alvo.",
+    ],
+  },
   "/plays": {
     titulo: "Mesa tática",
     resumo: "Jogadas desenhadas em quadros, que rodam como animação para o atleta estudar.",

@@ -5,10 +5,14 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { initials } from "@/lib/utils/initials";
+import { getVisibleAnnouncements } from "@/lib/data/announcements";
+import { AnnouncementsCard } from "@/components/announcements/AnnouncementsCard";
 
 export default async function StaffAthletesPage() {
   const profile = await getSessionProfile();
   const supabase = await createClient();
+
+  const announcements = await getVisibleAnnouncements(supabase, profile!.clubId, profile!.userId);
 
   // RLS ("staff reads granted athletes") já restringe às linhas liberadas;
   // o join por athlete_staff_access aqui só define a ordem/lista visível.
@@ -50,6 +54,8 @@ export default async function StaffAthletesPage() {
         (prescrever treino, agendar encontro) chega numa próxima etapa — por enquanto essa tela é
         de consulta.
       </p>
+
+      <AnnouncementsCard announcements={announcements} />
 
       {athletesWithPhotos.length === 0 ? (
         <Card>

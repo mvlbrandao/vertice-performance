@@ -204,6 +204,46 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["athlete_planning_stage"]["Insert"]>;
         Relationships: [];
       };
+      announcements: {
+        Row: {
+          id: string;
+          club_id: string;
+          created_by: string;
+          title: string;
+          body: string;
+          target_team: string | null;
+          target_category: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          club_id: string;
+          created_by: string;
+          title: string;
+          body: string;
+          target_team?: string | null;
+          target_category?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["announcements"]["Insert"]>;
+        Relationships: [];
+      };
+      announcement_reads: {
+        Row: {
+          id: string;
+          announcement_id: string;
+          profile_id: string;
+          read_at: string;
+        };
+        Insert: {
+          id?: string;
+          announcement_id: string;
+          profile_id: string;
+          read_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["announcement_reads"]["Insert"]>;
+        Relationships: [];
+      };
       asaas_security_events: {
         Row: {
           id: string;

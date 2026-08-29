@@ -6,6 +6,7 @@ import { requireCoach } from "@/lib/auth/guards";
 import { getClubAsaasCredentials } from "@/lib/asaas/credentials";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionResult } from "@/lib/actions/athletes";
+import { onlyDigits, isValidCpf } from "@/lib/utils/cpf";
 import {
   AsaasError,
   getMyAccount,
@@ -15,22 +16,6 @@ import {
   cancelSubscription,
   getSubscriptionPaymentLink,
 } from "@/lib/asaas/client";
-
-function onlyDigits(v: string) {
-  return v.replace(/\D/g, "");
-}
-
-function isValidCpf(cpf: string) {
-  const digits = onlyDigits(cpf);
-  if (digits.length !== 11 || /^(\d)\1{10}$/.test(digits)) return false;
-  const calc = (len: number) => {
-    let sum = 0;
-    for (let i = 0; i < len; i++) sum += Number(digits[i]) * (len + 1 - i);
-    const rest = (sum * 10) % 11;
-    return rest === 10 ? 0 : rest;
-  };
-  return calc(9) === Number(digits[9]) && calc(10) === Number(digits[10]);
-}
 
 export async function testAsaasConnection(): Promise<
   { success: true; name: string; email: string } | { success: false; error: string }

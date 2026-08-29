@@ -7,12 +7,13 @@ import { NewAthleteModal } from "@/components/athletes/NewAthleteModal";
 import { AthletesGrid } from "@/components/athletes/AthletesGrid";
 import { getPartnerClubOptions } from "@/lib/data/partnerClubs";
 import { computePlayerScores } from "@/lib/scoring";
+import { PendingEnrollments } from "@/components/enrollment/PendingEnrollments";
 
 export default async function AthletesPage() {
   const profile = await getSessionProfile();
   const supabase = await createClient();
 
-  const [{ data: athletes }, partnerClubs] = await Promise.all([
+  const [{ data: athletes }, partnerClubs, { data: enrollmentRequests }] = await Promise.all([
     supabase
       .from("athletes")
       .select(
@@ -21,7 +22,14 @@ export default async function AthletesPage() {
       .eq("club_id", profile!.clubId)
       .order("full_name", { ascending: true }),
     getPartnerClubOptions(supabase, profile!.clubId),
+    supabase
+      .from("athlete_enrollment_requests")
+      .select("id, full_name, birth_date, team, category, guardian_name, guardian_phone, requested_at")
+      .eq("club_id", profile!.clubId)
+      .eq("status", "Pendente")
+      .order("requested_at", { ascending: true }),
   ]);
+  const teams = partnerClubs.map((c) => ({ name: c.name, categories: c.categories }));
 
   // Pontuação de todos numa tacada. Antes era uma chamada por atleta, com
   // seis consultas cada: com 180 atletas a tela levava 11 segundos.
@@ -46,6 +54,8 @@ export default async function AthletesPage() {
         </div>
         <NewAthleteModal partnerClubs={partnerClubs} />
       </div>
+
+      <PendingEnrollments requests={enrollmentRequests ?? []} teams={teams} />
 
       {!athletes || athletes.length === 0 ? (
         <Card>

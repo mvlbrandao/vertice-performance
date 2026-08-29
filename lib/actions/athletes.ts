@@ -74,7 +74,11 @@ export async function createAthlete(formData: FormData): Promise<ActionResult> {
   const parsed = athleteSchema.safeParse({
     fullName: formData.get("fullName"),
     birthDate: formData.get("birthDate"),
-    category: formData.get("category"),
+    // "category" pode vir de um <select> desabilitado (nenhum time
+    // escolhido ainda) — campo desabilitado não entra no FormData, então
+    // .get() devolve null, não "". z.string().optional() só aceita
+    // undefined, e null derrubava o parse com "expected string, received null".
+    category: formData.get("category") ?? "",
     team: formData.get("team"),
     sex: formData.get("sex"),
     guardianName: formData.get("guardianName"),

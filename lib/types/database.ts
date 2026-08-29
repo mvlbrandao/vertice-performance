@@ -470,6 +470,54 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["athletes"]["Insert"]>;
         Relationships: [];
       };
+      athlete_enrollment_requests: {
+        Row: {
+          id: string;
+          club_id: string;
+          status: "Pendente" | "Aprovado" | "Rejeitado";
+          full_name: string;
+          birth_date: string | null;
+          sex: AthleteSex | null;
+          team: string | null;
+          category: string | null;
+          guardian_name: string;
+          guardian_cpf: string;
+          guardian_email: string;
+          guardian_phone: string | null;
+          instagram: string | null;
+          guardian_consent_at: string;
+          submitter_ip: string | null;
+          created_athlete_id: string | null;
+          requested_at: string;
+          reviewed_by: string | null;
+          reviewed_at: string | null;
+          review_notes: string | null;
+        };
+        Insert: {
+          id?: string;
+          club_id: string;
+          status?: "Pendente" | "Aprovado" | "Rejeitado";
+          full_name: string;
+          birth_date?: string | null;
+          sex?: AthleteSex | null;
+          team?: string | null;
+          category?: string | null;
+          guardian_name: string;
+          guardian_cpf: string;
+          guardian_email: string;
+          guardian_phone?: string | null;
+          instagram?: string | null;
+          guardian_consent_at: string;
+          submitter_ip?: string | null;
+          created_athlete_id?: string | null;
+          requested_at?: string;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          review_notes?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["athlete_enrollment_requests"]["Insert"]>;
+        Relationships: [];
+      };
       mental_notes: {
         Row: {
           id: string;

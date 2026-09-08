@@ -42,7 +42,15 @@ function jitter<T extends { x: number; y: number }>(points: T[]) {
     const radius = 8;
     group.forEach((point, i) => {
       const angle = (2 * Math.PI * i) / group.length;
-      result.push({ point, dx: Math.cos(angle) * radius, dy: Math.sin(angle) * radius });
+      // Arredondado: Math.cos/Math.sin não são garantidos bit-a-bit iguais
+      // entre o motor JS do servidor (SSR) e do navegador (hydration), e a
+      // diferença no último dígito já bastava pro React acusar mismatch de
+      // hydration nesse valor — o deslocamento é só cosmético, 2 casas sobra.
+      result.push({
+        point,
+        dx: Math.round(Math.cos(angle) * radius * 100) / 100,
+        dy: Math.round(Math.sin(angle) * radius * 100) / 100,
+      });
     });
   }
   return result;

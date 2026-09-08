@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { requireStaff } from "@/lib/auth/guards";
+import { getStaffAreas } from "@/lib/auth/staffAreas";
 import { resolveSignedUrl } from "@/lib/storage/resolveSignedUrl";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -76,11 +77,18 @@ export default async function StaffAthleteEvolucaoPage({
   const profile = await requireStaff();
   const supabase = await createClient();
 
-  const { data: athlete } = await supabase
-    .from("athletes")
-    .select("team, category")
-    .eq("id", athleteId)
-    .single();
+  const [{ data: athlete }, areas, { data: grant }] = await Promise.all([
+    supabase.from("athletes").select("team, category").eq("id", athleteId).single(),
+    getStaffAreas(profile.userId),
+    supabase
+      .from("athlete_staff_access")
+      .select("access_level")
+      .eq("athlete_id", athleteId)
+      .eq("staff_profile_id", profile.userId)
+      .maybeSingle(),
+  ]);
+  // mental_notes/media_items exigem área "saude" + nível "manage" (0024/0028).
+  const canRegister = grant?.access_level === "manage" && areas.includes("saude");
 
   const { data: openCycle } = await supabase
     .from("athlete_swot_cycles")
@@ -211,14 +219,16 @@ export default async function StaffAthleteEvolucaoPage({
             O que você tem acesso a ver, entre mental, mídia, agenda, treinos e jogos
           </div>
         </div>
-        <div className="flex gap-2">
-          <NewMediaModal
-            clubId={profile.clubId}
-            athleteId={athleteId}
-            openSwotItems={openSwotItems ?? []}
-          />
-          <NewMentalNoteModal athleteId={athleteId} openSwotItems={openSwotItems ?? []} />
-        </div>
+        {canRegister && (
+          <div className="flex gap-2">
+            <NewMediaModal
+              clubId={profile.clubId}
+              athleteId={athleteId}
+              openSwotItems={openSwotItems ?? []}
+            />
+            <NewMentalNoteModal athleteId={athleteId} openSwotItems={openSwotItems ?? []} />
+          </div>
+        )}
       </div>
 
       {entries.length === 0 ? (

@@ -24,10 +24,14 @@ export function LogoutButton() {
   }
 
   return (
+    // size-11 (44px): o glifo é pequeno, mas o alvo de toque não pode ser — era
+    // o botão de sair, colado no canto do menu, que o dedo errava. As margens
+    // negativas devolvem o espaço para o rodapé do menu não crescer.
     <button
       onClick={handleLogout}
       title="Sair"
-      className="ml-auto bg-transparent border-none text-[#555] text-base hover:text-clay"
+      aria-label="Sair"
+      className="ml-auto -my-2 -mr-2 size-11 shrink-0 inline-flex items-center justify-center rounded-sm bg-transparent border-none text-[#555] text-base hover:text-clay focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber"
     >
       ⏻
     </button>

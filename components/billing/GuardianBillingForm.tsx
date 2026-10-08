@@ -31,7 +31,7 @@ export function GuardianBillingForm({ athleteId }: { athleteId: string }) {
         Pra criar cobrança recorrente, cadastre o CPF e e-mail do responsável financeiro
         (necessário pro Asaas identificar quem paga).
       </p>
-      <div className="grid sm:grid-cols-2 gap-2.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
         <Field label="CPF do responsável">
           <Input name="cpf" required placeholder="000.000.000-00" />
         </Field>

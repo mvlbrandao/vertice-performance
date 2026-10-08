@@ -122,11 +122,11 @@ export default async function AthleteDadosPage({
           challengePoints={challengePoints}
         />
       </div>
-      <div className="grid lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card>
           <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
             <h3 className="m-0">Dados pessoais</h3>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <EditAthleteModal
                 athleteId={athlete.id}
                 athlete={{

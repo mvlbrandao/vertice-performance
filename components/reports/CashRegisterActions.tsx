@@ -30,7 +30,7 @@ export function CloseCashRegisterButton({ closureDate }: { closureDate: string }
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder="Observações do fechamento (opcional)"
-          className="w-[280px]"
+          className="w-full max-w-[280px]"
         />
       )}
       <div className="flex gap-2">
@@ -82,7 +82,7 @@ export function ReopenCashRegisterButton({ closureDate }: { closureDate: string 
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           placeholder="Motivo da reabertura (obrigatório)"
-          className="w-[280px]"
+          className="w-full max-w-[280px]"
         />
       )}
       {error && <div className="text-clay text-[11.5px] font-medium">{error}</div>}

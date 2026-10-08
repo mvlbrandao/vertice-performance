@@ -81,7 +81,7 @@ export default async function DesafiosPage() {
         </div>
       )}
 
-      <div className="grid lg:grid-cols-[1.3fr_1fr] gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-4">
         <div>
           <h3 className="text-sm mb-2">Desafios ativos</h3>
           <Card>

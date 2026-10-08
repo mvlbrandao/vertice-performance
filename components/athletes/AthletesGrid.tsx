@@ -173,7 +173,7 @@ export function AthletesGrid({ athletes }: { athletes: AthleteGridItem[] }) {
           <EmptyState icon="🔍" message="Nenhum atleta encontrado com esses filtros." />
         </Card>
       ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((a) => (
             <Link key={a.id} href={`/athletes/${a.id}/dados`}>
               <Card

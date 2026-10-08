@@ -170,7 +170,7 @@ export default async function AthleteReportPage({
           {/* Score por dimensão */}
           <section>
             <h3 className="text-[15px] m-0 mb-3">Score por dimensão</h3>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
               {ATTRS.map((a) => (
                 <div key={a.key} className="flex items-center gap-2.5">
                   <span className="w-[112px] text-[12px] text-ink-soft shrink-0">{a.label}</span>
@@ -206,7 +206,7 @@ export default async function AthleteReportPage({
                 </div>
               ))}
             </div>
-            <div className="grid grid-cols-2 gap-4 mt-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
               <div className="flex items-center gap-2.5">
                 <span className="w-[112px] text-[12px] text-ink-soft shrink-0">Adesão a treinos</span>
                 <div className="flex-1 h-1.5 bg-line rounded-full overflow-hidden">
@@ -267,7 +267,7 @@ export default async function AthleteReportPage({
           </section>
 
           {/* Desafios e financeiro */}
-          <section className="break-inside-avoid grid sm:grid-cols-2 gap-5">
+          <section className="break-inside-avoid grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
               <h3 className="text-[15px] m-0 mb-2">Desafios</h3>
               <p className="text-[12.5px] m-0">

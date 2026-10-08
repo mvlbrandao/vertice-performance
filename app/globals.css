@@ -15,6 +15,10 @@
   --clay: #d72b2b;
   --sky: #c0392b;
   --line: #e0e0e0;
+  /* Altura da barra de abas do portal do atleta no celular. Fica aqui porque
+     o AppShell usa o mesmo valor em dois lugares: a própria barra e a
+     reserva de espaço no fim do conteúdo para ela não cobrir nada. */
+  --tabbar-h: 3.75rem;
 }
 
 @theme inline {
@@ -41,6 +45,17 @@
   --radius-lg: 16px;
 
   --shadow-card: 0 8px 24px -12px rgba(0, 0, 0, 0.22);
+
+  /* Folha de baixo (Modal em tela pequena) subindo da borda inferior. */
+  --animate-sheet-up: sheet-up 220ms ease-out;
+  @keyframes sheet-up {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
 }
 
 body {
@@ -54,6 +69,41 @@ h3,
   font-family: var(--font-display);
   letter-spacing: 0.03em;
   font-weight: 400;
+}
+
+/* O Safari do iPhone dá zoom automático ao focar qualquer campo com fonte
+   menor que 16px, e a tela fica ampliada até a pessoa dar o gesto de
+   pinça de volta. Os campos do app usam text-sm (14px) em dezenas de
+   lugares, inclusive <select> soltos que não passam por Field.tsx — por
+   isso a regra é global, e não um ajuste componente a componente.
+
+   Fica fora de @layer de propósito: CSS sem camada vence as utilities do
+   Tailwind v4 (que vivem em @layer utilities), então "text-sm" não a
+   desfaz e dispensa !important. Só vale em tela estreita ou toque
+   (iPad inclusive); no desktop com mouse a aparência continua a de antes.
+   Checkbox, radio, range, file e color não têm texto digitável, e esticar
+   a fonte deles só bagunçaria o alinhamento com o rótulo.
+
+   Campos que já pedem fonte de 16px ou mais (text-base e acima, como o
+   placar da súmula em text-2xl) ficam de fora: a regra só existe para
+   subir fonte pequena, e sem essa exceção ela encolheria o placar. */
+@media (max-width: 840px), (pointer: coarse) {
+  input:not(
+      [type="checkbox"],
+      [type="radio"],
+      [type="range"],
+      [type="file"],
+      [type="color"],
+      .text-base,
+      .text-lg,
+      .text-xl,
+      .text-2xl,
+      .text-3xl
+    ),
+  select:not(.text-base, .text-lg, .text-xl, .text-2xl, .text-3xl),
+  textarea:not(.text-base, .text-lg, .text-xl, .text-2xl, .text-3xl) {
+    font-size: 16px;
+  }
 }
 
 ::selection {

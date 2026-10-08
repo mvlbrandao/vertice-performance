@@ -155,7 +155,7 @@ export default async function StaffAthleteReportPage({
         <div className="p-6 flex flex-col gap-6">
           <section>
             <h3 className="text-[15px] m-0 mb-3">Score por dimensão</h3>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
               {ATTRS.map((a) => (
                 <div key={a.key} className="flex items-center gap-2.5">
                   <span className="w-[112px] text-[12px] text-ink-soft shrink-0">{a.label}</span>
@@ -190,7 +190,7 @@ export default async function StaffAthleteReportPage({
                 </div>
               ))}
             </div>
-            <div className="grid grid-cols-2 gap-4 mt-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
               <div className="flex items-center gap-2.5">
                 <span className="w-[112px] text-[12px] text-ink-soft shrink-0">Adesão a treinos</span>
                 <div className="flex-1 h-1.5 bg-line rounded-full overflow-hidden">

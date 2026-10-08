@@ -41,7 +41,7 @@ export default async function AthletePrivacidadePage() {
         </span>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card>
           <h3 className="mt-0 mb-3">O que guardamos sobre você</h3>
           {DATA_ITEMS.map(([k, v]) => (

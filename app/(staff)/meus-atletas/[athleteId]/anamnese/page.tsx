@@ -73,7 +73,7 @@ export default async function StaffAthleteAnamnesePage({
           <EmptyState icon="🧭" message="Nenhuma análise SWOT em aberto no momento." />
         </Card>
       ) : (
-        <div className="grid md:grid-cols-2 gap-3.5">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
           {SWOT_CATEGORIES.map((category) => {
             const meta = SWOT_CATEGORY_META[category];
             const categoryItems = itemsByCategory.get(category) ?? [];

@@ -100,7 +100,7 @@ export function LineupClient({
             </div>
           </div>
         </div>
-        <form action={handleMaterialSubmit} className="grid sm:grid-cols-2 gap-2.5">
+        <form action={handleMaterialSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           <input type="hidden" name="gameId" value={gameId} />
           <Field label="Jogada da mesa tática (opcional)">
             <select

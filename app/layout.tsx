@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Bebas_Neue, Work_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { ServiceWorkerRegistrar } from "@/components/pwa/ServiceWorkerRegistrar";
@@ -35,8 +35,13 @@ export const metadata: Metadata = {
   },
 };
 
-export const viewport = {
+export const viewport: Viewport = {
   themeColor: "#111111",
+  // "cover" deixa o app ocupar a tela toda no celular instalado (PWA), por
+  // baixo do entalhe e da barra home. Sem isso o iOS desenha tarjas ao redor
+  // e env(safe-area-inset-*) vale sempre 0. O AppShell usa esses insets para
+  // não deixar o menu e a barra de abas por baixo do entalhe.
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

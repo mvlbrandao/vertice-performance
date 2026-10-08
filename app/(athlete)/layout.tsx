@@ -17,6 +17,16 @@ const navItems: NavItem[] = [
   { href: "/privacidade", icon: "🔒", label: "Privacidade dos meus dados" },
 ];
 
+// Os quatro usos de todo dia, ao alcance do polegar. O resto do menu fica
+// atrás de "Mais" (o próprio AppShell acrescenta o botão). Rótulos curtos:
+// cada aba tem ~1/5 da largura de um celular de 360px.
+const mobileTabs: NavItem[] = [
+  { href: "/perfil", icon: "🪪", label: "Perfil" },
+  { href: "/minha-agenda", icon: "🗓️", label: "Agenda" },
+  { href: "/treino", icon: "🏋️", label: "Treinos" },
+  { href: "/checkin", icon: "✅", label: "Check-in" },
+];
+
 export default async function AthleteLayout({
   children,
 }: {
@@ -35,7 +45,12 @@ export default async function AthleteLayout({
   }
 
   return (
-    <AppShell navItems={navItems} userName={profile.fullName} roleLabel={roleLabel}>
+    <AppShell
+      navItems={navItems}
+      mobileTabs={mobileTabs}
+      userName={profile.fullName}
+      roleLabel={roleLabel}
+    >
       <DemoBanner />
       {children}
     </AppShell>

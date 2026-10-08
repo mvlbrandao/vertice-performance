@@ -65,7 +65,7 @@ export default async function StaffAthletesPage() {
           />
         </Card>
       ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {athletesWithPhotos.map((a) => (
             <Link key={a.id} href={`/meus-atletas/${a.id}/evolucao`} className="block">
               <Card shadow className="hover:border-pitch-dark transition-colors">

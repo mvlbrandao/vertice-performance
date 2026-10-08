@@ -124,19 +124,19 @@ export default async function CaixaDoDiaPage({
         <div className="flex gap-2 items-center flex-wrap">
           <Link
             href={`/caixa-do-dia?date=${addDaysISO(date, -1)}`}
-            className="text-xs font-semibold border border-line rounded-sm px-3 py-2 hover:border-pitch-dark"
+            className="text-xs font-semibold border border-line rounded-sm px-3 py-2 pointer-coarse:py-3 hover:border-pitch-dark"
           >
             ← Dia anterior
           </Link>
           <Link
             href={`/caixa-do-dia?date=${todayISO()}`}
-            className="text-xs font-semibold border border-line rounded-sm px-3 py-2 hover:border-pitch-dark"
+            className="text-xs font-semibold border border-line rounded-sm px-3 py-2 pointer-coarse:py-3 hover:border-pitch-dark"
           >
             Hoje
           </Link>
           <Link
             href={`/caixa-do-dia?date=${addDaysISO(date, 1)}`}
-            className="text-xs font-semibold border border-line rounded-sm px-3 py-2 hover:border-pitch-dark"
+            className="text-xs font-semibold border border-line rounded-sm px-3 py-2 pointer-coarse:py-3 hover:border-pitch-dark"
           >
             Dia seguinte →
           </Link>
@@ -175,23 +175,28 @@ export default async function CaixaDoDiaPage({
         </Card>
       )}
 
-      <div className="grid grid-cols-3 gap-3 mb-5">
-        <Card>
+      {/* Três colunas não cabem em 360px com valor em R$ de fonte grande: o
+          número furava o cartão e ia parar embaixo do vizinho. No celular o
+          saldo ocupa a linha de baixo inteira (é o número que importa) e
+          entradas/saídas dividem a de cima. O quebra-onde-puder é a rede de
+          segurança para um valor de sete dígitos, em vez de estourar. */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
+        <Card className="min-w-0 max-sm:p-3.5">
           <span className="text-xs font-semibold text-ink-soft">Entradas</span>
-          <b className="block font-display text-2xl leading-none mt-1">
+          <b className="block font-display text-xl sm:text-2xl leading-none mt-1 [overflow-wrap:anywhere]">
             {formatCents(incomeCents)}
           </b>
         </Card>
-        <Card>
+        <Card className="min-w-0 max-sm:p-3.5">
           <span className="text-xs font-semibold text-ink-soft">Saídas</span>
-          <b className="block font-display text-2xl leading-none mt-1">
+          <b className="block font-display text-xl sm:text-2xl leading-none mt-1 [overflow-wrap:anywhere]">
             {formatCents(expenseCents)}
           </b>
         </Card>
-        <Card>
+        <Card className="min-w-0 max-sm:p-3.5 col-span-2 sm:col-span-1">
           <span className="text-xs font-semibold text-ink-soft">Saldo do dia</span>
           <b
-            className={`block font-display text-2xl leading-none mt-1 ${balanceCents < 0 ? "text-clay" : ""}`}
+            className={`block font-display text-xl sm:text-2xl leading-none mt-1 [overflow-wrap:anywhere] ${balanceCents < 0 ? "text-clay" : ""}`}
           >
             {formatCents(balanceCents)}
           </b>
@@ -203,9 +208,13 @@ export default async function CaixaDoDiaPage({
           <EmptyState icon="🗓️" message="Nenhum lançamento pago neste dia." />
         ) : (
           movements.map((m, i) => (
+            // No celular a descrição ia para uma "fresta" de 20px entre a
+            // etiqueta e o valor e virava "L…". Agora ela desce para a
+            // própria linha (order-last + basis-full) e quebra o texto; de sm
+            // para cima volta a ser a coluna do meio com reticências.
             <div
               key={i}
-              className="flex items-center gap-3 py-2.5 border-b border-line last:border-b-0"
+              className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5 border-b border-line last:border-b-0"
             >
               <span className="font-mono text-[11px] text-ink-faint w-12 shrink-0">
                 {m.time ? new Date(m.time).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "—"}
@@ -213,9 +222,11 @@ export default async function CaixaDoDiaPage({
               <Badge tone={m.type === "income" ? "green" : "clay"}>
                 {m.type === "income" ? "Entrada" : "Saída"}
               </Badge>
-              <span className="flex-1 text-sm truncate">{m.label}</span>
+              <span className="order-last basis-full text-sm [overflow-wrap:anywhere] sm:order-none sm:basis-0 sm:min-w-0 sm:flex-1 sm:truncate">
+                {m.label}
+              </span>
               <b
-                className={`font-mono text-sm ${m.type === "income" ? "text-[#1A6B3C]" : "text-clay"}`}
+                className={`ml-auto sm:ml-0 font-mono text-sm ${m.type === "income" ? "text-[#1A6B3C]" : "text-clay"}`}
               >
                 {m.type === "income" ? "+" : "−"} {formatCents(m.cents)}
               </b>

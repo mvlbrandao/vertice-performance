@@ -111,7 +111,7 @@ export default async function CoachAgendaPage({
         )}
       </div>
 
-      <div className="flex gap-1.5 mb-4">
+      <div className="flex flex-wrap gap-1.5 mb-4">
         {STATUS_FILTERS.map((f) => (
           <Link
             key={f.value}

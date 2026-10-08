@@ -12,9 +12,13 @@ const variantClasses: Record<Variant, string> = {
   danger: "bg-white text-clay border-[#F5C6C6] hover:bg-[#FDE8E8]",
 };
 
+// pointer-coarse (toque) e não breakpoint: o botão "sm" tem ~28px de altura,
+// confortável com mouse mas abaixo dos ~44px que o dedo acerta sem errar. Em
+// tablet grande o toque também vale, e no celular com mouse (raro) não. Em
+// desktop o botão continua do tamanho de antes.
 const sizeClasses: Record<Size, string> = {
-  sm: "px-2.5 py-1.5 text-xs",
-  md: "px-3.5 py-2.5 text-sm",
+  sm: "px-2.5 py-1.5 text-xs pointer-coarse:min-h-11 pointer-coarse:px-3.5",
+  md: "px-3.5 py-2.5 text-sm pointer-coarse:min-h-11",
 };
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {

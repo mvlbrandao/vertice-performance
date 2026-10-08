@@ -65,7 +65,7 @@ export default async function CoachConfigPage() {
         </span>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-4 mb-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
         <Card>
           <h3 className="mt-0 mb-3">Proteção de dados de menores</h3>
           <div className="flex gap-2 items-start bg-[#FDE8E8] border border-[#F5AAAA] text-[#8B0000] rounded-md px-3.5 py-3 text-[12.5px] mb-3.5">

@@ -225,7 +225,7 @@ export default async function ContasAPagarPage({
           {(categoryFilter || professionalFilter) && (
             <Link
               href={buildHref({ ...linkParams, overrides: { categoryId: "", professionalId: "" } })}
-              className="text-xs font-semibold text-ink-faint hover:underline"
+              className="text-xs font-semibold text-ink-faint hover:underline tap-expand"
             >
               Limpar
             </Link>

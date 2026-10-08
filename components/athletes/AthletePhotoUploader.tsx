@@ -67,7 +67,7 @@ export function AthletePhotoUploader({
         onClick={() => inputRef.current?.click()}
         disabled={uploading}
         title="Alterar foto"
-        className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-pitch-dark text-amber text-[11px] flex items-center justify-center border-2 border-white disabled:opacity-60"
+        className="absolute -bottom-1 -right-1 w-6 h-6 pointer-coarse:size-9 pointer-coarse:-bottom-2 pointer-coarse:-right-2 pointer-coarse:after:absolute pointer-coarse:after:-inset-1.5 pointer-coarse:after:content-[''] rounded-full bg-pitch-dark text-amber text-[11px] flex items-center justify-center border-2 border-white disabled:opacity-60"
       >
         {uploading ? "…" : "📷"}
       </button>

@@ -62,7 +62,7 @@ export default async function GameLineupPage({
       <div className="mb-5">
         <Link
           href={`/jogos/${gameId}`}
-          className="text-xs font-semibold text-ink-faint hover:text-pitch-dark"
+          className="text-xs font-semibold text-ink-faint hover:text-pitch-dark tap-expand"
         >
           ← Súmula
         </Link>

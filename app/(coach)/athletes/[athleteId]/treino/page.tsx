@@ -94,7 +94,7 @@ export default async function AthleteTreinoPage({
                       href={ex.video_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex mt-2 text-xs font-semibold border border-line rounded-sm px-2.5 py-1.5 hover:border-pitch-dark"
+                      className="inline-flex mt-2 text-xs font-semibold border border-line rounded-sm px-2.5 py-1.5 pointer-coarse:py-3.5 hover:border-pitch-dark"
                     >
                       ▶ Ver vídeo do treino
                     </a>

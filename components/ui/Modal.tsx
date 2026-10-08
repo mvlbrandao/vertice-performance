@@ -1,7 +1,8 @@
 "use client";
 
-import { ReactNode, useEffect, useId, useSyncExternalStore } from "react";
+import { ReactNode, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
+import { lockInertSiblings } from "@/lib/utils/inertLock";
 import { lockBodyScroll } from "@/lib/utils/scrollLock";
 import { keyboardInset, parseViewportBox } from "@/lib/utils/visualViewport";
 
@@ -70,6 +71,12 @@ function OpenModal({
 }) {
   const titleId = useId();
   const box = parseViewportBox(useSyncExternalStore(subscribeViewport, viewportSnapshot, () => ""));
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  // Quem tinha o foco ao abrir (o botão que abriu o modal). Lido no render e
+  // não num efeito porque um campo com autoFocus já terá tomado o foco quando
+  // o efeito rodar. Estado, e não ref, para valer o mesmo valor no modo estrito.
+  const [trigger] = useState(() => document.activeElement);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -82,8 +89,35 @@ function OpenModal({
   // Sem isto o dedo que rola a folha rola a página de trás.
   useEffect(() => lockBodyScroll(), []);
 
+  // aria-modal só promete; o foco precisa ir para dentro, o resto da página
+  // sair da ordem de tabulação e da leitura de tela, e o foco voltar a quem
+  // abriu. O painel (e não o primeiro campo) recebe o foco: no celular focar um
+  // campo levantaria o teclado antes de a pessoa ver o formulário.
+  useEffect(() => {
+    const overlay = overlayRef.current;
+    const panel = panelRef.current;
+    if (!overlay || !panel) return;
+
+    const release = lockInertSiblings(overlay);
+    if (!panel.contains(document.activeElement)) panel.focus({ preventScroll: true });
+
+    return () => {
+      // Antes do focus(): elemento inerte não aceita foco.
+      release();
+      // Painel ainda no DOM = o React só reexecuta o efeito (modo estrito em
+      // desenvolvimento); fechar de verdade já o removeu. Devolver o foco ali
+      // tiraria o foco de um campo com autoFocus, que o React não reaplica.
+      if (panel.isConnected) return;
+      // Se o gatilho sumiu (o botão desmonta ao salvar), não há para onde voltar.
+      if (trigger instanceof HTMLElement && trigger.isConnected) {
+        trigger.focus({ preventScroll: true });
+      }
+    };
+  }, [trigger]);
+
   return createPortal(
     <div
+      ref={overlayRef}
       // Até 639px o modal vira folha ancorada embaixo (alcance do polegar,
       // mais área útil); de sm para cima segue centralizado como antes.
       className="fixed inset-x-0 top-0 h-dvh bg-black/65 flex items-end sm:items-center justify-center z-50 p-0 sm:p-5"
@@ -95,10 +129,12 @@ function OpenModal({
       }}
     >
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="bg-white w-full sm:max-w-[460px] max-h-[92%] sm:max-h-[88dvh] overflow-y-auto overscroll-contain rounded-t-lg sm:rounded-lg p-6.5 max-sm:pb-[max(1.625rem,env(safe-area-inset-bottom))] motion-safe:max-sm:animate-sheet-up"
+        tabIndex={-1}
+        className="bg-white outline-none w-full sm:max-w-[460px] max-h-[92%] sm:max-h-[88dvh] overflow-y-auto overscroll-contain rounded-t-lg sm:rounded-lg p-6.5 max-sm:pb-[max(1.625rem,env(safe-area-inset-bottom))] motion-safe:max-sm:animate-sheet-up"
       >
         <h3 id={titleId} className="text-[22px] mb-4 mt-0">
           {title}

@@ -59,7 +59,7 @@ export default async function GameSumulaPage({
   return (
     <div>
       <div className="mb-5">
-        <Link href="/jogos" className="text-xs font-semibold text-ink-faint hover:text-pitch-dark">
+        <Link href="/jogos" className="text-xs font-semibold text-ink-faint hover:text-pitch-dark tap-expand">
           ← Jogos
         </Link>
         <div className="flex items-center justify-between flex-wrap gap-2 mt-1.5">
@@ -79,7 +79,7 @@ export default async function GameSumulaPage({
             </Badge>
             <Link
               href={`/jogos/${game.id}/escalacao`}
-              className="text-xs font-semibold border border-line rounded-sm px-2.5 py-1.5 hover:border-pitch-dark"
+              className="text-xs font-semibold border border-line rounded-sm px-2.5 py-1.5 pointer-coarse:py-3.5 hover:border-pitch-dark"
             >
               📋 Escalação{game.lineup_published_at ? " · publicada" : ""}
             </Link>

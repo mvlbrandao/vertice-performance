@@ -44,7 +44,7 @@ export default async function AssinaturaPage() {
   const emCortesia = !!license.courtesyUntil && new Date(license.courtesyUntil) > new Date();
 
   return (
-    <div className="min-h-screen bg-chalk p-5 sm:p-8">
+    <div className="min-h-dvh bg-chalk p-5 sm:p-8">
       <div className="max-w-2xl mx-auto">
       <h1 className="text-[28px] m-0 mb-1">Assinatura</h1>
       <div className="text-xs text-ink-faint mb-4">{license.clubName}</div>

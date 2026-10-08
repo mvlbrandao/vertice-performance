@@ -102,7 +102,7 @@ export function StaffAccessModal({
         {athletes.length === 0 ? (
           <EmptyState icon="👥" message="Nenhum atleta cadastrado ainda." />
         ) : (
-          <div className="flex flex-col max-h-[50vh] overflow-y-auto">
+          <div className="flex flex-col max-h-[50dvh] overflow-y-auto">
             {athletes.map((a) => {
               const level = levelByAthlete.get(a.id);
               const isGranted = level != null;

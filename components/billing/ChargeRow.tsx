@@ -112,7 +112,7 @@ export function ChargeRow({
         {athleteName && (
           <Link
             href={`/athletes/${athleteId}/financeiro`}
-            className="text-[11px] font-semibold text-pitch-dark hover:underline block mb-0.5"
+            className="text-[11px] font-semibold text-pitch-dark hover:underline block mb-0.5 tap-expand"
           >
             {athleteName}
           </Link>

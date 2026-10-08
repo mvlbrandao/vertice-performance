@@ -43,7 +43,7 @@ export default async function MatriculaPage({
 function Moldura({ children, clubName }: { children: React.ReactNode; clubName: string | null }) {
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-5 sm:p-6"
+      className="min-h-dvh flex items-center justify-center p-5 sm:p-6"
       style={{
         background:
           "radial-gradient(circle at 20% 20%, rgba(255,214,0,.10), transparent 45%), linear-gradient(160deg, #111111 0%, #000000 100%)",

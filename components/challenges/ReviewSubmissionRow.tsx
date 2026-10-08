@@ -66,7 +66,7 @@ export function ReviewSubmissionRow({
         href={instagramUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-xs font-semibold text-pitch-dark hover:underline break-all"
+        className="text-xs font-semibold text-pitch-dark hover:underline break-all tap-expand"
       >
         📸 {instagramUrl}
       </a>

@@ -169,7 +169,7 @@ function FilterChip({
   return (
     <Link
       href={href}
-      className={`inline-flex items-center gap-1 rounded-sm border px-2.5 py-1.5 text-[12.5px] font-semibold ${
+      className={`inline-flex items-center gap-1 rounded-sm border px-2.5 py-1.5 pointer-coarse:py-3 text-[12.5px] font-semibold ${
         active
           ? "bg-pitch-dark text-chalk border-pitch-dark"
           : "bg-paper text-ink-soft border-line hover:border-ink-faint"

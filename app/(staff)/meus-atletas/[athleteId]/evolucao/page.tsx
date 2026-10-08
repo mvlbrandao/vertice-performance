@@ -259,7 +259,7 @@ export default async function StaffAthleteEvolucaoPage({
                         href={e.video}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex mt-2.5 text-xs font-semibold border border-line rounded-sm px-2.5 py-1.5 hover:border-pitch-dark"
+                        className="inline-flex mt-2.5 text-xs font-semibold border border-line rounded-sm px-2.5 py-1.5 pointer-coarse:py-3.5 hover:border-pitch-dark"
                       >
                         ▶ Ver vídeo de apoio
                       </a>
@@ -348,7 +348,7 @@ export default async function StaffAthleteEvolucaoPage({
                         href={e.videoUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex mt-2.5 text-xs font-semibold border border-line rounded-sm px-2.5 py-1.5 hover:border-pitch-dark"
+                        className="inline-flex mt-2.5 text-xs font-semibold border border-line rounded-sm px-2.5 py-1.5 pointer-coarse:py-3.5 hover:border-pitch-dark"
                       >
                         ▶ Ver vídeo do treino
                       </a>

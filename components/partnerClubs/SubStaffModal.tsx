@@ -55,7 +55,7 @@ export function SubStaffModal({
         {staffList.length === 0 ? (
           <EmptyState icon="🧑‍⚕️" message="Nenhum profissional convidado ainda." />
         ) : (
-          <div className="flex flex-col max-h-[50vh] overflow-y-auto">
+          <div className="flex flex-col max-h-[50dvh] overflow-y-auto">
             {staffList.map((s) => {
               const currentRole = roleByStaff.get(s.id);
               const isAssigned = currentRole != null;

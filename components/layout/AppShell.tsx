@@ -49,6 +49,10 @@ export function AppShell({
   // ele fecha sozinho, sem efeito que dispare setState (e sem ficar aberto
   // por cima da página nova quando o toque vem de um link fora do menu).
   const [openFor, setOpenFor] = useState<string | null>(null);
+  // Esquecer a página de origem ao sair dela. Só comparar não basta: o botão
+  // Voltar (ou um toque na aba da barra inferior) devolve o pathname antigo e
+  // o menu reabriria sozinho, com a rolagem travada e o fundo inerte.
+  if (openFor !== null && openFor !== pathname) setOpenFor(null);
   const open = openFor === pathname;
   const toggleRef = useRef<HTMLButtonElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);

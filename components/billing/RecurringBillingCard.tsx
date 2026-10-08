@@ -65,7 +65,7 @@ export function RecurringBillingCard({
               href={s.checkoutUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs font-semibold border border-line rounded-sm px-2.5 py-1.5 hover:border-pitch-dark"
+              className="text-xs font-semibold border border-line rounded-sm px-2.5 py-1.5 pointer-coarse:py-3.5 hover:border-pitch-dark"
             >
               🔗 Link de pagamento
             </a>

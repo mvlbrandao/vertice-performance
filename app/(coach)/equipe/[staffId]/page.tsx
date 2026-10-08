@@ -92,7 +92,7 @@ export default async function StaffProfilePage({
   return (
     <div>
       <div className="mb-4">
-        <Link href="/equipe" className="text-xs font-semibold text-ink-faint hover:underline">
+        <Link href="/equipe" className="text-xs font-semibold text-ink-faint hover:underline tap-expand">
           ← Equipe
         </Link>
         <h1 className="text-[28px] m-0 mt-1">{staff.full_name}</h1>

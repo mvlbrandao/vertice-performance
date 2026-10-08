@@ -227,7 +227,7 @@ export default async function ContasAReceberPage({
           {(teamFilter || athleteFilter) && (
             <Link
               href={buildHref({ ...linkParams, overrides: { team: "", athleteId: "" } })}
-              className="text-xs font-semibold text-ink-faint hover:underline"
+              className="text-xs font-semibold text-ink-faint hover:underline tap-expand"
             >
               Limpar
             </Link>
@@ -256,7 +256,7 @@ export default async function ContasAReceberPage({
                   {a?.asaas_customer_id && (
                     <Link
                       href={`/athletes/${c.athlete_id}/financeiro`}
-                      className="text-[11px] text-pitch-dark hover:underline"
+                      className="text-[11px] text-pitch-dark hover:underline tap-expand"
                       title="Ver régua de cobrança configurada no Asaas"
                     >
                       📣 régua Asaas

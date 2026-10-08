@@ -26,7 +26,7 @@ export default async function AcessoSuspensoPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-5 bg-pitch-dark">
+    <div className="min-h-dvh flex items-center justify-center p-5 bg-pitch-dark">
       <div className="bg-white rounded-lg w-full max-w-[440px] p-7">
         <div className="flex items-center gap-2 mb-5">
           <span className="w-2.5 h-2.5 rounded-full bg-amber inline-block" />

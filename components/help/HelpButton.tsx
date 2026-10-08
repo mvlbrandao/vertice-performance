@@ -22,7 +22,7 @@ export function HelpButton() {
         type="button"
         onClick={() => setOpen(true)}
         aria-label={`Ajuda sobre ${help.titulo}`}
-        className="fixed bottom-5 right-5 z-40 w-11 h-11 rounded-full bg-pitch-dark text-chalk border-2 border-amber shadow-lg font-display text-lg print:hidden hover:brightness-125"
+        className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] right-[max(1.25rem,env(safe-area-inset-right))] z-40 w-11 h-11 rounded-full bg-pitch-dark text-chalk border-2 border-amber shadow-lg font-display text-lg print:hidden hover:brightness-125"
       >
         ?
       </button>
@@ -33,7 +33,7 @@ export function HelpButton() {
           onClick={() => setOpen(false)}
         >
           <div
-            className="bg-paper w-full sm:max-w-[420px] rounded-t-xl sm:rounded-xl p-5 sm:p-6 max-h-[80vh] overflow-y-auto"
+            className="bg-paper w-full sm:max-w-[420px] rounded-t-xl sm:rounded-xl p-5 sm:p-6 max-h-[80dvh] overflow-y-auto overscroll-contain max-sm:pb-[max(1.25rem,env(safe-area-inset-bottom))]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3 mb-1.5">
@@ -41,7 +41,7 @@ export function HelpButton() {
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="text-ink-faint text-lg leading-none shrink-0"
+                className="text-ink-faint text-lg leading-none shrink-0 -mr-2 -mt-2 size-11 inline-flex items-center justify-center"
                 aria-label="Fechar"
               >
                 ✕

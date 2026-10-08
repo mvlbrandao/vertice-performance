@@ -37,7 +37,7 @@ export function AthleteComparisonCard({
 
   return (
     <div>
-      <div className="flex items-center gap-1.5 mb-3">
+      <div className="flex flex-wrap items-center gap-1.5 mb-3">
         {(
           [
             ["category", `Meu sub${category ? ` (${category})` : ""}`],
@@ -49,7 +49,7 @@ export function AthleteComparisonCard({
             key={key}
             type="button"
             onClick={() => setScope(key)}
-            className={`text-xs font-semibold px-3 py-1.5 rounded-full border ${
+            className={`text-xs font-semibold px-3 py-1.5 pointer-coarse:py-3.5 rounded-full border ${
               scope === key
                 ? "bg-pitch-dark text-white border-pitch-dark"
                 : "bg-white text-ink-soft border-line hover:border-pitch-dark"

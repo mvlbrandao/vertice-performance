@@ -85,7 +85,7 @@ export function PrimeirosPassos({ passos }: { passos: Passo[] }) {
             {!passo.feito && (
               <Link
                 href={passo.href}
-                className="text-[12px] font-semibold border border-line rounded-sm px-2.5 py-1.5 shrink-0 hover:border-pitch-dark"
+                className="text-[12px] font-semibold border border-line rounded-sm px-2.5 py-1.5 pointer-coarse:py-3.5 shrink-0 hover:border-pitch-dark"
               >
                 Fazer
               </Link>

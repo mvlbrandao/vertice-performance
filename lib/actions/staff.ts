@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireCoach } from "@/lib/auth/guards";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { isReservedAdminEmail } from "@/lib/platform/admin";
 import type { ActionResult } from "@/lib/actions/athletes";
 import { translateAuthError } from "@/lib/utils/authErrors";
 import { logAudit } from "@/lib/actions/auditLog";
@@ -30,6 +31,9 @@ export async function inviteStaff(formData: FormData): Promise<ActionResult> {
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
+
+  // E-mail do administrador da plataforma não vira conta de clube.
+  if (isReservedAdminEmail(parsed.data.email)) return { error: "E-mail indisponível." };
 
   const admin = createAdminClient();
   const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(

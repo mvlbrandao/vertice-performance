@@ -1,8 +1,9 @@
 "use server";
 
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
 import { requirePlatformAdmin } from "@/lib/platform/admin";
+import { logPlatformAction } from "@/lib/platform/audit";
+import { revalidateAdmin } from "@/lib/platform/revalidate";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPlatformAsaasCredentials } from "@/lib/asaas/platform";
 import { hojeISO } from "@/lib/utils/date";
@@ -78,6 +79,7 @@ export async function startClubSubscription(formData: FormData): Promise<ActionR
 
   try {
     let customerId = club.asaas_customer_id;
+    let customer: "novo" | "existente" = "existente";
     if (!customerId) {
       const existing = await findCustomerByCpf(creds, cpfCnpj);
       if (existing) {
@@ -90,6 +92,7 @@ export async function startClubSubscription(formData: FormData): Promise<ActionR
           externalReference: club.id,
         });
         customerId = created.id;
+        customer = "novo";
       }
     }
 
@@ -113,9 +116,26 @@ export async function startClubSubscription(formData: FormData): Promise<ActionR
         asaas_checkout_url: checkoutUrl,
       })
       .eq("id", club.id);
+
+    // Sem CPF/CNPJ, link de pagamento ou chave na trilha: só o que identifica
+    // a cobrança. Se o banco falhou depois de o Asaas já ter criado a
+    // assinatura, ela fica órfã lá — por isso registra mesmo assim, para
+    // alguém conseguir achar e cancelar.
+    await logPlatformAction({
+      action: "club.start_subscription",
+      club: { id: club.id, name: club.name },
+      details: {
+        billing_type: parsed.data.billingType,
+        amount_cents: Math.round(amountValue * 100),
+        asaas_subscription_id: subscription.id,
+        customer,
+        ...(updateError ? { falha: "assinatura criada no Asaas, mas não gravada no clube" } : {}),
+      },
+    });
+
     if (updateError) return { error: updateError.message };
 
-    revalidatePath("/plataforma");
+    revalidateAdmin();
     return { success: true };
   } catch (e) {
     if (e instanceof AsaasError) return { error: e.message };
@@ -133,21 +153,55 @@ export async function cancelClubSubscription(formData: FormData): Promise<Action
   const admin = createAdminClient();
   const { data: club } = await admin
     .from("clubs")
-    .select("asaas_subscription_id")
+    .select("id, name, asaas_subscription_id")
     .eq("id", parsed.data.clubId)
     .maybeSingle();
+  if (!club) return { error: "Clube não encontrado." };
 
-  if (club?.asaas_subscription_id) {
+  // O que aconteceu no Asaas importa para a trilha: "cancelada" e "o link foi
+  // removido mas a assinatura continua lá" são situações bem diferentes.
+  let asaas: "cancelada" | "nao_encontrada" | "sem_credenciais" | "sem_assinatura" =
+    "sem_assinatura";
+  if (club.asaas_subscription_id) {
     const creds = getPlatformAsaasCredentials();
-    try {
-      if (creds) await cancelSubscription(creds, club.asaas_subscription_id);
-    } catch (e) {
-      if (e instanceof AsaasError && e.status !== 404) return { error: e.message };
+    if (!creds) {
+      asaas = "sem_credenciais";
+    } else {
+      try {
+        await cancelSubscription(creds, club.asaas_subscription_id);
+        asaas = "cancelada";
+      } catch (e) {
+        if (e instanceof AsaasError && e.status === 404) {
+          asaas = "nao_encontrada";
+        } else {
+          // Falha de rede ou erro do Asaas: a assinatura pode continuar viva
+          // lá. Dizer "cancelada" e apagar o link esconderia uma cobrança que
+          // segue rodando.
+          return {
+            error: e instanceof AsaasError ? e.message : "Não foi possível cancelar a assinatura no Asaas.",
+          };
+        }
+      }
     }
   }
 
-  await admin.from("clubs").update({ asaas_checkout_url: null }).eq("id", parsed.data.clubId);
+  const { error: updateError } = await admin
+    .from("clubs")
+    .update({ asaas_checkout_url: null })
+    .eq("id", club.id);
 
-  revalidatePath("/plataforma");
+  await logPlatformAction({
+    action: "club.cancel_subscription",
+    club: { id: club.id, name: club.name },
+    details: {
+      asaas_subscription_id: club.asaas_subscription_id,
+      asaas,
+      ...(updateError ? { falha: "link de pagamento não removido do clube" } : {}),
+    },
+  });
+
+  if (updateError) return { error: updateError.message };
+
+  revalidateAdmin();
   return { success: true };
 }

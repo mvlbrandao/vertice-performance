@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isReservedAdminEmail } from "@/lib/platform/admin";
 import { getPlatformSettings } from "@/lib/platform/license";
 import { somaDias, hojeISO } from "@/lib/utils/date";
 import { translateAuthError } from "@/lib/utils/authErrors";
@@ -91,6 +92,11 @@ export async function signup(formData: FormData): Promise<SignupResult> {
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
+
+  // Cadastro cria conta já confirmada; sem esta recusa, quem se cadastrasse
+  // com o e-mail do administrador antes dele herdaria o acesso à plataforma.
+  // Mensagem neutra de propósito: não revela que o endereço é especial.
+  if (isReservedAdminEmail(parsed.data.email)) return { error: "E-mail indisponível." };
 
   const admin = createAdminClient();
 

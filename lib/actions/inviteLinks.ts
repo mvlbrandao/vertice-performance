@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { requireCoach } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isReservedAdminEmail } from "@/lib/platform/admin";
 import type { ActionResult } from "@/lib/actions/athletes";
 import { logAudit } from "@/lib/actions/auditLog";
 
@@ -123,6 +124,9 @@ export async function redeemInviteLink(input: {
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
+
+  // Antes de reservar o convite, para a recusa não gastar o link de ninguém.
+  if (isReservedAdminEmail(parsed.data.email)) return { error: "E-mail indisponível." };
 
   const admin = createAdminClient();
   const { data: invite } = await admin

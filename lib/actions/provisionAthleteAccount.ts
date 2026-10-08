@@ -3,6 +3,7 @@
 import { requireCoach } from "@/lib/auth/guards";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { isReservedAdminEmail } from "@/lib/platform/admin";
 import { translateAuthError } from "@/lib/utils/authErrors";
 
 /**
@@ -20,6 +21,9 @@ export async function provisionAthleteAccount({
   fullName: string;
 }) {
   const coach = await requireCoach();
+
+  // E-mail do administrador da plataforma não vira conta de clube.
+  if (isReservedAdminEmail(email)) return { error: "E-mail indisponível." };
 
   // confirma que o atleta pertence ao clube do treinador autenticado antes de
   // qualquer operação privilegiada (a RLS normal não se aplica ao admin client)

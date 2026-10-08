@@ -1,9 +1,11 @@
 "use server";
 
 import { z } from "zod";
-import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requirePlatformAdmin } from "@/lib/platform/admin";
+import { logPlatformAction } from "@/lib/platform/audit";
+import { revalidateAdmin } from "@/lib/platform/revalidate";
+import { diffFields } from "@/lib/actions/auditLog";
 import { somaDias, hojeISO } from "@/lib/utils/date";
 import type { ActionResult } from "@/lib/actions/athletes";
 import type { Database } from "@/lib/types/database";
@@ -15,6 +17,23 @@ const settingsSchema = z.object({
   maxAthletes: z.coerce.number().int().min(1).max(100000),
   retentionDays: z.coerce.number().int().min(1).max(3650),
 });
+
+/**
+ * Retrato do clube antes de uma mutação: dá o nome para a trilha de auditoria
+ * e os valores "de" do diff. Quem muda um clube que não existe recebe erro em
+ * vez de um sucesso que não alterou nada.
+ */
+const CLUB_SNAPSHOT_COLUMNS =
+  "id, name, status, trial_ends_at, courtesy_until, courtesy_reason, max_athletes_override, price_cents_override, payment_promise_used_at, canceled_at";
+
+async function loadClubSnapshot(admin: ReturnType<typeof createAdminClient>, clubId: string) {
+  const { data } = await admin
+    .from("clubs")
+    .select(CLUB_SNAPSHOT_COLUMNS)
+    .eq("id", clubId)
+    .maybeSingle();
+  return data;
+}
 
 /** Aceita "149,90" e "149.90" — o treinador digita com vírgula. */
 function reaisParaCentavos(raw: string): number | null {
@@ -38,20 +57,32 @@ export async function updatePlatformSettings(formData: FormData): Promise<Action
   if (priceCents === null) return { error: "Valor inválido." };
 
   const admin = createAdminClient();
+  const { data: before } = await admin
+    .from("platform_settings")
+    .select("plan_name, price_cents, trial_days, max_athletes, retention_days")
+    .eq("id", true)
+    .maybeSingle();
+
+  const next = {
+    plan_name: parsed.data.planName,
+    price_cents: priceCents,
+    trial_days: parsed.data.trialDays,
+    max_athletes: parsed.data.maxAthletes,
+    retention_days: parsed.data.retentionDays,
+  };
   const { error } = await admin
     .from("platform_settings")
-    .update({
-      plan_name: parsed.data.planName,
-      price_cents: priceCents,
-      trial_days: parsed.data.trialDays,
-      max_athletes: parsed.data.maxAthletes,
-      retention_days: parsed.data.retentionDays,
-      updated_at: new Date().toISOString(),
-    })
+    .update({ ...next, updated_at: new Date().toISOString() })
     .eq("id", true);
   if (error) return { error: error.message };
 
-  revalidatePath("/plataforma");
+  // Salvar sem mexer em nada não é mudança: não polui a trilha.
+  const changes = diffFields((before ?? {}) as Record<string, unknown>, next);
+  if (Object.keys(changes).length > 0) {
+    await logPlatformAction({ action: "settings.update", details: { changes } });
+  }
+
+  revalidateAdmin();
   return { success: true };
 }
 
@@ -68,27 +99,34 @@ export async function extendTrial(formData: FormData): Promise<ActionResult> {
   if (!Number.isFinite(dias) || dias < 1 || dias > 365) return { error: "Prazo inválido." };
 
   const admin = createAdminClient();
-  const { data: club } = await admin
-    .from("clubs")
-    .select("trial_ends_at")
-    .eq("id", clubId.data.clubId)
-    .maybeSingle();
+  const club = await loadClubSnapshot(admin, clubId.data.clubId);
+  if (!club) return { error: "Clube não encontrado." };
 
   // Estende a partir do vencimento quando ele ainda está no futuro, senão
   // a partir de hoje — prorrogar um teste vencido há um mês não pode
   // devolver um prazo que já nasce no passado.
   const base =
-    club?.trial_ends_at && new Date(club.trial_ends_at) > new Date()
+    club.trial_ends_at && new Date(club.trial_ends_at) > new Date()
       ? club.trial_ends_at.slice(0, 10)
       : hojeISO();
 
-  const { error } = await admin
-    .from("clubs")
-    .update({ status: "trial", trial_ends_at: `${somaDias(base, dias)}T23:59:59Z` })
-    .eq("id", clubId.data.clubId);
+  const next = { status: "trial" as const, trial_ends_at: `${somaDias(base, dias)}T23:59:59Z` };
+  const { error } = await admin.from("clubs").update(next).eq("id", club.id);
   if (error) return { error: error.message };
 
-  revalidatePath("/plataforma");
+  await logPlatformAction({
+    action: "club.extend_trial",
+    club: { id: club.id, name: club.name },
+    details: {
+      dias,
+      changes: diffFields(
+        { status: club.status, trial_ends_at: club.trial_ends_at } as Record<string, unknown>,
+        next,
+      ),
+    },
+  });
+
+  revalidateAdmin();
   return { success: true };
 }
 
@@ -109,16 +147,28 @@ export async function grantCourtesy(formData: FormData): Promise<ActionResult> {
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
 
   const admin = createAdminClient();
-  const { error } = await admin
-    .from("clubs")
-    .update({
-      courtesy_until: `${parsed.data.ate}T23:59:59Z`,
-      courtesy_reason: parsed.data.motivo || null,
-    })
-    .eq("id", parsed.data.clubId);
+  const club = await loadClubSnapshot(admin, parsed.data.clubId);
+  if (!club) return { error: "Clube não encontrado." };
+
+  const next = {
+    courtesy_until: `${parsed.data.ate}T23:59:59Z`,
+    courtesy_reason: parsed.data.motivo || null,
+  };
+  const { error } = await admin.from("clubs").update(next).eq("id", club.id);
   if (error) return { error: error.message };
 
-  revalidatePath("/plataforma");
+  await logPlatformAction({
+    action: "club.grant_courtesy",
+    club: { id: club.id, name: club.name },
+    details: {
+      changes: diffFields(
+        { courtesy_until: club.courtesy_until, courtesy_reason: club.courtesy_reason } as Record<string, unknown>,
+        next,
+      ),
+    },
+  });
+
+  revalidateAdmin();
   return { success: true };
 }
 
@@ -128,13 +178,25 @@ export async function revokeCourtesy(formData: FormData): Promise<ActionResult> 
   if (!parsed.success) return { error: "Clube inválido." };
 
   const admin = createAdminClient();
-  const { error } = await admin
-    .from("clubs")
-    .update({ courtesy_until: null, courtesy_reason: null })
-    .eq("id", parsed.data.clubId);
+  const club = await loadClubSnapshot(admin, parsed.data.clubId);
+  if (!club) return { error: "Clube não encontrado." };
+
+  const next = { courtesy_until: null, courtesy_reason: null };
+  const { error } = await admin.from("clubs").update(next).eq("id", club.id);
   if (error) return { error: error.message };
 
-  revalidatePath("/plataforma");
+  await logPlatformAction({
+    action: "club.revoke_courtesy",
+    club: { id: club.id, name: club.name },
+    details: {
+      changes: diffFields(
+        { courtesy_until: club.courtesy_until, courtesy_reason: club.courtesy_reason } as Record<string, unknown>,
+        next,
+      ),
+    },
+  });
+
+  revalidateAdmin();
   return { success: true };
 }
 
@@ -145,13 +207,27 @@ export async function resetPaymentPromise(formData: FormData): Promise<ActionRes
   if (!parsed.success) return { error: "Clube inválido." };
 
   const admin = createAdminClient();
+  const club = await loadClubSnapshot(admin, parsed.data.clubId);
+  if (!club) return { error: "Clube não encontrado." };
+
   const { error } = await admin
     .from("clubs")
     .update({ payment_promise_used_at: null })
-    .eq("id", parsed.data.clubId);
+    .eq("id", club.id);
   if (error) return { error: error.message };
 
-  revalidatePath("/plataforma");
+  await logPlatformAction({
+    action: "club.reset_payment_promise",
+    club: { id: club.id, name: club.name },
+    details: {
+      changes: diffFields(
+        { payment_promise_used_at: club.payment_promise_used_at } as Record<string, unknown>,
+        { payment_promise_used_at: null },
+      ),
+    },
+  });
+
+  revalidateAdmin();
   return { success: true };
 }
 
@@ -182,13 +258,29 @@ export async function setClubOverrides(formData: FormData): Promise<ActionResult
   if (preco && precoOverride === null) return { error: "Valor inválido." };
 
   const admin = createAdminClient();
-  const { error } = await admin
-    .from("clubs")
-    .update({ max_athletes_override: maxOverride, price_cents_override: precoOverride })
-    .eq("id", parsed.data.clubId);
+  const club = await loadClubSnapshot(admin, parsed.data.clubId);
+  if (!club) return { error: "Clube não encontrado." };
+
+  const next = { max_athletes_override: maxOverride, price_cents_override: precoOverride };
+  const { error } = await admin.from("clubs").update(next).eq("id", club.id);
   if (error) return { error: error.message };
 
-  revalidatePath("/plataforma");
+  const changes = diffFields(
+    {
+      max_athletes_override: club.max_athletes_override,
+      price_cents_override: club.price_cents_override,
+    } as Record<string, unknown>,
+    next,
+  );
+  if (Object.keys(changes).length > 0) {
+    await logPlatformAction({
+      action: "club.set_overrides",
+      club: { id: club.id, name: club.name },
+      details: { changes },
+    });
+  }
+
+  revalidateAdmin();
   return { success: true };
 }
 
@@ -206,6 +298,8 @@ export async function setClubStatus(formData: FormData): Promise<ActionResult> {
   if (!parsed.success) return { error: "Situação inválida." };
 
   const admin = createAdminClient();
+  const club = await loadClubSnapshot(admin, parsed.data.clubId);
+  if (!club) return { error: "Clube não encontrado." };
 
   // Voltar pra 'trial' sem prazo violaria a restrição do banco, então damos
   // um prazo padrão; e cancelar registra a data, que é o que dispara a
@@ -220,9 +314,29 @@ export async function setClubStatus(formData: FormData): Promise<ActionResult> {
     patch.canceled_at = null;
   }
 
-  const { error } = await admin.from("clubs").update(patch).eq("id", parsed.data.clubId);
+  const { error } = await admin.from("clubs").update(patch).eq("id", club.id);
   if (error) return { error: error.message };
 
-  revalidatePath("/plataforma");
+  await logPlatformAction({
+    action: "club.set_status",
+    club: { id: club.id, name: club.name },
+    details: {
+      changes: diffFields(
+        {
+          status: club.status,
+          trial_ends_at: club.trial_ends_at,
+          canceled_at: club.canceled_at,
+        } as Record<string, unknown>,
+        {
+          status: patch.status,
+          // Só entra no "depois" o que a ação realmente tocou.
+          trial_ends_at: patch.trial_ends_at ?? club.trial_ends_at,
+          canceled_at: patch.canceled_at ?? null,
+        },
+      ),
+    },
+  });
+
+  revalidateAdmin();
   return { success: true };
 }

@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { getSessionProfile } from "@/lib/auth/session";
+import { getSessionProfile, roleHomePath } from "@/lib/auth/session";
+import { getPlatformAdmin } from "@/lib/platform/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { CLUB_SLUG_COOKIE } from "@/lib/clubLink";
@@ -14,12 +15,12 @@ const AVISO: Record<string, string> = {
 };
 
 export default async function LoginPage({ searchParams }: { searchParams: Search }) {
+  // O administrador da plataforma pode não ter perfil de clube; sem esta
+  // checagem a página de login o devolveria a si mesma para sempre.
+  if (await getPlatformAdmin()) redirect("/admin");
+
   const profile = await getSessionProfile();
-  if (profile) {
-    const destination =
-      profile.role === "coach" ? "/dashboard" : profile.role === "staff" ? "/meus-atletas" : "/perfil";
-    redirect(destination);
-  }
+  if (profile) redirect(roleHomePath(profile.role));
 
   const { clube } = await searchParams;
 

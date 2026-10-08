@@ -1,36 +1,61 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Vértice Performance
 
-## Getting Started
+Plataforma de gestão e acompanhamento de atletas de base para clubes: ficha técnica, física e
+mental, score do atleta, escalação e jogos, agenda, financeiro (cobranças, inadimplência, caixa) e
+comissão técnica. Cada clube é um cliente (SaaS) com período de teste e licença; o dono da
+plataforma tem uma área própria de administração.
 
-First, run the development server:
+Next.js 16 (App Router), React 19, Tailwind CSS 4, Supabase (Auth, Postgres com RLS, Storage),
+Zod 4 e Vitest. Interface em português do Brasil.
+
+> Esta versão do Next.js tem mudanças em relação ao que costuma estar nos tutoriais
+> (`proxy.ts` no lugar de `middleware`, `params` e `searchParams` são Promises, entre outras).
+> Antes de mexer em algo que usa API do Next, leia o guia em `node_modules/next/dist/docs/`.
+> Veja também `AGENTS.md`.
+
+## Como rodar
+
+Requisitos: Node.js 20 ou superior e um projeto Supabase.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.example .env.local   # preencha ao menos as variáveis do Supabase
+npm run dev                  # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Banco: as migrações estão em `supabase/migrations/`, em ordem numérica. Aplique-as no projeto
+Supabase (`supabase db push` ou pelo editor SQL).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Testes e verificação
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm test                     # Vitest (lógica pura e ações com dependências simuladas)
+npx tsc --noEmit             # tipos
+npm run lint                 # ESLint
+```
 
-## Learn More
+## Variáveis de ambiente
 
-To learn more about Next.js, take a look at the following resources:
+Todas estão documentadas, uma a uma e com indicação de obrigatória ou opcional, em
+[`.env.example`](.env.example). As indispensáveis para subir o app são `NEXT_PUBLIC_SUPABASE_URL`,
+`NEXT_PUBLIC_SUPABASE_ANON_KEY` e `SUPABASE_SERVICE_ROLE_KEY`. Nunca versione valores.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Administração da plataforma
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+A área `/admin` (clubes, receita, auditoria, segurança) é restrita ao e-mail definido em
+`PLATFORM_ADMIN_EMAILS`. Como configurar, o modelo de segurança, as migrações pendentes e como
+reverter: [`docs/ADMIN.md`](docs/ADMIN.md).
 
-## Deploy on Vercel
+## Estrutura
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Pasta | Conteúdo |
+| --- | --- |
+| `app/(coach)`, `app/(staff)`, `app/(athlete)` | Telas por papel dentro de um clube |
+| `app/(admin)` | Administração da plataforma (`/admin`) |
+| `app/api` | Rotas de cron e webhooks do Asaas |
+| `components/` | Componentes React; `components/ui` são os blocos de base |
+| `lib/actions` | Server actions |
+| `lib/platform` | Licença, contratos, auditoria e acesso do administrador |
+| `lib/supabase` | Clientes do Supabase (sessão, serviço e navegador) |
+| `supabase/migrations` | Esquema do banco |
+| `scripts/` | Utilitários de linha de comando (cadastro de clube, sementes, verificações) |

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { requireCoach } from "@/lib/auth/guards";
+import { isPlatformAdmin } from "@/lib/platform/admin";
 import { AppShell, type NavItem } from "@/components/layout/AppShell";
 import { HelpButton } from "@/components/help/HelpButton";
 import { DemoBanner } from "@/components/demo/DemoBanner";
@@ -49,8 +50,15 @@ export default async function CoachLayout({
 }) {
   const profile = await requireCoach();
 
+  // Atalho para a área da plataforma, só para quem é administrador. O link
+  // nunca aparece para os demais, e o /admin devolve 404 mesmo que alguém
+  // digite o endereço.
+  const items = (await isPlatformAdmin())
+    ? [...navItems, { href: "/admin", icon: "🛡️", label: "Administração" }]
+    : navItems;
+
   return (
-    <AppShell navItems={navItems} userName={profile.fullName} roleLabel="Treinador(a) / Staff">
+    <AppShell navItems={items} userName={profile.fullName} roleLabel="Treinador(a) / Staff">
       <DemoBanner />
       {children}
       <HelpButton />

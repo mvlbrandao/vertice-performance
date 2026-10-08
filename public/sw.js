@@ -32,6 +32,17 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
   // Chamada de dado/ação do Next e rotas de API sempre vão à rede.
   if (url.pathname.startsWith("/api/")) return;
+  // Administração da plataforma: mostra o negócio inteiro (clubes, contratos,
+  // trilha de auditoria). Nunca pode ficar guardada no aparelho nem ser
+  // servida do cache — o 404 para estranhos e o login dependem de a resposta
+  // vir sempre do servidor. Sem respondWith, o navegador vai direto à rede.
+  if (
+    url.pathname === "/admin" ||
+    url.pathname.startsWith("/admin/") ||
+    url.pathname.startsWith("/plataforma")
+  ) {
+    return;
+  }
 
   // Bundle do Next tem nome com hash do conteúdo, então nunca fica velho:
   // pode servir do cache primeiro. Sem isso a página até abria offline, mas

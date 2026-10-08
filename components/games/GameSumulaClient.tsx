@@ -229,7 +229,7 @@ export function GameSumulaClient({
                 <button
                   type="button"
                   onClick={() => handleDeleteEvent(ev.id)}
-                  className="text-ink-faint hover:text-clay text-[11px] leading-none"
+                  className="text-ink-faint hover:text-clay text-[11px] leading-none tap-expand"
                   aria-label="Remover evento"
                 >
                   ✕

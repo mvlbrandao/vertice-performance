@@ -115,6 +115,26 @@ h3,
   }
 }
 
+/* Área de toque ampliada sem mexer no layout. Botões de texto de 11px
+   ("Marcar pago", "Cancelar", o ✕ de excluir) vivem em linhas densas, e
+   engordá-los até 44px de altura quebraria a lista no celular. O ::after
+   invisível estende só a região que responde ao dedo (14px para cima e para
+   baixo, 4px nas laterais — mais que isso sobrepõe o vizinho, que fica a
+   ~10px). Só vale em toque; não use em elemento absolute/fixed, pois o
+   position: relative do utilitário o tiraria do lugar. */
+@utility tap-expand {
+  position: relative;
+
+  @media (pointer: coarse) {
+    &::after {
+      content: "";
+      position: absolute;
+      inset-block: -14px;
+      inset-inline: -4px;
+    }
+  }
+}
+
 /* Campo nunca mais largo que o contêiner. A largura natural de um <select> é a
    da opção mais comprida (nome de atleta, categoria) e, com a fonte de 16px
    do celular, passa fácil de 330px — o que estourava a tela inteira na

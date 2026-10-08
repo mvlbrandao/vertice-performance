@@ -20,7 +20,7 @@ export function DeleteGameButton({ gameId }: { gameId: string }) {
       type="button"
       onClick={handleDelete}
       disabled={pending}
-      className="text-ink-faint hover:text-clay text-[11px] leading-none disabled:opacity-50"
+      className="text-ink-faint hover:text-clay text-[11px] leading-none disabled:opacity-50 tap-expand"
       aria-label="Remover jogo"
     >
       ✕

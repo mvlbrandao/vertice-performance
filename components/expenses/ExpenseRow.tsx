@@ -103,7 +103,7 @@ export function ExpenseRow({
           <button
             type="button"
             onClick={() => setEditingExpense(true)}
-            className="text-[11px] font-semibold text-pitch-dark hover:underline"
+            className="text-[11px] font-semibold text-pitch-dark hover:underline tap-expand"
           >
             editar
           </button>
@@ -132,7 +132,7 @@ export function ExpenseRow({
               type="button"
               onClick={saveDueDate}
               disabled={pending}
-              className="text-[11px] font-semibold text-pitch-dark hover:underline"
+              className="text-[11px] font-semibold text-pitch-dark hover:underline tap-expand"
             >
               Salvar
             </button>
@@ -142,7 +142,7 @@ export function ExpenseRow({
                 setDateValue(dueDate);
                 setEditingDate(false);
               }}
-              className="text-[11px] text-ink-faint hover:underline"
+              className="text-[11px] text-ink-faint hover:underline tap-expand"
             >
               Cancelar
             </button>
@@ -154,7 +154,7 @@ export function ExpenseRow({
               <button
                 type="button"
                 onClick={() => setEditingDate(true)}
-                className="ml-1.5 text-pitch-dark hover:underline font-semibold"
+                className="ml-1.5 text-pitch-dark hover:underline font-semibold tap-expand"
               >
                 editar
               </button>
@@ -170,7 +170,7 @@ export function ExpenseRow({
             type="button"
             onClick={markPaid}
             disabled={pending}
-            className="text-[11px] font-semibold text-pitch-dark hover:underline disabled:opacity-50"
+            className="text-[11px] font-semibold text-pitch-dark hover:underline disabled:opacity-50 tap-expand"
           >
             Marcar pago
           </button>
@@ -180,7 +180,7 @@ export function ExpenseRow({
             type="button"
             onClick={undoPaid}
             disabled={pending}
-            className="text-[11px] font-semibold text-ink-faint hover:text-clay disabled:opacity-50"
+            className="text-[11px] font-semibold text-ink-faint hover:text-clay disabled:opacity-50 tap-expand"
           >
             Desfazer baixa
           </button>
@@ -190,7 +190,7 @@ export function ExpenseRow({
             type="button"
             onClick={cancel}
             disabled={pending}
-            className="text-[11px] font-semibold text-ink-faint hover:text-clay disabled:opacity-50"
+            className="text-[11px] font-semibold text-ink-faint hover:text-clay disabled:opacity-50 tap-expand"
           >
             Cancelar
           </button>
@@ -199,7 +199,7 @@ export function ExpenseRow({
           type="button"
           onClick={handleDelete}
           disabled={pending}
-          className="text-ink-faint hover:text-clay text-[11px] leading-none"
+          className="text-ink-faint hover:text-clay text-[11px] leading-none tap-expand"
           aria-label="Excluir despesa"
         >
           ✕

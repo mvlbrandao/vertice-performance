@@ -20,7 +20,7 @@ export function ArchiveChallengeButton({ challengeId }: { challengeId: string })
       type="button"
       onClick={handleArchive}
       disabled={pending}
-      className="text-ink-faint hover:text-clay text-[11px] leading-none shrink-0"
+      className="text-ink-faint hover:text-clay text-[11px] leading-none shrink-0 tap-expand"
       aria-label="Arquivar desafio"
     >
       ✕

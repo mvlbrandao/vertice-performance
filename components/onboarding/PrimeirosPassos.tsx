@@ -48,7 +48,7 @@ export function PrimeirosPassos({ passos }: { passos: Passo[] }) {
             localStorage.setItem(DISMISS_KEY, "1");
             setDispensado(true);
           }}
-          className="text-[12px] text-ink-faint shrink-0 hover:text-ink"
+          className="text-[12px] text-ink-faint shrink-0 hover:text-ink tap-expand"
         >
           Dispensar
         </button>

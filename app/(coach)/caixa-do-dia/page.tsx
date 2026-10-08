@@ -124,19 +124,19 @@ export default async function CaixaDoDiaPage({
         <div className="flex gap-2 items-center flex-wrap">
           <Link
             href={`/caixa-do-dia?date=${addDaysISO(date, -1)}`}
-            className="text-xs font-semibold border border-line rounded-sm px-3 py-2 pointer-coarse:py-3 hover:border-pitch-dark"
+            className="text-xs font-semibold border border-line rounded-sm px-3 py-2 pointer-coarse:py-3.5 hover:border-pitch-dark"
           >
             ← Dia anterior
           </Link>
           <Link
             href={`/caixa-do-dia?date=${todayISO()}`}
-            className="text-xs font-semibold border border-line rounded-sm px-3 py-2 pointer-coarse:py-3 hover:border-pitch-dark"
+            className="text-xs font-semibold border border-line rounded-sm px-3 py-2 pointer-coarse:py-3.5 hover:border-pitch-dark"
           >
             Hoje
           </Link>
           <Link
             href={`/caixa-do-dia?date=${addDaysISO(date, 1)}`}
-            className="text-xs font-semibold border border-line rounded-sm px-3 py-2 pointer-coarse:py-3 hover:border-pitch-dark"
+            className="text-xs font-semibold border border-line rounded-sm px-3 py-2 pointer-coarse:py-3.5 hover:border-pitch-dark"
           >
             Dia seguinte →
           </Link>

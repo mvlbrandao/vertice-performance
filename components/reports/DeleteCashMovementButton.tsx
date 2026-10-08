@@ -20,9 +20,7 @@ export function DeleteCashMovementButton({ id }: { id: string }) {
       type="button"
       onClick={handleDelete}
       disabled={pending}
-      // 11px de glifo, mas o alvo de toque é de 44px no celular (as margens
-      // negativas evitam engordar a linha da lista).
-      className="text-ink-faint hover:text-clay text-[11px] leading-none pointer-coarse:size-11 pointer-coarse:-my-3 pointer-coarse:-mr-3 inline-flex items-center justify-center"
+      className="text-ink-faint hover:text-clay text-[11px] leading-none tap-expand"
       aria-label="Excluir lançamento avulso"
     >
       ✕

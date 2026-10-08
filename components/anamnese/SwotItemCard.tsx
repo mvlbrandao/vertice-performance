@@ -78,7 +78,7 @@ export function SwotItemCard({
             type="button"
             onClick={handleDelete}
             disabled={pending}
-            className="text-ink-faint hover:text-clay text-[11px] leading-none shrink-0"
+            className="text-ink-faint hover:text-clay text-[11px] leading-none shrink-0 tap-expand"
             aria-label="Remover ponto"
           >
             ✕
@@ -112,7 +112,7 @@ export function SwotItemCard({
           type="button"
           onClick={toggleStatus}
           disabled={pending}
-          className="text-[11px] font-semibold text-pitch-dark hover:underline disabled:opacity-50"
+          className="text-[11px] font-semibold text-pitch-dark hover:underline disabled:opacity-50 tap-expand"
         >
           {status === "Concluído" ? "Reabrir" : "Marcar como concluído"}
         </button>

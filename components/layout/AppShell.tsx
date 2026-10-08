@@ -13,6 +13,12 @@ export interface NavItem {
   href: string;
   icon: string;
   label: string;
+  /**
+   * Só acende com o caminho idêntico. Necessário quando o href de um item é
+   * prefixo dos irmãos (ex.: /admin e /admin/clubes) — sem isso o item raiz
+   * ficaria marcado em todas as páginas.
+   */
+  exact?: boolean;
   children?: NavItem[];
 }
 
@@ -30,7 +36,8 @@ export function AppShell({
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
-  function isActive(href: string) {
+  function isActive(href: string, exact?: boolean) {
+    if (exact) return pathname === href;
     return pathname === href || pathname.startsWith(href + "/");
   }
 
@@ -114,7 +121,7 @@ export function AppShell({
               );
             }
 
-            const active = isActive(item.href);
+            const active = isActive(item.href, item.exact);
             return (
               <Link
                 key={item.href}

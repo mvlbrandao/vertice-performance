@@ -13,6 +13,13 @@ export type Json =
 export type UserRole = "coach" | "athlete" | "staff";
 /** Situação do clube como cliente do SaaS. Ver 0054_club_lifecycle.sql. */
 export type ClubStatus = "trial" | "ativo" | "atrasado" | "bloqueado" | "cancelado";
+/** Contrato do clube com a plataforma. Ver 0073_club_contracts.sql. */
+export type ContractStatus = "rascunho" | "vigente" | "encerrado" | "cancelado";
+export type ContractBillingCycle = "mensal" | "trimestral" | "semestral" | "anual";
+/** Telemetria técnica da plataforma. Ver 0074_platform_telemetry.sql. */
+export type SystemEventSource = "render" | "route" | "action" | "proxy" | "cron" | "webhook";
+export type WebVitalMetric = "LCP" | "INP" | "CLS" | "TTFB" | "FCP";
+export type WebVitalRating = "good" | "needs-improvement" | "poor";
 export type AuditEntityType =
   | "charge"
   | "expense"
@@ -164,6 +171,165 @@ export interface Database {
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["platform_charges"]["Insert"]>;
+        Relationships: [];
+      };
+      platform_audit_log: {
+        Row: {
+          id: string;
+          occurred_at: string;
+          actor_user_id: string | null;
+          actor_email: string;
+          action: string;
+          target_club_id: string | null;
+          target_club_name: string | null;
+          details: Json;
+          ip: string | null;
+        };
+        Insert: {
+          id?: string;
+          occurred_at?: string;
+          actor_user_id?: string | null;
+          actor_email: string;
+          action: string;
+          target_club_id?: string | null;
+          target_club_name?: string | null;
+          details?: Json;
+          ip?: string | null;
+        };
+        // Somente de acréscimo: trigger no banco bloqueia UPDATE/DELETE.
+        Update: Partial<Database["public"]["Tables"]["platform_audit_log"]["Insert"]>;
+        Relationships: [];
+      };
+      club_contracts: {
+        Row: {
+          id: string;
+          number: number;
+          club_id: string;
+          status: ContractStatus;
+          plan_name: string;
+          price_cents: number;
+          max_athletes: number | null;
+          billing_cycle: ContractBillingCycle;
+          starts_on: string;
+          ends_on: string | null;
+          auto_renew: boolean;
+          signed_on: string | null;
+          signer_name: string | null;
+          signer_role: string | null;
+          terms_version: string | null;
+          document_path: string | null;
+          notes: string | null;
+          closed_at: string | null;
+          closed_reason: string | null;
+          created_by_email: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        // `number` é identity gerada pelo banco: nunca entra no Insert.
+        Insert: {
+          id?: string;
+          club_id: string;
+          status?: ContractStatus;
+          plan_name: string;
+          price_cents: number;
+          max_athletes?: number | null;
+          billing_cycle?: ContractBillingCycle;
+          starts_on: string;
+          ends_on?: string | null;
+          auto_renew?: boolean;
+          signed_on?: string | null;
+          signer_name?: string | null;
+          signer_role?: string | null;
+          terms_version?: string | null;
+          document_path?: string | null;
+          notes?: string | null;
+          closed_at?: string | null;
+          closed_reason?: string | null;
+          created_by_email?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["club_contracts"]["Insert"]>;
+        Relationships: [];
+      };
+      system_events: {
+        Row: {
+          id: string;
+          occurred_at: string;
+          severity: "warn" | "error";
+          source: SystemEventSource;
+          route: string;
+          method: string | null;
+          status_code: number | null;
+          duration_ms: number | null;
+          message: string;
+          digest: string | null;
+          fingerprint: string;
+          club_id: string | null;
+        };
+        Insert: {
+          id?: string;
+          occurred_at?: string;
+          severity?: "warn" | "error";
+          source: SystemEventSource;
+          route: string;
+          method?: string | null;
+          status_code?: number | null;
+          duration_ms?: number | null;
+          message: string;
+          digest?: string | null;
+          fingerprint: string;
+          club_id?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["system_events"]["Insert"]>;
+        Relationships: [];
+      };
+      web_vitals: {
+        Row: {
+          id: number;
+          occurred_at: string;
+          route: string;
+          metric: WebVitalMetric;
+          value: number;
+          rating: WebVitalRating;
+          nav_type: string | null;
+          device: "mobile" | "desktop";
+          club_id: string | null;
+        };
+        Insert: {
+          occurred_at?: string;
+          route: string;
+          metric: WebVitalMetric;
+          value: number;
+          rating: WebVitalRating;
+          nav_type?: string | null;
+          device: "mobile" | "desktop";
+          club_id?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["web_vitals"]["Insert"]>;
+        Relationships: [];
+      };
+      cron_runs: {
+        Row: {
+          id: number;
+          job: string;
+          started_at: string;
+          finished_at: string | null;
+          ok: boolean | null;
+          duration_ms: number | null;
+          summary: Json;
+          error: string | null;
+        };
+        Insert: {
+          job: string;
+          started_at: string;
+          finished_at?: string | null;
+          ok?: boolean | null;
+          duration_ms?: number | null;
+          summary?: Json;
+          error?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["cron_runs"]["Insert"]>;
         Relationships: [];
       };
       planning_columns: {
@@ -1527,6 +1693,57 @@ export interface Database {
           slug: string;
           status: ClubStatus;
           is_demo: boolean;
+        }[];
+      };
+      // As funções platform_* só existem para a service role (0074/0075):
+      // chame-as a partir de createAdminClient(), nunca do client de sessão.
+      platform_error_groups: {
+        Args: { p_since: string };
+        Returns: {
+          fingerprint: string;
+          source: SystemEventSource;
+          route: string;
+          severity: "warn" | "error";
+          occurrences: number;
+          clubs_affected: number;
+          first_seen: string;
+          last_seen: string;
+          sample_message: string;
+          sample_digest: string | null;
+        }[];
+      };
+      platform_error_daily: {
+        Args: { p_days: number };
+        Returns: { day: string; errors: number; warnings: number }[];
+      };
+      platform_vitals_summary: {
+        Args: { p_since: string };
+        Returns: {
+          route: string;
+          metric: WebVitalMetric;
+          device: "mobile" | "desktop";
+          samples: number;
+          p50: number;
+          p75: number;
+          p95: number;
+          poor_pct: number;
+        }[];
+      };
+      platform_prune_telemetry: {
+        Args: { p_keep_days?: number };
+        Returns: Json;
+      };
+      platform_club_usage: {
+        Args: Record<string, never>;
+        Returns: {
+          club_id: string;
+          athletes_active: number;
+          athletes_total: number;
+          coaches: number;
+          staff: number;
+          athlete_logins: number;
+          last_sign_in_at: string | null;
+          last_audit_at: string | null;
         }[];
       };
     };

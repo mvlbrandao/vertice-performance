@@ -117,7 +117,7 @@ export default async function CoachAgendaPage({
             key={f.value}
             href={f.value === "agendados" ? "/agenda" : `/agenda?status=${f.value}`}
             className={cn(
-              "px-3 py-1.5 rounded-sm text-[12.5px] font-semibold border",
+              "px-3 py-1.5 pointer-coarse:py-3 rounded-sm text-[12.5px] font-semibold border",
               activeFilter.value === f.value
                 ? "bg-pitch-dark text-chalk border-pitch-dark"
                 : "border-line text-ink-soft hover:border-pitch-dark",

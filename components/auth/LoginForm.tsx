@@ -55,7 +55,7 @@ export function LoginForm({
           "radial-gradient(circle at 20% 20%, rgba(255,214,0,.10), transparent 45%), linear-gradient(160deg, #111111 0%, #000000 100%)",
       }}
     >
-      <div className="w-full max-w-[960px] bg-paper rounded-xl overflow-hidden grid md:grid-cols-[1.1fr_1fr] shadow-[0_50px_100px_-30px_rgba(0,0,0,.75)] border border-white/5">
+      <div className="w-full max-w-[960px] bg-paper rounded-xl overflow-hidden grid grid-cols-1 md:grid-cols-[1.1fr_1fr] shadow-[0_50px_100px_-30px_rgba(0,0,0,.75)] border border-white/5">
         <div
           className="text-chalk p-8 sm:p-10 relative flex flex-col justify-between gap-8 min-h-[200px] md:min-h-[520px]"
           style={{
@@ -144,12 +144,12 @@ export function LoginForm({
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="pr-16"
+                className="w-full pr-16"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-ink-faint hover:text-pitch-dark"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-ink-faint hover:text-pitch-dark pointer-coarse:-mr-3 pointer-coarse:px-3 pointer-coarse:py-3.5"
                 aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
               >
                 {showPassword ? "Ocultar" : "Mostrar"}

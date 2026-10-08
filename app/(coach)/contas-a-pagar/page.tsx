@@ -174,7 +174,7 @@ export default async function ContasAPagarPage({
             key={f.value}
             href={buildHref({ ...linkParams, overrides: { status: f.value } })}
             className={cn(
-              "text-xs font-semibold border border-line rounded-sm px-3 py-2 hover:border-pitch-dark",
+              "text-xs font-semibold border border-line rounded-sm px-3 py-2 pointer-coarse:py-3 hover:border-pitch-dark",
               statusFilter === f.value && "bg-pitch-dark text-white border-pitch-dark",
             )}
           >
@@ -182,7 +182,7 @@ export default async function ContasAPagarPage({
           </Link>
         ))}
         <div className="w-px h-5 bg-line mx-1" />
-        <form action="/contas-a-pagar" method="get" className="flex gap-2 flex-wrap items-center">
+        <form action="/contas-a-pagar" method="get" className="flex gap-2 flex-wrap items-center max-w-full">
           {statusFilter !== "all" && <input type="hidden" name="status" value={statusFilter} />}
           <select
             name="categoryId"
@@ -218,7 +218,7 @@ export default async function ContasAPagarPage({
           </select>
           <button
             type="submit"
-            className="text-xs font-semibold border border-line rounded-sm px-3 py-2 hover:border-pitch-dark"
+            className="text-xs font-semibold border border-line rounded-sm px-3 py-2 pointer-coarse:py-3 hover:border-pitch-dark"
           >
             Aplicar
           </button>

@@ -174,10 +174,12 @@ export function LineupClient({
                           type="button"
                           disabled={pendingId === a.id}
                           onClick={() => toggleStatus(a.id, opt.value)}
+                          // O Badge tem ~24px; no toque o botão ganha respiro
+                          // vertical para chegar nos 44px sem mudar o desktop.
                           className={
                             status === opt.value
-                              ? ""
-                              : "opacity-40 hover:opacity-70 transition-opacity"
+                              ? "pointer-coarse:py-2.5"
+                              : "pointer-coarse:py-2.5 opacity-40 hover:opacity-70 transition-opacity"
                           }
                         >
                           <Badge tone={opt.tone}>{opt.label}</Badge>

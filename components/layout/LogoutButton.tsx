@@ -24,14 +24,14 @@ export function LogoutButton() {
   }
 
   return (
-    // size-11 (44px): o glifo é pequeno, mas o alvo de toque não pode ser — era
-    // o botão de sair, colado no canto do menu, que o dedo errava. As margens
-    // negativas devolvem o espaço para o rodapé do menu não crescer.
+    // O glifo é pequeno e o botão ficava colado no canto do menu: o dedo
+    // errava. No toque o alvo vira 44x44; a margem vertical negativa evita
+    // engordar o rodapé do menu. No desktop com mouse nada muda.
     <button
       onClick={handleLogout}
       title="Sair"
       aria-label="Sair"
-      className="ml-auto -my-2 -mr-2 size-11 shrink-0 inline-flex items-center justify-center rounded-sm bg-transparent border-none text-[#555] text-base hover:text-clay focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber"
+      className="ml-auto shrink-0 inline-flex items-center justify-center rounded-sm bg-transparent border-none text-[#555] text-base hover:text-clay focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber pointer-coarse:size-11 pointer-coarse:-my-2"
     >
       ⏻
     </button>

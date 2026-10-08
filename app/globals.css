@@ -106,6 +106,31 @@ h3,
   }
 }
 
+/* <select> com py-2 e fonte pequena fica com ~39px de altura, abaixo dos ~44px
+   que o dedo acerta sem errar. Os <input> de texto já passam disso com a
+   fonte de 16px (≈46px); só o select precisa de piso. */
+@media (pointer: coarse) {
+  select {
+    min-height: 44px;
+  }
+}
+
+/* Campo nunca mais largo que o contêiner. A largura natural de um <select> é a
+   da opção mais comprida (nome de atleta, categoria) e, com a fonte de 16px
+   do celular, passa fácil de 330px — o que estourava a tela inteira na
+   lateral. Com max-width em porcentagem o navegador trata o campo como
+   comprimível ao calcular o tamanho do pai (regra dos "compressible replaced
+   elements"), então a linha com flex-wrap encolhe o campo em vez de empurrar
+   a página. Em @layer base de propósito: qualquer w-* explícito continua
+   valendo quando cabe. */
+@layer base {
+  input,
+  select,
+  textarea {
+    max-width: 100%;
+  }
+}
+
 ::selection {
   background: var(--amber);
   color: #111;

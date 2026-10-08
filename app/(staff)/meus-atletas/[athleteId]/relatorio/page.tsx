@@ -175,7 +175,7 @@ export default async function StaffAthleteReportPage({
 
           <section>
             <h3 className="text-[15px] m-0 mb-3">Números do período</h3>
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+            <div className="grid grid-cols-2 min-[400px]:grid-cols-3 sm:grid-cols-6 gap-3">
               {[
                 { l: "Jogos", v: gamesPlayed },
                 { l: "Gols", v: count("Gol") },

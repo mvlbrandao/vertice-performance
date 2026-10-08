@@ -118,13 +118,13 @@ export default async function RelatoriosPage({
         <div className="flex gap-2">
           <Link
             href={`/relatorios?month=${toParam(prevMonth)}`}
-            className="text-xs font-semibold border border-line rounded-sm px-3 py-2 hover:border-pitch-dark"
+            className="text-xs font-semibold border border-line rounded-sm px-3 py-2 pointer-coarse:py-3 hover:border-pitch-dark"
           >
             ← Mês anterior
           </Link>
           <Link
             href={`/relatorios?month=${toParam(nextMonth)}`}
-            className="text-xs font-semibold border border-line rounded-sm px-3 py-2 hover:border-pitch-dark"
+            className="text-xs font-semibold border border-line rounded-sm px-3 py-2 pointer-coarse:py-3 hover:border-pitch-dark"
           >
             Mês seguinte →
           </Link>

@@ -3,7 +3,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 const estado = vi.hoisted(() => ({
   cliente: null as unknown,
   caches: [] as Map<string, unknown>[],
-  opcoesDoCache: null as { revalidate?: number; tags?: string[] } | null,
+  /** Opções de cada unstable_cache do módulo, pela primeira parte da chave. */
+  opcoesPorChave: {} as Record<string, { revalidate?: number; tags?: string[] }>,
 }));
 
 vi.mock("server-only", () => ({}));
@@ -15,16 +16,16 @@ vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => estado.cliente
 vi.mock("next/cache", () => ({
   unstable_cache: <A extends unknown[], R>(
     fn: (...args: A) => Promise<R>,
-    _chave: string[],
+    chave: string[],
     opcoes: { revalidate?: number; tags?: string[] },
   ) => {
     const memo = new Map<string, unknown>();
     estado.caches.push(memo);
-    estado.opcoesDoCache = opcoes;
+    estado.opcoesPorChave[chave[0]] = opcoes;
     return async (...args: A) => {
-      const chave = JSON.stringify(args);
-      if (!memo.has(chave)) memo.set(chave, await fn(...args));
-      return memo.get(chave) as R;
+      const argumentos = JSON.stringify(args);
+      if (!memo.has(argumentos)) memo.set(argumentos, await fn(...args));
+      return memo.get(argumentos) as R;
     };
   },
 }));
@@ -70,6 +71,37 @@ describe("getClubPeerClouds", () => {
     // cada uma com 7 consultas POR colega. Agora são 8 no total.
     expect(f.contar("athletes")).toBe(2); // lista do clube + posições do score
     expect(f.contar()).toBe(8);
+  });
+
+  it("a segunda visualização do clube não toca no banco, nem a de OUTRO atleta do mesmo clube", async () => {
+    const f = usar(t);
+    const primeira = await getClubPeerClouds(eu.club_id as string, eu.id as string, "Sub-15");
+    const consultas = f.contar();
+    expect(consultas).toBe(8);
+
+    const repetida = await getClubPeerClouds(eu.club_id as string, eu.id as string, "Sub-15");
+    const outro = colegas.find((a) => a.category === "Sub-17") as Linha;
+    const doOutro = await getClubPeerClouds(eu.club_id as string, outro.id as string, "Sub-17");
+
+    expect(f.contar()).toBe(consultas);
+    expect(repetida).toEqual(primeira);
+    // Quem vê é retirado da lista em memória: cada um sem o próprio ponto.
+    expect(primeira.clubCloud).toHaveLength(59);
+    expect(doOutro.clubCloud).toHaveLength(59);
+    expect(doOutro.categoryCloud).toHaveLength(19);
+  });
+
+  it("clubes diferentes têm caches diferentes, sem misturar pares", async () => {
+    const f = usar(t);
+    const outroClube = t.athletes.find((a) => a.club_id !== eu.club_id) as Linha;
+    const meu = await getClubPeerClouds(eu.club_id as string, eu.id as string, "Sub-15");
+    const depoisDoPrimeiro = f.contar();
+    const dele = await getClubPeerClouds(outroClube.club_id as string, outroClube.id as string, "Sub-15");
+
+    expect(f.contar()).toBeGreaterThan(depoisDoPrimeiro);
+    // Mesmo formato de clube (60 atletas), mas dados sorteados diferentes.
+    expect(dele.clubCloud).toHaveLength(59);
+    expect(dele.clubCloud).not.toEqual(meu.clubCloud);
   });
 
   it("clubCloud tem todos os colegas e categoryCloud só os do mesmo sub, sem o próprio atleta", async () => {
@@ -121,8 +153,14 @@ describe("getClubPeerClouds", () => {
     expect(r.categoryCloud).toEqual(r.clubCloud);
   });
 
-  it("clube sem colegas: nuvens vazias e uma consulta só", async () => {
-    const f = usar({ athletes: [{ id: "x", club_id: "c", category: "Sub-15", is_active: true }] });
+  it("clube sem colegas: nuvens vazias", async () => {
+    usar({ athletes: [{ id: "x", club_id: "c", category: "Sub-15", is_active: true }] });
+    const r = await getClubPeerClouds("c", "x", "Sub-15");
+    expect(r).toEqual({ categoryCloud: [], clubCloud: [] });
+  });
+
+  it("clube sem nenhum atleta ativo: nuvens vazias e uma consulta só", async () => {
+    const f = usar({ athletes: [] });
     const r = await getClubPeerClouds("c", "x", "Sub-15");
     expect(r).toEqual({ categoryCloud: [], clubCloud: [] });
     expect(f.contar()).toBe(1);
@@ -135,6 +173,26 @@ describe("getClubPeerClouds", () => {
     const r = await getClubPeerClouds(eu.club_id as string, eu.id as string, "Sub-15");
     expect(r).toEqual({ categoryCloud: [], clubCloud: [] });
     expect(erro).toHaveBeenCalled();
+  });
+
+  it("falha na leitura do clube NÃO fica em cache: a visualização seguinte acerta", async () => {
+    const quebrado = usar(t);
+    quebrado.falharEm("game_events");
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const falha = await getClubPeerClouds(eu.club_id as string, eu.id as string, "Sub-15");
+    expect(falha.clubCloud).toEqual([]);
+
+    // Banco volta: se a falha tivesse sido guardada, a lista continuaria vazia.
+    const sadio = usar(t);
+    const r = await getClubPeerClouds(eu.club_id as string, eu.id as string, "Sub-15");
+    expect(r.clubCloud).toHaveLength(59);
+    expect(sadio.contar()).toBe(8);
+  });
+
+  it("configura TTL de 5 min e a tag de invalidação dos pares do clube", () => {
+    const opcoes = estado.opcoesPorChave["scouting-club-peers-v1"];
+    expect(opcoes?.revalidate).toBe(300);
+    expect(opcoes?.tags).toContain("club-peer-cloud");
   });
 });
 
@@ -262,7 +320,8 @@ describe("getSystemPercentile", () => {
   });
 
   it("configura TTL curto (10 min) e a tag de invalidação", () => {
-    expect(estado.opcoesDoCache?.revalidate).toBe(600);
-    expect(estado.opcoesDoCache?.tags).toContain("system-percentile");
+    const opcoes = estado.opcoesPorChave["scouting-system-sample-v1"];
+    expect(opcoes?.revalidate).toBe(600);
+    expect(opcoes?.tags).toContain("system-percentile");
   });
 });

@@ -24,16 +24,75 @@ import {
  *
  * Custo por visualização do perfil: antes era 7 consultas POR atleta
  * comparado (e o clube era calculado duas vezes). Agora o clube inteiro é
- * calculado em lote uma única vez e o sub sai dele filtrando em memória; o
- * percentil entre clubes usa uma amostra limitada e em cache.
+ * calculado em lote uma única vez, o sub sai dele filtrando em memória, e
+ * tanto os pares do clube quanto a amostra do percentil entre clubes ficam em
+ * cache por alguns minutos.
  */
 
 const SEM_NUVENS = { categoryCloud: [] as Ponto[], clubCloud: [] as Ponto[] };
 
+/** Por quanto tempo os pares de um clube valem. Ver lerParesDoClube. */
+const TTL_PARES_DO_CLUBE_SEGUNDOS = 300;
+
+/** Elemento da lista em cache. Os ids só servem para tirar o próprio atleta. */
+interface ParDoClube extends ParAmostrado {
+  category: string | null;
+}
+
+/**
+ * Ataque e defesa de todos os atletas ativos do clube, o próprio incluído:
+ * uma leitura de atletas + o score em lote. A lista é a mesma para qualquer
+ * atleta do clube, por isso dá para cachear por clube e tirar quem está vendo
+ * em memória, depois.
+ *
+ * Falha lança (falharEmErro): lançar impede o cache de guardar pares com a
+ * nota neutra de "dado que não carregou" por todo o TTL.
+ */
+async function carregarParesDoClube(clubId: string): Promise<ParDoClube[]> {
+  const admin = createAdminClient();
+  const { linhas: atletas, erro } = await lerTodasAsPaginas((de, ate) =>
+    admin
+      .from("athletes")
+      .select("id, category")
+      .eq("club_id", clubId)
+      .eq("is_active", true)
+      .order("id")
+      .range(de, ate),
+  );
+  if (erro) throw new Error(`atletas do clube: ${erro}`);
+  if (atletas.length === 0) return [];
+
+  const scores = await computePlayerScores(
+    admin,
+    atletas.map((a) => a.id),
+    { falharEmErro: true },
+  );
+  return atletas.map((a) => {
+    const s = scores.get(a.id) as { attack: number; defense: number };
+    return { id: a.id, category: a.category, attack: s.attack, defense: s.defense };
+  });
+}
+
+/**
+ * Cache por clube (o clube entra na chave pelo argumento). Sem ele, cada
+ * abertura de perfil recalculava o clube inteiro: 7 consultas por 100 atletas
+ * (mais páginas extras onde a súmula passa de 1000 linhas), então um clube de
+ * 400 gastava umas 30 consultas por visualização, e o custo crescia com o
+ * clube. Agora um acesso a cada TTL paga o cálculo.
+ *
+ * 5 minutos: a nuvem de colegas é só o fundo do gráfico, e o ponto do próprio
+ * atleta é sempre ao vivo. Mesmas ressalvas de lerAmostraDaCategoria sobre
+ * onde o Data Cache vive. A lista guardada tem ids de colegas do MESMO clube
+ * e nunca sai do servidor.
+ */
+const lerParesDoClube = unstable_cache(carregarParesDoClube, ["scouting-club-peers-v1"], {
+  revalidate: TTL_PARES_DO_CLUBE_SEGUNDOS,
+  tags: ["club-peer-cloud"],
+});
+
 /**
  * Nuvens de pontos (ataque × defesa) dos colegas do clube, por sub e geral,
- * sem o próprio atleta. Uma leitura de atletas + o score em lote, em vez de
- * uma chamada por categoria.
+ * sem o próprio atleta.
  *
  * Se a leitura falhar devolve nuvens vazias: preferimos o gráfico sem pares
  * a pares com a nota neutra de "dado que não carregou" (ver falharEmErro).
@@ -44,30 +103,9 @@ export async function getClubPeerClouds(
   category: string | null,
 ): Promise<{ categoryCloud: Ponto[]; clubCloud: Ponto[] }> {
   try {
-    const admin = createAdminClient();
-    const { linhas: atletas, erro } = await lerTodasAsPaginas((de, ate) =>
-      admin
-        .from("athletes")
-        .select("id, category")
-        .eq("club_id", clubId)
-        .eq("is_active", true)
-        .neq("id", excludeAthleteId)
-        .order("id")
-        .range(de, ate),
-    );
-    if (erro) throw new Error(`atletas do clube: ${erro}`);
-    if (atletas.length === 0) return SEM_NUVENS;
-
-    const scores = await computePlayerScores(
-      admin,
-      atletas.map((a) => a.id),
-      { falharEmErro: true },
-    );
+    const pares = await lerParesDoClube(clubId);
     return derivarNuvens(
-      atletas.map((a) => {
-        const s = scores.get(a.id) as { attack: number; defense: number };
-        return { category: a.category, attack: s.attack, defense: s.defense };
-      }),
+      pares.filter((p) => p.id !== excludeAthleteId),
       category,
     );
   } catch (e) {

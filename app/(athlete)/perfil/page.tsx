@@ -60,7 +60,14 @@ export default async function AthletePerfilPage() {
     announcements,
   ] = await Promise.all([
       resolveSignedUrl("athlete-photos", athlete.photo_url),
-      computePlayerScore(supabase, athlete.id),
+      // Sem falharEmErro, uma leitura que falha de forma passageira vira a nota
+      // neutra (57), e getScoreChange a gravaria como snapshot: a curva ganha um
+      // ponto falso e o atleta lê "caiu de X para 57". Melhor sem nota do que
+      // com nota inventada.
+      computePlayerScore(supabase, athlete.id, { falharEmErro: true }).catch((e: Error) => {
+        console.error(`[perfil] nota indisponível: ${e.message}`);
+        return null;
+      }),
       supabase
         .from("game_lineups")
         .select(
@@ -86,17 +93,19 @@ export default async function AthletePerfilPage() {
   // Independentes entre si, rodam juntas. O histórico fica de fora: precisa
   // ler depois de getScoreChange, que grava o snapshot novo — a curva tem que
   // incluir esse ponto. O ataque/defesa do próprio atleta vai ao vivo; só a
-  // distribuição dos outros do sistema vem de cache.
-  const [scoreChange, challengePoints, { categoryCloud, clubCloud }, systemPercentile] =
-    await Promise.all([
-      getScoreChange(supabase, profile.clubId, athlete.id, score),
-      getAthleteChallengePoints(supabase, athlete.id),
-      getClubPeerClouds(profile.clubId, athlete.id, athlete.category),
-      getSystemPercentile(athlete.id, athlete.category, {
-        attack: score.attack,
-        defense: score.defense,
-      }),
-    ]);
+  // distribuição dos outros do sistema vem de cache. Sem nota (leitura falhou),
+  // nada que dependa dela roda: nem o snapshot nem a comparação com os pares.
+  const [scoreChange, challengePoints, nuvens, systemPercentile] = await Promise.all([
+    score ? getScoreChange(supabase, profile.clubId, athlete.id, score) : null,
+    getAthleteChallengePoints(supabase, athlete.id),
+    score ? getClubPeerClouds(profile.clubId, athlete.id, athlete.category) : null,
+    score
+      ? getSystemPercentile(athlete.id, athlete.category, {
+          attack: score.attack,
+          defense: score.defense,
+        })
+      : null,
+  ]);
   const scoreHistory = await getScoreHistory(supabase, athlete.id);
   const hasPain = athlete.current_pain && athlete.current_pain !== "Nenhuma";
   const upcomingConvocations = (lineupRows ?? [])
@@ -118,22 +127,31 @@ export default async function AthletePerfilPage() {
 
   return (
     <div>
-      <AthleteHeroCard
-        score={score}
-        photoUrl={signedPhotoUrl}
-        photoColor={athlete.photo_color}
-        initials={initials(athlete.full_name)}
-        fullName={athlete.full_name}
-        category={athlete.category}
-        positions={athlete.position}
-        team={athlete.team}
-        heightCm={athlete.height_cm}
-        weightKg={athlete.weight_kg}
-        bmi={athlete.bmi}
-        challengePoints={challengePoints}
-      />
+      {score ? (
+        <AthleteHeroCard
+          score={score}
+          photoUrl={signedPhotoUrl}
+          photoColor={athlete.photo_color}
+          initials={initials(athlete.full_name)}
+          fullName={athlete.full_name}
+          category={athlete.category}
+          positions={athlete.position}
+          team={athlete.team}
+          heightCm={athlete.height_cm}
+          weightKg={athlete.weight_kg}
+          bmi={athlete.bmi}
+          challengePoints={challengePoints}
+        />
+      ) : (
+        <Card className="mb-4.5">
+          <h2 className="mt-0 mb-1 text-xl">{athlete.full_name}</h2>
+          <p className="text-[13px] text-ink-soft m-0">
+            Não foi possível calcular sua nota agora. Atualize a página em alguns instantes.
+          </p>
+        </Card>
+      )}
 
-      <ScoreChangeAlert result={scoreChange} warnings={score.warnings} />
+      {score && <ScoreChangeAlert result={scoreChange} warnings={score.warnings} />}
 
       <AnnouncementsCard announcements={announcements} />
 
@@ -169,7 +187,7 @@ export default async function AthletePerfilPage() {
                       {l.game!.plays?.name && (
                         <Link
                           href="/mesa-tatica"
-                          className="text-[11px] font-semibold border border-line rounded-sm px-2 py-1 hover:border-pitch-dark"
+                          className="text-[11px] font-semibold border border-line rounded-sm px-2 py-1 pointer-coarse:py-3.5 hover:border-pitch-dark"
                         >
                           🎯 {l.game!.plays.name}
                         </Link>
@@ -179,7 +197,7 @@ export default async function AthletePerfilPage() {
                           href={l.game!.lineup_video_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-[11px] font-semibold border border-line rounded-sm px-2 py-1 hover:border-pitch-dark"
+                          className="text-[11px] font-semibold border border-line rounded-sm px-2 py-1 pointer-coarse:py-3.5 hover:border-pitch-dark"
                         >
                           ▶ Vídeo
                         </a>
@@ -265,16 +283,18 @@ export default async function AthletePerfilPage() {
         <ScoreHistoryChart points={scoreHistory} />
       </Card>
 
-      <Card className="mt-4">
-        <h3 className="mt-0 mb-3">Onde eu estou — Ofensivo × Defensivo</h3>
-        <AthleteComparisonCard
-          own={{ attack: score.attack, defense: score.defense }}
-          categoryCloud={categoryCloud}
-          clubCloud={clubCloud}
-          systemPercentile={systemPercentile}
-          category={athlete.category}
-        />
-      </Card>
+      {score && (
+        <Card className="mt-4">
+          <h3 className="mt-0 mb-3">Onde eu estou — Ofensivo × Defensivo</h3>
+          <AthleteComparisonCard
+            own={{ attack: score.attack, defense: score.defense }}
+            categoryCloud={nuvens?.categoryCloud ?? []}
+            clubCloud={nuvens?.clubCloud ?? []}
+            systemPercentile={systemPercentile}
+            category={athlete.category}
+          />
+        </Card>
+      )}
     </div>
   );
 }

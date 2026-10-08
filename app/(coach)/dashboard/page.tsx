@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { computePlayerScores } from "@/lib/scoring";
 import { overallColor, scoreStars } from "@/lib/utils/scoreColor";
 import { hojeISO, somaDias } from "@/lib/utils/date";
+import { lerTodasAsPaginas } from "@/lib/utils/chunk";
 import { PrimeirosPassos, type Passo } from "@/components/onboarding/PrimeirosPassos";
 import { getOnboardingStepStatus } from "@/lib/onboarding/checklist";
 
@@ -84,7 +85,7 @@ export default async function DashboardPage() {
     { count: healthAlertsCount },
     athletesWithPhotos,
     { data: upcomingMeetings },
-    { data: openCharges },
+    { linhas: openCharges, erro: erroCobrancas },
     { count: churnCount },
     upcomingGames,
     passoStatus,
@@ -122,11 +123,18 @@ export default async function DashboardPage() {
       .order("scheduled_date", { ascending: true })
       .order("scheduled_time", { ascending: true })
       .limit(6),
-    supabase
-      .from("athlete_charges")
-      .select("amount_cents, discount_cents, status, due_date")
-      .eq("club_id", clubId)
-      .in("status", ["Pendente", "Atrasado"]),
+    // Paginado: o PostgREST corta toda resposta em 1000 linhas, e um clube de
+    // ~350 atletas com três cobranças em aberto cada já passa disso. Sem
+    // paginar, os totais saíam menores, sem erro nenhum.
+    lerTodasAsPaginas((de, ate) =>
+      supabase
+        .from("athlete_charges")
+        .select("amount_cents, discount_cents, status, due_date")
+        .eq("club_id", clubId)
+        .in("status", ["Pendente", "Atrasado"])
+        .order("id")
+        .range(de, ate),
+    ),
     supabase
       .from("athletes")
       .select("*", { count: "exact", head: true })
@@ -147,7 +155,14 @@ export default async function DashboardPage() {
     rosterAtMonthStart > 0 ? Math.round((churnCountValue / rosterAtMonthStart) * 100) : 0;
 
   const total = athletesCount ?? 0;
-  const charges = openCharges ?? [];
+  // Se qualquer página falhar, o que foi lido é parcial: mostrar a soma dele
+  // seria um total subestimado com cara de total certo. Os cartões ficam com
+  // "—" e o erro vai para o log.
+  const cobrancasIndisponiveis = erroCobrancas !== null;
+  if (erroCobrancas !== null) {
+    console.error(`[dashboard] falha ao ler as cobranças em aberto: ${erroCobrancas}`);
+  }
+  const charges = cobrancasIndisponiveis ? [] : openCharges;
   const netCents = (c: { amount_cents: number; discount_cents: number }) =>
     c.amount_cents - c.discount_cents;
   const openTotalCents = charges.reduce((sum, c) => sum + netCents(c), 0);
@@ -167,7 +182,9 @@ export default async function DashboardPage() {
     .filter((c) => c.status === "Pendente" && c.due_date >= today && c.due_date <= weekAhead)
     .reduce((sum, c) => sum + netCents(c), 0);
   const formatCents = (cents: number) =>
-    (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    cobrancasIndisponiveis
+      ? "—"
+      : (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const openTotalFormatted = formatCents(openTotalCents);
   const checkinPct =
     total > 0
@@ -265,7 +282,9 @@ export default async function DashboardPage() {
           <span className="text-xs font-semibold text-ink-soft">Inadimplência</span>
           <b className="block font-display text-2xl leading-none mt-1 truncate text-clay">
             {formatCents(overdueCents)}{" "}
-            <span className="text-base font-semibold">({overduePct}%)</span>
+            {!cobrancasIndisponiveis && (
+              <span className="text-base font-semibold">({overduePct}%)</span>
+            )}
           </b>
           {overdueCount > 0 && (
             <span className="text-[11px] text-clay font-semibold mt-1 block">
@@ -294,7 +313,7 @@ export default async function DashboardPage() {
                 Toque para abrir o perfil completo
               </div>
             </div>
-            <Link href="/athletes" className="text-xs font-semibold text-pitch-dark hover:underline">
+            <Link href="/athletes" className="text-xs font-semibold text-pitch-dark hover:underline tap-expand">
               Ver todos
             </Link>
           </div>
@@ -385,7 +404,7 @@ export default async function DashboardPage() {
             <h2 className="text-[22px] m-0">Próximos jogos</h2>
             <div className="text-xs text-ink-faint mt-0.5">Equipes sob sua gestão</div>
           </div>
-          <Link href="/jogos" className="text-xs font-semibold text-pitch-dark hover:underline">
+          <Link href="/jogos" className="text-xs font-semibold text-pitch-dark hover:underline tap-expand">
             Ver todos
           </Link>
         </div>

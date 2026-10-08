@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 
 const estado = vi.hoisted(() => ({
   cliente: null as unknown,
@@ -173,5 +173,85 @@ describe("DashboardPage: custo em consultas", () => {
     await DashboardPage();
 
     expect(f.contar()).toBe(21);
+  });
+});
+
+/** Texto do cartão, como a página formata (o espaço após "R$" é não separável). */
+const brl = (cents: number) =>
+  (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+/** Leituras de cobrança da própria página (paginadas); a do checklist de primeiros passos não pagina. */
+const paginasDeCobrancas = (f: ReturnType<typeof criarSupabaseFalso>) =>
+  f.consultas.filter((c) => c.tabela === "athlete_charges" && c.faixa !== null).length;
+
+/** Elementos React são objetos simples: o JSON mostra o que a página montou. */
+async function renderizarComoTexto() {
+  return JSON.stringify(await DashboardPage(), (chave, valor) =>
+    chave.startsWith("_") || (chave === "type" && typeof valor !== "string") ? undefined : valor,
+  );
+}
+
+describe("DashboardPage: cobranças em aberto", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /** 1.200 a vencer (R$ 100) + 300 atrasadas (R$ 50): 1.500 linhas, mais que o corte de 1000. */
+  function clubeComMuitasCobrancas() {
+    const t = montarClube();
+    const hoje = hojeISO();
+    t.athlete_charges = [];
+    for (let i = 1; i <= 1500; i++) {
+      const atrasada = i > 1200;
+      t.athlete_charges.push({
+        id: idFalso("c4a76e00", i),
+        club_id: "club-1",
+        amount_cents: atrasada ? 5000 : 10000,
+        discount_cents: 0,
+        status: atrasada ? "Atrasado" : "Pendente",
+        due_date: atrasada ? somaDias(hoje, -10) : somaDias(hoje, 3),
+      });
+    }
+    return t;
+  }
+
+  it("clube com mais de 1000 cobranças em aberto: os totais somam todas, não só a primeira página", async () => {
+    const f = criarSupabaseFalso(clubeComMuitasCobrancas());
+    estado.cliente = f.client;
+
+    const arvore = await renderizarComoTexto();
+
+    // Em aberto: 1.200 × 100 + 300 × 50 = 135.000. Inadimplência: 300 × 50 = 15.000 (11%).
+    // A 7 dias: só as 1.200 a vencer. Com o corte de 1000 linhas o total saía 100.000 a menos.
+    expect(arvore).toContain(brl(13_500_000));
+    expect(arvore).toContain(brl(1_500_000));
+    expect(arvore).toContain(brl(12_000_000));
+    // Os cartões são montados em pedaços ("lançamento", "s", ...): o contador vem separado.
+    expect(arvore).toContain('"children":[300," lançamento","s"," atrasado","s"]');
+    expect(paginasDeCobrancas(f)).toBe(2);
+  });
+
+  it("abaixo de 1000 cobranças continua sendo uma consulta só", async () => {
+    const f = criarSupabaseFalso(montarClube());
+    estado.cliente = f.client;
+
+    await DashboardPage();
+
+    expect(paginasDeCobrancas(f)).toBe(1);
+  });
+
+  it("se a leitura das cobranças falhar, os cartões não mostram um total parcial como se fosse certo", async () => {
+    const f = criarSupabaseFalso(clubeComMuitasCobrancas());
+    f.falharEm("athlete_charges");
+    estado.cliente = f.client;
+    const erro = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const arvore = await renderizarComoTexto();
+
+    expect(arvore).not.toContain("R$");
+    expect(arvore).not.toContain("lançamentos atrasados");
+    expect(erro).toHaveBeenCalledWith(expect.stringContaining("cobranças em aberto"));
+    // O resto do painel segue de pé.
+    expect(arvore).toContain("Atleta 8");
   });
 });

@@ -50,7 +50,7 @@ describe("auditActionLabel", () => {
   });
 
   it("ação desconhecida aparece com o código cru, sem quebrar", () => {
-    expect(auditActionLabel("contract.create")).toBe("contract.create");
+    expect(auditActionLabel("club.acao_inexistente")).toBe("club.acao_inexistente");
   });
 
   it("extrai a entidade da ação", () => {

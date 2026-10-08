@@ -31,6 +31,14 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   "club.set_status": "Situação do clube alterada",
   "club.start_subscription": "Cobrança recorrente iniciada",
   "club.cancel_subscription": "Cobrança recorrente cancelada",
+  "contract.create": "Contrato criado",
+  "contract.update": "Contrato editado",
+  "contract.activate": "Contrato ativado",
+  "contract.close": "Contrato encerrado",
+  "contract.cancel": "Contrato cancelado",
+  "contract.renew": "Renovação criada (rascunho)",
+  "contract.document_attach": "Documento do contrato anexado",
+  "contract.document_remove": "Documento do contrato removido",
 };
 
 /** Ação sem rótulo cadastrado aparece com o código cru, nunca some nem quebra. */

@@ -3,6 +3,10 @@
 // lib/demo/generator.ts, e o que roda na sua máquina é o que roda em
 // produção.
 //
+// Chama com `?only=demo`: restaura SÓ a demonstração e não executa o expurgo
+// de clubes cancelados (que apaga dado de cliente em definitivo e pertence ao
+// agendamento diário, não a uma execução manual).
+//
 // Uso (com o servidor no ar):
 //   node scripts/seed-demo-club.mjs                    # local
 //   node scripts/seed-demo-club.mjs https://seu.app     # outro ambiente
@@ -19,7 +23,7 @@ const env = Object.fromEntries(
 );
 
 const base = process.argv[2] ?? "http://localhost:3000";
-const res = await fetch(`${base}/api/cron/club-retention`, {
+const res = await fetch(`${base}/api/cron/club-retention?only=demo`, {
   headers: { Authorization: `Bearer ${env.CRON_SECRET}` },
 });
 const body = await res.json().catch(() => null);

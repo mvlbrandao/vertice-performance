@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPlatformSettings } from "@/lib/platform/license";
-import { seedDemoClub, DEMO_SLUG } from "@/lib/demo/generator";
+import { seedDemoClub, DEMO_SLUG, TABELAS_DO_CLUBE } from "@/lib/demo/generator";
 
 /**
  * Manutenção diária: expurgo de clube cancelado e restauração da demo.
@@ -25,22 +25,10 @@ import { seedDemoClub, DEMO_SLUG } from "@/lib/demo/generator";
  * um clube por engano no painel não dispara nada, porque 'bloqueado' e
  * 'cancelado' são estados distintos de propósito.
  */
-/**
- * Tudo que carrega club_id. O que depende de atleta cai por cascade quando
- * o atleta cai, então a ordem interna não importa — só importa que atletas
- * venha antes dos perfis que os criaram.
- */
-const TABELAS_DO_CLUBE = [
-  "athlete_swot_items", "athlete_swot_cycles", "athlete_billing_subscriptions",
-  "athlete_cancellation_requests", "athlete_charges", "athlete_club_transfers",
-  "athlete_injuries", "athlete_score_snapshots", "athlete_staff_access", "audit_log",
-  "athlete_planning_stage", "cash_movements", "challenge_submissions", "challenges", "checkins",
-  "club_asaas_credentials", "daily_cash_closures", "data_requests", "diet_items",
-  "exercise_videos", "exercises", "expenses", "expense_categories", "game_events",
-  "game_lineups", "game_reports", "games", "competitions", "invite_links", "media_items",
-  "meetings", "mental_notes", "plays", "sub_staff_assignments", "partner_club_categories",
-  "partner_clubs", "asaas_security_events", "platform_charges", "planning_columns", "athletes",
-] as const;
+// A lista de tabelas do clube mora no gerador da demo (lib/demo/generator.ts):
+// havia uma cópia aqui, e as duas divergiram — `announcements` e
+// `athlete_enrollment_requests` entraram numa só, e o expurgo de clube
+// cancelado que tivesse avisos no mural travava no perfil do autor.
 
 async function run(request: Request) {
   const secret = process.env.CRON_SECRET;
@@ -49,17 +37,25 @@ async function run(request: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
+  // `?only=demo` restaura só a demonstração e NÃO executa o expurgo de clubes
+  // cancelados. É o modo das execuções manuais (scripts/seed-demo-club.mjs): o
+  // expurgo apaga dado de cliente em definitivo e pertence ao agendamento
+  // diário, não a uma máquina de desenvolvimento.
+  const soDemo = new URL(request.url).searchParams.get("only") === "demo";
+
   const settings = await getPlatformSettings();
   const admin = createAdminClient();
 
   const limite = new Date(Date.now() - settings.retentionDays * 86_400_000).toISOString();
 
-  const { data: vencidos, error } = await admin
-    .from("clubs")
-    .select("id, name, canceled_at")
-    .eq("status", "cancelado")
-    .not("canceled_at", "is", null)
-    .lt("canceled_at", limite);
+  const { data: vencidos, error } = soDemo
+    ? { data: [] as { id: string; name: string; canceled_at: string | null }[], error: null }
+    : await admin
+        .from("clubs")
+        .select("id, name, canceled_at")
+        .eq("status", "cancelado")
+        .not("canceled_at", "is", null)
+        .lt("canceled_at", limite);
 
   if (error) {
     console.error("[retencao] falha ao listar clubes vencidos:", error.message);
@@ -114,6 +110,7 @@ async function run(request: Request) {
 
   return NextResponse.json({
     ok: true,
+    apenasDemo: soDemo,
     retencaoDias: settings.retentionDays,
     apagados,
     demo: { slug: DEMO_SLUG, resultado: demo },

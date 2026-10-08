@@ -101,10 +101,10 @@ function nomeCompleto(sexo: string) {
   return `${base} ${escolhe(SOBRENOMES)}`;
 }
 
-/** SUB12 em 2026 = nascidos por volta de 2014. */
+/** Em 2026, SUB12 = nascidos por volta de 2014 (o ano-base acompanha o "hoje" da demo). */
 function nascimentoPara(sub: string) {
   const idade = Number(sub.replace("SUB", ""));
-  const ano = 2026 - idade + inteiro(0, 1);
+  const ano = hoje.getUTCFullYear() - idade + inteiro(0, 1);
   return `${ano}-${String(inteiro(1, 12)).padStart(2, "0")}-${String(inteiro(1, 28)).padStart(2, "0")}`;
 }
 
@@ -115,7 +115,16 @@ function fisicoPara(sub: string) {
   return { height_cm: altura, weight_kg: peso, bmi: Math.round((peso / (altura / 100) ** 2) * 10) / 10 };
 }
 
-const hoje = new Date("2026-08-13T12:00:00Z");
+/**
+ * "Hoje" da demonstração: a data real, ao meio-dia UTC, recalculada a cada
+ * regeneração (ver seedDemoClub). Já foi uma data fixa (13/08/2026), o que
+ * congelava a demo: a agenda e os jogos "futuros" viravam passado e a cobrança
+ * pendente aparecia toda como atrasada, mesmo com a regeneração diária.
+ */
+function meioDiaUtc() {
+  return new Date(`${new Date().toISOString().slice(0, 10)}T12:00:00Z`);
+}
+let hoje = meioDiaUtc();
 const dia = (offset: number) => new Date(hoje.getTime() + offset * 86400000).toISOString().slice(0, 10);
 
 
@@ -139,6 +148,7 @@ async function criarUsuario(admin: Admin, email: string, fullName: string) {
  * o perfil não sai enquanto houver atleta. Dados → perfis → contas → clube.
  */
 export const TABELAS_DO_CLUBE = [
+  "announcements", "athlete_enrollment_requests",
   "athlete_swot_items", "athlete_swot_cycles", "athlete_billing_subscriptions",
   "athlete_cancellation_requests", "athlete_charges", "athlete_club_transfers",
   "athlete_injuries", "athlete_score_snapshots", "athlete_staff_access", "audit_log",
@@ -147,20 +157,41 @@ export const TABELAS_DO_CLUBE = [
   "exercise_videos", "exercises", "expenses", "expense_categories", "game_events",
   "game_lineups", "game_reports", "games", "competitions", "invite_links", "media_items",
   "meetings", "mental_notes", "plays", "sub_staff_assignments", "partner_club_categories",
-  "partner_clubs", "asaas_security_events", "planning_columns", "athletes",
+  "partner_clubs", "asaas_security_events", "platform_charges", "planning_columns", "athletes",
 ] as const;
 
+/**
+ * Apaga o clube e tudo que pende dele.
+ *
+ * Toda tabela que guarda um perfil (`created_by`, `author_id`, `reviewed_by`…)
+ * sem cascade PRECISA estar em TABELAS_DO_CLUBE: do contrário o perfil não
+ * sai, o clube também não (profiles.club_id é RESTRICT) e a regeneração da
+ * demo morre. Foi o que aconteceu com `announcements` (mural de avisos) e
+ * `athlete_enrollment_requests` (matrícula pública), que entraram depois
+ * desta lista. Por isso a falha agora é explícita, em vez de silenciosa.
+ */
 export async function apagarClube(admin: Admin, clubId: string) {
   const { data: perfis } = await admin.from("profiles").select("id").eq("club_id", clubId);
   await admin.from("clubs").update({ owner_profile_id: null }).eq("id", clubId);
   for (const tabela of TABELAS_DO_CLUBE) {
     await admin.from(tabela).delete().eq("club_id", clubId);
   }
+  let erroPerfil: string | null = null;
   for (const p of perfis ?? []) {
-    await admin.from("profiles").delete().eq("id", p.id);
+    const { error } = await admin.from("profiles").delete().eq("id", p.id);
+    if (error) {
+      erroPerfil = erroPerfil ?? error.message;
+      continue;
+    }
     await admin.auth.admin.deleteUser(p.id).catch(() => {});
   }
-  await admin.from("clubs").delete().eq("id", clubId);
+  const { error } = await admin.from("clubs").delete().eq("id", clubId);
+  if (error) {
+    throw new Error(
+      `não foi possível apagar o clube ${clubId}: ${error.message}` +
+        (erroPerfil ? ` (perfil: ${erroPerfil})` : ""),
+    );
+  }
 }
 
 async function insertMany<T>(admin: Admin, tabela: string, linhas: T[], chunk = 400) {
@@ -178,7 +209,8 @@ async function insertMany<T>(admin: Admin, tabela: string, linhas: T[], chunk = 
 
 export async function seedDemoClub(): Promise<{ clubId: string; atletas: number; profissionais: number }> {
   const admin = createAdminClient();
-  semente = 20260813; // reinicia a semente: mesma demo a cada restauração
+  semente = 20260813; // reinicia a semente: mesmos nomes e sorteios a cada restauração
+  hoje = meioDiaUtc(); // só as datas acompanham o dia real
 
   const { data: existente } = await admin.from("clubs").select("id").eq("slug", DEMO_SLUG).maybeSingle();
   if (existente) await apagarClube(admin, existente.id);
@@ -295,7 +327,10 @@ export async function seedDemoClub(): Promise<{ clubId: string; atletas: number;
   const jogos: Record<string, unknown>[] = [];
   competicoes.forEach((comp, ci) => {
     ADVERSARIOS.forEach((adv, ai) => {
-      const offset = -120 + ci * 24 + ai * 2;
+      // A janela atravessa o dia de hoje: os campeonatos mais antigos já
+      // aconteceram e o último ainda vai acontecer. Com -120 o maior
+      // deslocamento era -6, então a demo nunca tinha um jogo futuro.
+      const offset = -90 + ci * 24 + ai * 2;
       const passado = offset < 0;
       jogos.push({
         club_id: club.id, competition_id: comp.id, created_by: coachId, opponent: adv,

@@ -1,41 +1,93 @@
 import Link from "next/link";
 import { getSessionProfile } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
-import { resolveSignedUrl } from "@/lib/storage/resolveSignedUrl";
+import { resolveSignedUrls } from "@/lib/storage/resolveSignedUrl";
 import { initials } from "@/lib/utils/initials";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { computePlayerScore } from "@/lib/scoring";
+import { computePlayerScores } from "@/lib/scoring";
 import { overallColor, scoreStars } from "@/lib/utils/scoreColor";
-import { hojeISO } from "@/lib/utils/date";
+import { hojeISO, somaDias } from "@/lib/utils/date";
 import { PrimeirosPassos, type Passo } from "@/components/onboarding/PrimeirosPassos";
 import { getOnboardingStepStatus } from "@/lib/onboarding/checklist";
-
-function todayISO() {
-  return hojeISO();
-}
-function daysFromNowISO(days: number) {
-  const d = new Date();
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
-}
 
 export default async function DashboardPage() {
   const profile = await getSessionProfile();
   const supabase = await createClient();
   const clubId = profile!.clubId;
-  const today = todayISO();
-  const weekAhead = daysFromNowISO(7);
+  const today = hojeISO();
+  const weekAhead = somaDias(today, 7);
+  const monthStart = `${today.slice(0, 7)}-01`;
+
+  // Cadeias com dependência interna ficam em funções para entrar no mesmo
+  // Promise.all das demais consultas: antes churn, clubes geridos e jogos
+  // rodavam um depois do outro, e o score era uma ida ao banco por atleta.
+
+  /** Seis atletas mais recentes, com nota e foto. Um lote de score e uma assinatura de fotos. */
+  async function carregarMeusAtletas() {
+    const { data } = await supabase
+      .from("athletes")
+      .select("id, full_name, team, category, position, jersey_num, current_pain, photo_url, photo_color")
+      .eq("club_id", clubId)
+      .eq("is_active", true)
+      .order("created_at", { ascending: false })
+      .limit(6);
+    const lista = data ?? [];
+    const [scores, fotos] = await Promise.all([
+      computePlayerScores(
+        supabase,
+        lista.map((a) => a.id),
+      ),
+      resolveSignedUrls(
+        "athlete-photos",
+        lista.map((a) => a.photo_url),
+      ),
+    ]);
+    return lista.map((a) => ({
+      ...a,
+      signedPhotoUrl: (a.photo_url && fotos.get(a.photo_url)) || null,
+      score: scores.get(a.id)?.overall ?? 50,
+    }));
+  }
+
+  /**
+   * Jogos das equipes sob gestão (não de qualquer clube só cadastrado como
+   * referência) — mesmo critério do toggle "Sob sua gestão" em /clube. Os
+   * jogos dependem dos nomes dessas equipes, então as duas consultas seguem
+   * em série entre si, mas não em série com o resto da página.
+   */
+  async function carregarJogosGeridos() {
+    const { data: managedClubs } = await supabase
+      .from("partner_clubs")
+      .select("name")
+      .eq("club_id", clubId)
+      .eq("is_managed", true);
+    const managedNames = (managedClubs ?? []).map((c) => c.name);
+    if (managedNames.length === 0) return [];
+    const { data } = await supabase
+      .from("games")
+      .select("id, opponent, scheduled_date, scheduled_time, target_team, competitions(name)")
+      .eq("club_id", clubId)
+      .in("target_team", managedNames)
+      .gte("scheduled_date", today)
+      .order("scheduled_date", { ascending: true })
+      .order("scheduled_time", { ascending: true })
+      .limit(5);
+    return data ?? [];
+  }
 
   const [
     { count: athletesCount },
     { data: checkinsToday },
     { count: meetingsThisWeekCount },
     { count: healthAlertsCount },
-    { data: athletes },
+    athletesWithPhotos,
     { data: upcomingMeetings },
     { data: openCharges },
+    { count: churnCount },
+    upcomingGames,
+    passoStatus,
   ] = await Promise.all([
     supabase
       .from("athletes")
@@ -60,13 +112,7 @@ export default async function DashboardPage() {
       .eq("club_id", clubId)
       .not("current_pain", "is", null)
       .neq("current_pain", "Nenhuma"),
-    supabase
-      .from("athletes")
-      .select("id, full_name, team, category, position, jersey_num, current_pain, photo_url, photo_color")
-      .eq("club_id", clubId)
-      .eq("is_active", true)
-      .order("created_at", { ascending: false })
-      .limit(6),
+    carregarMeusAtletas(),
     supabase
       .from("meetings")
       .select("id, title, scheduled_date, scheduled_time, meeting_type, athletes(full_name)")
@@ -81,44 +127,24 @@ export default async function DashboardPage() {
       .select("amount_cents, discount_cents, status, due_date")
       .eq("club_id", clubId)
       .in("status", ["Pendente", "Atrasado"]),
+    supabase
+      .from("athletes")
+      .select("*", { count: "exact", head: true })
+      .eq("club_id", clubId)
+      .eq("is_active", false)
+      .gte("deactivated_at", monthStart),
+    carregarJogosGeridos(),
+    getOnboardingStepStatus(supabase, clubId),
   ]);
 
   // Churn do mês: quantos atletas foram desativados desde o dia 1 do mês
   // corrente. % é sobre o tamanho do elenco no início do período (ativos
   // agora + quem saiu nesse meio tempo), já que não guardamos snapshot
   // histórico do tamanho do elenco.
-  const monthStart = `${today.slice(0, 7)}-01`;
-  const { count: churnCount } = await supabase
-    .from("athletes")
-    .select("*", { count: "exact", head: true })
-    .eq("club_id", clubId)
-    .eq("is_active", false)
-    .gte("deactivated_at", monthStart);
   const churnCountValue = churnCount ?? 0;
   const rosterAtMonthStart = (athletesCount ?? 0) + churnCountValue;
   const churnPct =
     rosterAtMonthStart > 0 ? Math.round((churnCountValue / rosterAtMonthStart) * 100) : 0;
-
-  // Jogos das equipes sob gestão (não de qualquer clube só cadastrado como
-  // referência) — mesmo critério do toggle "Sob sua gestão" em /clube.
-  const { data: managedClubs } = await supabase
-    .from("partner_clubs")
-    .select("name")
-    .eq("club_id", clubId)
-    .eq("is_managed", true);
-  const managedNames = (managedClubs ?? []).map((c) => c.name);
-  const { data: upcomingGames } =
-    managedNames.length > 0
-      ? await supabase
-          .from("games")
-          .select("id, opponent, scheduled_date, scheduled_time, target_team, competitions(name)")
-          .eq("club_id", clubId)
-          .in("target_team", managedNames)
-          .gte("scheduled_date", today)
-          .order("scheduled_date", { ascending: true })
-          .order("scheduled_time", { ascending: true })
-          .limit(5)
-      : { data: [] };
 
   const total = athletesCount ?? 0;
   const charges = openCharges ?? [];
@@ -149,18 +175,6 @@ export default async function DashboardPage() {
           (new Set((checkinsToday ?? []).map((c) => c.athlete_id)).size / total) * 100,
         )
       : 0;
-
-  const athletesWithPhotos = await Promise.all(
-    (athletes ?? []).map(async (a) => {
-      const [signedPhotoUrl, score] = await Promise.all([
-        resolveSignedUrl("athlete-photos", a.photo_url),
-        computePlayerScore(supabase, a.id),
-      ]);
-      return { ...a, signedPhotoUrl, score: score.overall };
-    }),
-  );
-
-  const passoStatus = await getOnboardingStepStatus(supabase, clubId);
 
   const passos: Passo[] = [
     {
@@ -271,7 +285,7 @@ export default async function DashboardPage() {
         </Card>
       </div>
 
-      <div className="grid lg:grid-cols-[2fr_1fr] gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-4">
         <Card shadow>
           <div className="flex items-center justify-between mb-3.5">
             <div>
@@ -378,7 +392,7 @@ export default async function DashboardPage() {
         {!upcomingGames || upcomingGames.length === 0 ? (
           <EmptyState icon="🏆" message="Nenhum jogo agendado pras suas equipes." />
         ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {upcomingGames.map((g) => (
               <Link
                 key={g.id}

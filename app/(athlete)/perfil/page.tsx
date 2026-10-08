@@ -12,7 +12,7 @@ import { getAthleteChallengePoints } from "@/lib/challengePoints";
 import { initials } from "@/lib/utils/initials";
 import { INJURY_SEVERITY_META } from "@/lib/data/injuries";
 import { AthleteComparisonCard } from "@/components/scouting/AthleteComparisonCard";
-import { getClubPeerCloud, getSystemPercentile } from "@/lib/scouting/peerScoring";
+import { getClubPeerClouds, getSystemPercentile } from "@/lib/scouting/peerScoring";
 import { ScoreHistoryChart } from "@/components/athletes/ScoreHistoryChart";
 import { getScoreHistory } from "@/lib/scoreHistoryPoints";
 import { hojeISO } from "@/lib/utils/date";
@@ -83,14 +83,21 @@ export default async function AthletePerfilPage() {
         .limit(5),
       getVisibleAnnouncements(supabase, profile.clubId, profile.userId),
     ]);
-  const scoreChange = await getScoreChange(supabase, profile.clubId, athlete.id, score);
-  const challengePoints = await getAthleteChallengePoints(supabase, athlete.id);
+  // Independentes entre si, rodam juntas. O histórico fica de fora: precisa
+  // ler depois de getScoreChange, que grava o snapshot novo — a curva tem que
+  // incluir esse ponto. O ataque/defesa do próprio atleta vai ao vivo; só a
+  // distribuição dos outros do sistema vem de cache.
+  const [scoreChange, challengePoints, { categoryCloud, clubCloud }, systemPercentile] =
+    await Promise.all([
+      getScoreChange(supabase, profile.clubId, athlete.id, score),
+      getAthleteChallengePoints(supabase, athlete.id),
+      getClubPeerClouds(profile.clubId, athlete.id, athlete.category),
+      getSystemPercentile(athlete.id, athlete.category, {
+        attack: score.attack,
+        defense: score.defense,
+      }),
+    ]);
   const scoreHistory = await getScoreHistory(supabase, athlete.id);
-  const [categoryCloud, clubCloud, systemPercentile] = await Promise.all([
-    getClubPeerCloud(profile.clubId, athlete.id, athlete.category),
-    getClubPeerCloud(profile.clubId, athlete.id),
-    getSystemPercentile(athlete.id, athlete.category),
-  ]);
   const hasPain = athlete.current_pain && athlete.current_pain !== "Nenhuma";
   const upcomingConvocations = (lineupRows ?? [])
     .map((l) => ({
@@ -130,7 +137,7 @@ export default async function AthletePerfilPage() {
 
       <AnnouncementsCard announcements={announcements} />
 
-      <div className="grid lg:grid-cols-2 gap-4 mb-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
         <Card>
           <h3 className="mt-0 mb-3">🏆 Próximos jogos</h3>
           {upcomingConvocations.length === 0 ? (
@@ -209,7 +216,7 @@ export default async function AthletePerfilPage() {
       </div>
 
 
-      <div className="grid lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card>
           <h3 className="mt-0 mb-3">Meus dados</h3>
           <Row k="Nascimento" v={athlete.birth_date ?? "—"} />

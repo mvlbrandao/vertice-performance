@@ -1,6 +1,16 @@
 import "server-only";
+import { unstable_cache } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { computePlayerScore } from "@/lib/scoring";
+import { computePlayerScores } from "@/lib/scoring";
+import { lerTodasAsPaginas } from "@/lib/utils/chunk";
+import {
+  AMOSTRA_MAXIMA,
+  calcularPercentilSistema,
+  derivarNuvens,
+  type ParAmostrado,
+  type PercentilSistema,
+  type Ponto,
+} from "@/lib/scouting/percentile";
 
 /**
  * Dados de comparação pra ficha do atleta: um atleta só pode ler o próprio
@@ -11,64 +21,150 @@ import { computePlayerScore } from "@/lib/scoring";
  * treinador já tem); escopo "sistema" atravessa clubes, por isso retorna só
  * o percentil do próprio atleta dentro da distribuição — nenhum ponto
  * individual de outro clube é exposto.
+ *
+ * Custo por visualização do perfil: antes era 7 consultas POR atleta
+ * comparado (e o clube era calculado duas vezes). Agora o clube inteiro é
+ * calculado em lote uma única vez e o sub sai dele filtrando em memória; o
+ * percentil entre clubes usa uma amostra limitada e em cache.
  */
 
-export async function getClubPeerCloud(
+const SEM_NUVENS = { categoryCloud: [] as Ponto[], clubCloud: [] as Ponto[] };
+
+/**
+ * Nuvens de pontos (ataque × defesa) dos colegas do clube, por sub e geral,
+ * sem o próprio atleta. Uma leitura de atletas + o score em lote, em vez de
+ * uma chamada por categoria.
+ *
+ * Se a leitura falhar devolve nuvens vazias: preferimos o gráfico sem pares
+ * a pares com a nota neutra de "dado que não carregou" (ver falharEmErro).
+ */
+export async function getClubPeerClouds(
   clubId: string,
   excludeAthleteId: string,
-  category?: string | null,
-): Promise<{ x: number; y: number }[]> {
-  const admin = createAdminClient();
-  let query = admin
-    .from("athletes")
-    .select("id")
-    .eq("club_id", clubId)
-    .eq("is_active", true)
-    .neq("id", excludeAthleteId);
-  if (category) query = query.eq("category", category);
-
-  const { data: athletes } = await query;
-  if (!athletes || athletes.length === 0) return [];
-
-  const scores = await Promise.all(
-    athletes.map((a) => computePlayerScore(admin, a.id)),
-  );
-  return scores.map((s) => ({ x: s.attack, y: s.defense }));
-}
-
-function percentileRank(value: number, values: number[]) {
-  if (values.length === 0) return 50;
-  const below = values.filter((v) => v < value).length;
-  const equal = values.filter((v) => v === value).length;
-  return Math.round(((below + equal / 2) / values.length) * 100);
-}
-
-export async function getSystemPercentile(
-  athleteId: string,
   category: string | null,
-): Promise<{ attackPercentile: number; defensePercentile: number; sampleSize: number } | null> {
-  if (!category) return null;
+): Promise<{ categoryCloud: Ponto[]; clubCloud: Ponto[] }> {
+  try {
+    const admin = createAdminClient();
+    const { linhas: atletas, erro } = await lerTodasAsPaginas((de, ate) =>
+      admin
+        .from("athletes")
+        .select("id, category")
+        .eq("club_id", clubId)
+        .eq("is_active", true)
+        .neq("id", excludeAthleteId)
+        .order("id")
+        .range(de, ate),
+    );
+    if (erro) throw new Error(`atletas do clube: ${erro}`);
+    if (atletas.length === 0) return SEM_NUVENS;
+
+    const scores = await computePlayerScores(
+      admin,
+      atletas.map((a) => a.id),
+      { falharEmErro: true },
+    );
+    return derivarNuvens(
+      atletas.map((a) => {
+        const s = scores.get(a.id) as { attack: number; defense: number };
+        return { category: a.category, attack: s.attack, defense: s.defense };
+      }),
+      category,
+    );
+  } catch (e) {
+    console.error("[scouting] falha ao montar a nuvem do clube:", (e as Error).message);
+    return SEM_NUVENS;
+  }
+}
+
+/** Por quanto tempo a amostra de uma categoria vale. Ver lerAmostraDaCategoria. */
+const TTL_AMOSTRA_SEGUNDOS = 600;
+
+/**
+ * Amostra de atletas ativos da categoria, de TODOS os clubes, com o score de
+ * ataque e defesa de cada um.
+ *
+ * Por que amostra e por que não os snapshots: o percentil antes carregava
+ * todos os atletas da categoria na plataforma inteira e calculava o score de
+ * cada um (7 consultas × N), então o custo de abrir o perfil crescia com o
+ * tamanho do sistema. A alternativa óbvia, uma função SQL sobre o último
+ * registro de athlete_score_snapshots, daria um percentil errado: o snapshot
+ * só é gravado quando o PRÓPRIO atleta abre /perfil (getScoreChange), só quando
+ * o geral muda (ataque e defesa podem ter mudado sem isso) e atleta que nunca
+ * abriu o perfil não tem linha nenhuma.
+ *
+ * A amostra pega os primeiros AMOSTRA_MAXIMA por id. O id é um UUID aleatório,
+ * então a ordem é efetivamente aleatória, mas estável: a mesma amostra sai
+ * enquanto a população não muda, sem sorteio a cada requisição.
+ *
+ * Falha lança (falharEmErro): lançar impede o cache de guardar uma
+ * distribuição de notas neutras por todo o TTL.
+ */
+async function carregarAmostraDaCategoria(category: string): Promise<ParAmostrado[]> {
   const admin = createAdminClient();
-  const { data: athletes } = await admin
+  const { data: atletas, error } = await admin
     .from("athletes")
     .select("id")
     .eq("category", category)
-    .eq("is_active", true);
-  if (!athletes || athletes.length < 5) return null;
+    .eq("is_active", true)
+    .order("id")
+    .limit(AMOSTRA_MAXIMA);
+  if (error) throw new Error(`amostra da categoria: ${error.message}`);
+  if (!atletas || atletas.length === 0) return [];
 
-  const scores = await Promise.all(athletes.map((a) => computePlayerScore(admin, a.id)));
-  const mine = scores.find((_, i) => athletes[i].id === athleteId);
-  if (!mine) return null;
+  const ids = atletas.map((a) => a.id);
+  const scores = await computePlayerScores(admin, ids, { falharEmErro: true });
+  return ids.map((id) => {
+    const s = scores.get(id) as { attack: number; defense: number };
+    return { id, attack: s.attack, defense: s.defense };
+  });
+}
 
-  return {
-    attackPercentile: percentileRank(
-      mine.attack,
-      scores.map((s) => s.attack),
-    ),
-    defensePercentile: percentileRank(
-      mine.defense,
-      scores.map((s) => s.defense),
-    ),
-    sampleSize: athletes.length,
-  };
+/**
+ * Cache da amostra por categoria (a categoria entra na chave pelo argumento).
+ *
+ * unstable_cache grava no Data Cache do Next, que na Vercel é compartilhado
+ * entre as instâncias: um acesso a cada TTL por categoria paga o cálculo e
+ * todos os outros leem pronto. Em hospedagem sem cache compartilhado (várias
+ * instâncias próprias, cada uma com o seu cache em disco) cada instância paga
+ * o cálculo uma vez por TTL — ainda limitado, só menos eficiente. O projeto
+ * não usa cacheComponents, então a diretiva "use cache" não está disponível.
+ *
+ * 10 minutos: a posição de um atleta entre centenas de outros não muda de
+ * forma perceptível nesse intervalo, e a posição DELE é sempre ao vivo.
+ *
+ * A amostra guardada contém ids de atletas de outros clubes. Ela só existe
+ * no servidor (Data Cache do Next) e serve para retirar o próprio atleta da
+ * conta; nada disso chega ao navegador, que recebe só o percentil.
+ */
+const lerAmostraDaCategoria = unstable_cache(
+  carregarAmostraDaCategoria,
+  ["scouting-system-sample-v1"],
+  { revalidate: TTL_AMOSTRA_SEGUNDOS, tags: ["system-percentile"] },
+);
+
+/**
+ * Percentil do atleta entre os atletas do mesmo sub em todo o sistema.
+ *
+ * `proprio` é o ataque/defesa dele calculado ao vivo pela página; só a
+ * distribuição dos outros vem do cache. Retorna null sem categoria, com menos
+ * de AMOSTRA_MINIMA atletas comparáveis ou se a amostra não puder ser lida.
+ *
+ * Diferença sutil herdada: o `proprio` vem da sessão do atleta, e a RLS só
+ * deixa ele ver escalações de jogos com escalação publicada; os pares são
+ * calculados com o client admin, que vê todas. A penalidade de "seca de gols"
+ * pode então divergir um pouco entre ele e a amostra.
+ */
+export async function getSystemPercentile(
+  athleteId: string,
+  category: string | null,
+  proprio: { attack: number; defense: number },
+): Promise<PercentilSistema | null> {
+  if (!category) return null;
+  try {
+    const amostra = await lerAmostraDaCategoria(category);
+    return calcularPercentilSistema(athleteId, { x: proprio.attack, y: proprio.defense }, amostra);
+  } catch (e) {
+    console.error("[scouting] falha ao calcular o percentil do sistema:", (e as Error).message);
+    return null;
+  }
 }

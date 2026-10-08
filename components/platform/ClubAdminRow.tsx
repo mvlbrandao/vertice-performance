@@ -17,6 +17,7 @@ import { startClubSubscription, cancelClubSubscription } from "@/lib/actions/pla
 import { hojeISO, somaDias } from "@/lib/utils/date";
 import type { ClubStatus } from "@/lib/types/database";
 import type { ClubOverdue } from "@/lib/platform/billingOverview";
+import type { PlatformActionResult } from "@/lib/platform/auditNotice";
 
 interface Club {
   id: string;
@@ -72,6 +73,9 @@ export function ClubAdminRow({
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Ação feita, mas com ressalva (ex.: a auditoria não gravou). Não some
+  // sozinho: quem alterou preço ou situação precisa ler.
+  const [warning, setWarning] = useState<string | null>(null);
 
   const cota = club.max_athletes_override ?? cotaPadrao;
   const preco = club.price_cents_override ?? precoPadraoCents;
@@ -79,9 +83,10 @@ export function ClubAdminRow({
   const diasTeste = club.status === "trial" ? diasAte(club.trial_ends_at) : null;
   const lotado = atletasAtivos >= cota;
 
-  async function run(action: (fd: FormData) => Promise<{ error?: string }>, fd: FormData) {
+  async function run(action: (fd: FormData) => Promise<PlatformActionResult>, fd: FormData) {
     setPending(true);
     setError(null);
+    setWarning(null);
     fd.set("clubId", club.id);
     const result = await action(fd);
     setPending(false);
@@ -89,6 +94,7 @@ export function ClubAdminRow({
       setError(result.error);
       return;
     }
+    if (result.warning) setWarning(result.warning);
     router.refresh();
   }
 
@@ -121,6 +127,14 @@ export function ClubAdminRow({
       {open && (
         <div className="mt-3 pt-3 border-t border-line flex flex-col gap-3.5">
           {error && <p className="text-clay text-[12.5px] font-medium m-0">{error}</p>}
+          {warning && (
+            <p
+              role="alert"
+              className="text-[12.5px] font-medium m-0 px-3 py-2 rounded-sm border border-amber bg-[#FFFBE6]"
+            >
+              {warning}
+            </p>
+          )}
 
           <form
             action={(fd) => run(extendTrial, fd)}

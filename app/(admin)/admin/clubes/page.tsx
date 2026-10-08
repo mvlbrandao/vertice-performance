@@ -1,4 +1,5 @@
 import { requirePlatformAdmin } from "@/lib/platform/admin";
+import { isAuditTrailAvailable } from "@/lib/platform/audit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loadClubsForAdmin } from "@/lib/platform/clubsOverview";
 import { getPlatformBillingOverview } from "@/lib/platform/billingOverview";
@@ -6,6 +7,7 @@ import { filterClubs, parseClubFilters } from "@/lib/platform/clubFilters";
 import { ClubAdminRow } from "@/components/platform/ClubAdminRow";
 import { ClubFiltersForm } from "@/components/admin/ClubFilters";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import { MigrationNotice } from "@/components/admin/MigrationNotice";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { hojeISO, somaDias } from "@/lib/utils/date";
 
@@ -18,12 +20,10 @@ export default async function AdminClubesPage({ searchParams }: { searchParams: 
   const { settings, clubs, atletasPorClube } = await loadClubsForAdmin();
 
   const today = hojeISO();
-  const billingOverview = await getPlatformBillingOverview(
-    createAdminClient(),
-    today,
-    somaDias(today, 7),
-    `${today.slice(0, 7)}-01`,
-  );
+  const [billingOverview, auditAvailable] = await Promise.all([
+    getPlatformBillingOverview(createAdminClient(), today, somaDias(today, 7), `${today.slice(0, 7)}-01`),
+    isAuditTrailAvailable(),
+  ]);
 
   const visiveis = filterClubs(clubs, filters);
   const filtrando = filters.q !== "" || filters.status !== "todos";
@@ -38,6 +38,15 @@ export default async function AdminClubesPage({ searchParams }: { searchParams: 
             : `${clubs.length} ${clubs.length === 1 ? "clube" : "clubes"} na plataforma`
         }
       />
+
+      {!auditAvailable && (
+        <div className="mb-3">
+          <MigrationNotice
+            migration="0072"
+            what="A trilha de auditoria ainda não existe no banco, então o que for alterado nos clubes NÃO fica registrado."
+          />
+        </div>
+      )}
 
       <ClubFiltersForm filters={filters} />
 

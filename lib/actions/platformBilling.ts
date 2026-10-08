@@ -3,11 +3,11 @@
 import { z } from "zod";
 import { requirePlatformAdmin } from "@/lib/platform/admin";
 import { logPlatformAction } from "@/lib/platform/audit";
+import { successResult, type PlatformActionResult } from "@/lib/platform/auditNotice";
 import { revalidateAdmin } from "@/lib/platform/revalidate";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPlatformAsaasCredentials } from "@/lib/asaas/platform";
 import { hojeISO } from "@/lib/utils/date";
-import type { ActionResult } from "@/lib/actions/athletes";
 import {
   AsaasError,
   findCustomerByCpf,
@@ -40,7 +40,7 @@ const startSchema = z.object({
  * conta Asaas dele. clubs.asaas_customer_id/subscription_id existiam desde
  * o ciclo de vida do clube, reservados exatamente pra isso.
  */
-export async function startClubSubscription(formData: FormData): Promise<ActionResult> {
+export async function startClubSubscription(formData: FormData): Promise<PlatformActionResult> {
   await requirePlatformAdmin();
   const parsed = startSchema.safeParse({
     clubId: formData.get("clubId"),
@@ -121,7 +121,7 @@ export async function startClubSubscription(formData: FormData): Promise<ActionR
     // a cobrança. Se o banco falhou depois de o Asaas já ter criado a
     // assinatura, ela fica órfã lá — por isso registra mesmo assim, para
     // alguém conseguir achar e cancelar.
-    await logPlatformAction({
+    const recorded = await logPlatformAction({
       action: "club.start_subscription",
       club: { id: club.id, name: club.name },
       details: {
@@ -136,7 +136,7 @@ export async function startClubSubscription(formData: FormData): Promise<ActionR
     if (updateError) return { error: updateError.message };
 
     revalidateAdmin();
-    return { success: true };
+    return successResult(recorded);
   } catch (e) {
     if (e instanceof AsaasError) return { error: e.message };
     return { error: "Não foi possível criar a assinatura no Asaas." };
@@ -145,7 +145,7 @@ export async function startClubSubscription(formData: FormData): Promise<ActionR
 
 const cancelSchema = z.object({ clubId: z.string().uuid() });
 
-export async function cancelClubSubscription(formData: FormData): Promise<ActionResult> {
+export async function cancelClubSubscription(formData: FormData): Promise<PlatformActionResult> {
   await requirePlatformAdmin();
   const parsed = cancelSchema.safeParse({ clubId: formData.get("clubId") });
   if (!parsed.success) return { error: "Clube inválido." };
@@ -158,29 +158,32 @@ export async function cancelClubSubscription(formData: FormData): Promise<Action
     .maybeSingle();
   if (!club) return { error: "Clube não encontrado." };
 
-  // O que aconteceu no Asaas importa para a trilha: "cancelada" e "o link foi
-  // removido mas a assinatura continua lá" são situações bem diferentes.
-  let asaas: "cancelada" | "nao_encontrada" | "sem_credenciais" | "sem_assinatura" =
-    "sem_assinatura";
+  // O que aconteceu no Asaas importa para a trilha: "cancelada" e "já não
+  // existia lá" são situações diferentes.
+  let asaas: "cancelada" | "nao_encontrada" | "sem_assinatura" = "sem_assinatura";
   if (club.asaas_subscription_id) {
+    // Sem a chave não há como cancelar: seguir adiante apagaria o link e
+    // mostraria sucesso com a assinatura ainda cobrando no Asaas. Aborta antes
+    // de tocar em qualquer coisa, como startClubSubscription já faz.
     const creds = getPlatformAsaasCredentials();
     if (!creds) {
-      asaas = "sem_credenciais";
-    } else {
-      try {
-        await cancelSubscription(creds, club.asaas_subscription_id);
-        asaas = "cancelada";
-      } catch (e) {
-        if (e instanceof AsaasError && e.status === 404) {
-          asaas = "nao_encontrada";
-        } else {
-          // Falha de rede ou erro do Asaas: a assinatura pode continuar viva
-          // lá. Dizer "cancelada" e apagar o link esconderia uma cobrança que
-          // segue rodando.
-          return {
-            error: e instanceof AsaasError ? e.message : "Não foi possível cancelar a assinatura no Asaas.",
-          };
-        }
+      return {
+        error: "ASAAS_API_KEY da plataforma não configurada no ambiente; a assinatura não foi cancelada no Asaas.",
+      };
+    }
+    try {
+      await cancelSubscription(creds, club.asaas_subscription_id);
+      asaas = "cancelada";
+    } catch (e) {
+      if (e instanceof AsaasError && e.status === 404) {
+        asaas = "nao_encontrada";
+      } else {
+        // Falha de rede ou erro do Asaas: a assinatura pode continuar viva
+        // lá. Dizer "cancelada" e apagar o link esconderia uma cobrança que
+        // segue rodando.
+        return {
+          error: e instanceof AsaasError ? e.message : "Não foi possível cancelar a assinatura no Asaas.",
+        };
       }
     }
   }
@@ -190,7 +193,7 @@ export async function cancelClubSubscription(formData: FormData): Promise<Action
     .update({ asaas_checkout_url: null })
     .eq("id", club.id);
 
-  await logPlatformAction({
+  const recorded = await logPlatformAction({
     action: "club.cancel_subscription",
     club: { id: club.id, name: club.name },
     details: {
@@ -203,5 +206,5 @@ export async function cancelClubSubscription(formData: FormData): Promise<Action
   if (updateError) return { error: updateError.message };
 
   revalidateAdmin();
-  return { success: true };
+  return successResult(recorded);
 }

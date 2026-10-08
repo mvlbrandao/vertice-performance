@@ -8,6 +8,7 @@ const h = vi.hoisted(() => ({
   insertResult: { error: null } as { error: { code?: string; message: string } | null },
   insertThrows: false,
   inserted: [] as unknown[],
+  selectResult: { error: null } as { error: { code?: string; message: string } | null },
 }));
 
 vi.mock("next/headers", () => ({
@@ -26,11 +27,12 @@ vi.mock("@/lib/supabase/admin", () => ({
         h.inserted.push({ table, row });
         return h.insertResult;
       },
+      select: () => ({ limit: async () => h.selectResult }),
     }),
   }),
 }));
 
-import { logPlatformAction } from "./audit";
+import { isAuditTrailAvailable, logPlatformAction } from "./audit";
 
 const CLUBE = { id: "c-1", name: "Clube Teste" };
 
@@ -40,6 +42,7 @@ beforeEach(() => {
   h.insertResult = { error: null };
   h.insertThrows = false;
   h.inserted = [];
+  h.selectResult = { error: null };
   vi.spyOn(console, "error").mockImplementation(() => {});
   vi.spyOn(console, "warn").mockImplementation(() => {});
 });
@@ -51,11 +54,12 @@ afterEach(() => {
 
 describe("logPlatformAction", () => {
   it("grava ator, clube, ação, detalhes e o primeiro IP do x-forwarded-for", async () => {
-    await logPlatformAction({
+    const gravou = await logPlatformAction({
       action: "club.set_status",
       club: CLUBE,
       details: { changes: { status: { from: "trial", to: "ativo" } } },
     });
+    expect(gravou).toBe(true);
 
     expect(h.inserted).toEqual([
       {
@@ -92,41 +96,41 @@ describe("logPlatformAction", () => {
     expect(gravado).toContain("9900");
   });
 
-  it("tabela ausente (migração 0072 pendente) vira aviso, não erro nem exceção", async () => {
+  it("tabela ausente (migração 0072 pendente) vira aviso no log e devolve false, sem exceção", async () => {
     h.insertResult = { error: { code: "PGRST205", message: "Could not find the table" } };
     await expect(
       logPlatformAction({ action: "club.extend_trial", club: CLUBE, details: {} }),
-    ).resolves.toBeUndefined();
+    ).resolves.toBe(false);
     expect(console.warn).toHaveBeenCalledTimes(1);
     expect(console.error).not.toHaveBeenCalled();
   });
 
-  it("falha de gravação vai para o log de erro e a ação principal segue", async () => {
+  it("falha de gravação vai para o log de erro e devolve false; a ação principal segue", async () => {
     h.insertResult = { error: { code: "23514", message: "violação de restrição" } };
     await expect(
       logPlatformAction({ action: "club.extend_trial", club: CLUBE, details: {} }),
-    ).resolves.toBeUndefined();
+    ).resolves.toBe(false);
     expect(console.error).toHaveBeenCalledTimes(1);
   });
 
-  it("exceção inesperada (rede) também não escapa", async () => {
+  it("exceção inesperada (rede) também não escapa e devolve false", async () => {
     h.insertThrows = true;
     await expect(
       logPlatformAction({ action: "club.extend_trial", club: CLUBE, details: {} }),
-    ).resolves.toBeUndefined();
+    ).resolves.toBe(false);
     expect(console.error).toHaveBeenCalledTimes(1);
   });
 
   it("sem administrador na sessão não grava e avisa", async () => {
     h.actor = null;
-    await logPlatformAction({ action: "club.extend_trial", club: CLUBE, details: {} });
+    expect(await logPlatformAction({ action: "club.extend_trial", club: CLUBE, details: {} })).toBe(false);
     expect(h.inserted).toHaveLength(0);
     expect(console.error).toHaveBeenCalledTimes(1);
   });
 
   it("ação fora do formato entidade.verbo não chega ao banco", async () => {
-    await logPlatformAction({ action: "Club-Update", details: {} });
-    await logPlatformAction({ action: "club", details: {} });
+    expect(await logPlatformAction({ action: "Club-Update", details: {} })).toBe(false);
+    expect(await logPlatformAction({ action: "club", details: {} })).toBe(false);
     expect(h.inserted).toHaveLength(0);
     expect(console.error).toHaveBeenCalledTimes(2);
   });
@@ -136,5 +140,21 @@ describe("logPlatformAction", () => {
     await logPlatformAction({ action: "settings.update", details: {} });
     const row = (h.inserted[0] as { row: { ip: string } }).row;
     expect(row.ip).toHaveLength(64);
+  });
+});
+
+describe("isAuditTrailAvailable", () => {
+  it("tabela presente: true", async () => {
+    expect(await isAuditTrailAvailable()).toBe(true);
+  });
+
+  it("tabela ausente (0072 pendente): false", async () => {
+    h.selectResult = { error: { code: "PGRST205", message: "Could not find the table" } };
+    expect(await isAuditTrailAvailable()).toBe(false);
+  });
+
+  it("outro erro (rede, permissão) não vira aviso falso de migração pendente", async () => {
+    h.selectResult = { error: { code: "08006", message: "connection failure" } };
+    expect(await isAuditTrailAvailable()).toBe(true);
   });
 });

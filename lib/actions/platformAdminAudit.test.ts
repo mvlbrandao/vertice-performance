@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Garante que as nove ações do painel gravam a trilha de auditoria, com o
 // nome certo, o clube certo e só os campos que mudaram, e que a trilha vem
-// DEPOIS da mutação e só quando ela deu certo.
+// DEPOIS da mutação e só quando ela deu certo. Também que, quando a trilha
+// não grava, a ação continua valendo mas a tela recebe o aviso.
 
 vi.mock("server-only", () => ({}));
 
@@ -12,6 +13,11 @@ const h = vi.hoisted(() => ({
   rows: {} as Record<string, unknown>,
   updateError: null as { message: string } | null,
   revalidated: 0,
+  /** O que logPlatformAction devolve: true = gravou a trilha. */
+  recorded: true,
+  /** null = ASAAS_API_KEY ausente. */
+  creds: { apiKey: "chave-de-teste", baseUrl: "https://asaas.test" } as { apiKey: string; baseUrl: string } | null,
+  cancelFails: null as { message: string; status: number } | null,
 }));
 
 vi.mock("@/lib/platform/admin", () => ({
@@ -21,6 +27,7 @@ vi.mock("@/lib/platform/audit", () => ({
   logPlatformAction: async (entry: (typeof h.logs)[number]) => {
     h.events.push(`log:${entry.action}`);
     h.logs.push(entry);
+    return h.recorded;
   },
 }));
 vi.mock("@/lib/platform/revalidate", () => ({
@@ -58,7 +65,7 @@ vi.mock("@/lib/supabase/admin", () => ({
 }));
 
 vi.mock("@/lib/asaas/platform", () => ({
-  getPlatformAsaasCredentials: () => ({ apiKey: "chave-de-teste", baseUrl: "https://asaas.test" }),
+  getPlatformAsaasCredentials: () => h.creds,
 }));
 vi.mock("@/lib/asaas/client", () => {
   class AsaasError extends Error {
@@ -75,6 +82,7 @@ vi.mock("@/lib/asaas/client", () => {
     createSubscription: async () => ({ id: "sub_123" }),
     cancelSubscription: async () => {
       h.events.push("asaas:cancel");
+      if (h.cancelFails) throw new AsaasError(h.cancelFails.message, h.cancelFails.status);
     },
     getSubscriptionPaymentLink: async () => "https://pay.test/abc",
   };
@@ -90,6 +98,7 @@ import {
   updatePlatformSettings,
 } from "./platformAdmin";
 import { cancelClubSubscription, startClubSubscription } from "./platformBilling";
+import { AUDIT_NOT_RECORDED_WARNING } from "@/lib/platform/auditNotice";
 
 const CLUB_ID = "3f2b1c9e-8a47-4d1e-9c55-0a1b2c3d4e5f";
 
@@ -118,6 +127,9 @@ beforeEach(() => {
   h.rows = { clubs: { ...clubBase } };
   h.updateError = null;
   h.revalidated = 0;
+  h.recorded = true;
+  h.creds = { apiKey: "chave-de-teste", baseUrl: "https://asaas.test" };
+  h.cancelFails = null;
 });
 
 describe("trilha das ações do painel", () => {
@@ -293,5 +305,107 @@ describe("trilha das ações do painel", () => {
     }
     expect(h.logs).toHaveLength(0);
     expect(h.events.some((e) => e.startsWith("update:"))).toBe(false);
+  });
+
+  it("club.cancel_subscription sem ASAAS_API_KEY não cancela nada e devolve erro", async () => {
+    h.rows = {
+      clubs: { ...clubBase, asaas_subscription_id: "sub_123", asaas_checkout_url: "https://pay.test/abc" },
+    };
+    h.creds = null;
+    const result = await cancelClubSubscription(form({ clubId: CLUB_ID }));
+    expect(result.success).toBeUndefined();
+    expect(result.error).toMatch(/ASAAS_API_KEY/);
+    // Nem o link de pagamento é apagado, nem a trilha ganha uma linha de algo que não houve.
+    expect(h.events.some((e) => e.startsWith("update:"))).toBe(false);
+    expect(h.events).not.toContain("asaas:cancel");
+    expect(h.logs).toHaveLength(0);
+    expect(h.revalidated).toBe(0);
+  });
+
+  it("club.cancel_subscription sem assinatura segue sem precisar da chave", async () => {
+    h.rows = { clubs: { ...clubBase, asaas_subscription_id: null } };
+    h.creds = null;
+    expect(await cancelClubSubscription(form({ clubId: CLUB_ID }))).toEqual({ success: true });
+    expect(h.logs[0].details).toEqual({ asaas_subscription_id: null, asaas: "sem_assinatura" });
+  });
+
+  it("club.cancel_subscription: 404 do Asaas conta como já cancelada; outro erro aborta", async () => {
+    h.rows = { clubs: { ...clubBase, asaas_subscription_id: "sub_123" } };
+
+    h.cancelFails = { message: "não existe", status: 404 };
+    expect(await cancelClubSubscription(form({ clubId: CLUB_ID }))).toEqual({ success: true });
+    expect(h.logs[0].details).toEqual({ asaas_subscription_id: "sub_123", asaas: "nao_encontrada" });
+
+    h.logs = [];
+    h.events = [];
+    h.cancelFails = { message: "Asaas fora do ar", status: 500 };
+    expect(await cancelClubSubscription(form({ clubId: CLUB_ID }))).toEqual({ error: "Asaas fora do ar" });
+    expect(h.events.some((e) => e.startsWith("update:"))).toBe(false);
+    expect(h.logs).toHaveLength(0);
+  });
+});
+
+describe("aviso quando a trilha não grava", () => {
+  const acoes: [string, () => Promise<{ success?: boolean; error?: string; warning?: string }>, Record<string, unknown>][] = [
+    ["settings.update", () => updatePlatformSettings(form({ planName: "Pro", priceReais: "199,90", trialDays: "15", maxAthletes: "30", retentionDays: "90" })), {
+      platform_settings: { plan_name: "Pro", price_cents: 14990, trial_days: 15, max_athletes: 30, retention_days: 90 },
+    }],
+    ["club.extend_trial", () => extendTrial(form({ clubId: CLUB_ID, dias: "15" })), { clubs: { ...clubBase } }],
+    ["club.grant_courtesy", () => grantCourtesy(form({ clubId: CLUB_ID, ate: "2026-12-31" })), { clubs: { ...clubBase } }],
+    ["club.revoke_courtesy", () => revokeCourtesy(form({ clubId: CLUB_ID })), {
+      clubs: { ...clubBase, courtesy_until: "2026-12-31T23:59:59+00:00" },
+    }],
+    ["club.reset_payment_promise", () => resetPaymentPromise(form({ clubId: CLUB_ID })), {
+      clubs: { ...clubBase, payment_promise_used_at: "2026-09-01T10:00:00+00:00" },
+    }],
+    ["club.set_overrides", () => setClubOverrides(form({ clubId: CLUB_ID, maxAthletes: "50", priceReais: "" })), { clubs: { ...clubBase } }],
+    ["club.set_status", () => setClubStatus(form({ clubId: CLUB_ID, status: "bloqueado" })), { clubs: { ...clubBase } }],
+    ["club.start_subscription", () => startClubSubscription(form({ clubId: CLUB_ID, cpfCnpj: "123.456.789-09", amountReais: "149,90", billingType: "PIX" })), {
+      clubs: { ...clubBase, owner_profile_id: "owner-1", asaas_customer_id: null },
+      profiles: { full_name: "Responsável" },
+    }],
+    ["club.cancel_subscription", () => cancelClubSubscription(form({ clubId: CLUB_ID })), {
+      clubs: { ...clubBase, asaas_subscription_id: "sub_123" },
+    }],
+  ];
+
+  it.each(acoes)("%s: a ação vale, mas a tela é avisada", async (nome, run, rows) => {
+    h.rows = rows;
+    h.recorded = false;
+    const result = await run();
+    expect(result).toEqual({ success: true, warning: AUDIT_NOT_RECORDED_WARNING });
+    expect(h.logs.map((l) => l.action)).toEqual([nome]);
+    expect(h.revalidated).toBe(1);
+  });
+
+  it.each(acoes)("%s: trilha gravada não traz aviso", async (_nome, run, rows) => {
+    h.rows = rows;
+    expect(await run()).toEqual({ success: true });
+  });
+
+  it("ação que não mudou nada não tem o que registrar nem o que avisar", async () => {
+    h.recorded = false;
+    h.rows = {
+      platform_settings: { plan_name: "Pro", price_cents: 14990, trial_days: 15, max_athletes: 30, retention_days: 90 },
+    };
+    expect(
+      await updatePlatformSettings(
+        form({ planName: "Pro", priceReais: "149,90", trialDays: "15", maxAthletes: "30", retentionDays: "90" }),
+      ),
+    ).toEqual({ success: true });
+
+    h.rows = { clubs: { ...clubBase } };
+    expect(await setClubOverrides(form({ clubId: CLUB_ID, maxAthletes: "", priceReais: "" }))).toEqual({
+      success: true,
+    });
+    expect(h.logs).toHaveLength(0);
+  });
+
+  it("falha da mutação continua sendo erro, sem aviso de auditoria", async () => {
+    h.recorded = false;
+    h.updateError = { message: "falha no banco" };
+    expect(await grantCourtesy(form({ clubId: CLUB_ID, ate: "2026-12-31" }))).toEqual({
+      error: "falha no banco",
+    });
   });
 });

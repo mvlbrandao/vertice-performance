@@ -13,12 +13,15 @@ export function PlatformSettingsForm({ settings }: { settings: PlatformSettings 
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  // Salvou, mas a auditoria não gravou: fica na tela até a próxima tentativa.
+  const [warning, setWarning] = useState<string | null>(null);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setPending(true);
     setError(null);
     setSaved(false);
+    setWarning(null);
     const result = await updatePlatformSettings(new FormData(e.currentTarget));
     setPending(false);
     if (result.error) {
@@ -26,6 +29,7 @@ export function PlatformSettingsForm({ settings }: { settings: PlatformSettings 
       return;
     }
     setSaved(true);
+    if (result.warning) setWarning(result.warning);
     router.refresh();
     setTimeout(() => setSaved(false), 2500);
   }
@@ -78,6 +82,14 @@ export function PlatformSettingsForm({ settings }: { settings: PlatformSettings 
           {saved && <span className="text-[12.5px] text-grass font-semibold">✓ salvo</span>}
           {error && <span className="text-[12.5px] text-clay font-medium">{error}</span>}
         </div>
+        {warning && (
+          <p
+            role="alert"
+            className="sm:col-span-2 lg:col-span-5 text-[12.5px] font-medium m-0 px-3 py-2 rounded-sm border border-amber bg-[#FFFBE6]"
+          >
+            {warning}
+          </p>
+        )}
       </form>
     </Card>
   );

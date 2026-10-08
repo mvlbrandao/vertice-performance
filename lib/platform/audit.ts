@@ -34,29 +34,33 @@ async function requestIp(): Promise<string | null> {
  * ser encerrada antes da gravação; e esta função nunca lança, então o await
  * não traz risco. A ação principal já aconteceu — o preço mudou, o clube foi
  * bloqueado — e uma falha ao anotar não pode desfazê-la nem fazer a tela
- * mostrar erro de algo que deu certo. Em compensação, a falha vai para o log
- * do servidor, onde alguém vê.
+ * mostrar erro de algo que deu certo.
+ *
+ * Devolve `true` só quando a linha foi gravada. Quem chama repassa isso à
+ * tela (successResult em auditNotice.ts): a falha vai para o log do servidor
+ * E vira aviso para o administrador, porque uma trilha que falha em silêncio
+ * deixa a pessoa achar que a ação ficou registrada.
  *
  * Enquanto a migração 0072 não for aplicada a tabela não existe: isso é
- * esperado e vira aviso, não erro.
+ * esperado e vira aviso no log, não erro — mas continua devolvendo `false`.
  *
  * `details`: para mudanças, use `{ changes: diffFields(antes, depois) }` — só
  * os campos que mudaram, com from/to. Nunca coloque segredo (chave de API,
  * token, CPF/CNPJ); normalizeAuditDetails remove o que tiver cara de
  * credencial, mas é a última barreira, não a primeira.
  */
-export async function logPlatformAction(entry: PlatformActionEntry): Promise<void> {
+export async function logPlatformAction(entry: PlatformActionEntry): Promise<boolean> {
   try {
     if (!isValidAuditAction(entry.action)) {
       console.error(`[auditoria] ação fora do formato entidade.verbo, não gravada: ${entry.action}`);
-      return;
+      return false;
     }
 
     const actor = await getPlatformAdmin();
     if (!actor) {
       // Não deveria acontecer: toda ação passa por requirePlatformAdmin antes.
       console.error(`[auditoria] ação ${entry.action} sem administrador na sessão; trilha NÃO gravada.`);
-      return;
+      return false;
     }
 
     const admin = createAdminClient();
@@ -70,16 +74,29 @@ export async function logPlatformAction(entry: PlatformActionEntry): Promise<voi
       ip: await requestIp(),
     });
 
-    if (!error) return;
+    if (!error) return true;
 
     if (isMissingRelation(error)) {
       console.warn(
         `[auditoria] tabela platform_audit_log ausente (migração 0072 pendente): ${entry.action} não foi registrada.`,
       );
-      return;
+      return false;
     }
     console.error(`[auditoria] falha ao gravar ${entry.action}:`, error.message);
+    return false;
   } catch (e) {
     console.error(`[auditoria] erro inesperado ao gravar ${entry.action}:`, (e as Error).message);
+    return false;
   }
+}
+
+/**
+ * A trilha existe no banco? Para as telas que alteram coisas dizerem a
+ * verdade (hoje a 0072 ainda não está em produção). Erro que não seja
+ * "tabela ausente" conta como existente: uma falha passageira de rede não
+ * pode virar um aviso falso de migração pendente.
+ */
+export async function isAuditTrailAvailable(): Promise<boolean> {
+  const { error } = await createAdminClient().from("platform_audit_log").select("id").limit(1);
+  return !isMissingRelation(error);
 }

@@ -1,4 +1,7 @@
-const CACHE = "vertice-v3";
+// v4: o worker antigo guardava qualquer navegação, inclusive a do painel do
+// dono (/plataforma). Trocar o nome faz o "activate" apagar esse cache velho
+// nos aparelhos onde o painel já foi aberto.
+const CACHE = "vertice-v4";
 const SHELL = ["/icon-192.png", "/icon-512.png", "/manifest.json"];
 
 self.addEventListener("install", (event) => {

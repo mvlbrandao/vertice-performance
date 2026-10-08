@@ -4,10 +4,10 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requirePlatformAdmin } from "@/lib/platform/admin";
 import { logPlatformAction } from "@/lib/platform/audit";
+import { successResult, type PlatformActionResult } from "@/lib/platform/auditNotice";
 import { revalidateAdmin } from "@/lib/platform/revalidate";
 import { diffFields } from "@/lib/actions/auditLog";
 import { somaDias, hojeISO } from "@/lib/utils/date";
-import type { ActionResult } from "@/lib/actions/athletes";
 import type { Database } from "@/lib/types/database";
 
 const settingsSchema = z.object({
@@ -42,7 +42,7 @@ function reaisParaCentavos(raw: string): number | null {
   return Math.round(n * 100);
 }
 
-export async function updatePlatformSettings(formData: FormData): Promise<ActionResult> {
+export async function updatePlatformSettings(formData: FormData): Promise<PlatformActionResult> {
   await requirePlatformAdmin();
   const parsed = settingsSchema.safeParse({
     planName: formData.get("planName"),
@@ -78,12 +78,14 @@ export async function updatePlatformSettings(formData: FormData): Promise<Action
 
   // Salvar sem mexer em nada não é mudança: não polui a trilha.
   const changes = diffFields((before ?? {}) as Record<string, unknown>, next);
+  // Sem mudança não há o que registrar, então também não há o que avisar.
+  let recorded = true;
   if (Object.keys(changes).length > 0) {
-    await logPlatformAction({ action: "settings.update", details: { changes } });
+    recorded = await logPlatformAction({ action: "settings.update", details: { changes } });
   }
 
   revalidateAdmin();
-  return { success: true };
+  return successResult(recorded);
 }
 
 const clubActionSchema = z.object({
@@ -91,7 +93,7 @@ const clubActionSchema = z.object({
 });
 
 /** Estende o teste em N dias a partir de hoje (ou do vencimento, se ainda houver). */
-export async function extendTrial(formData: FormData): Promise<ActionResult> {
+export async function extendTrial(formData: FormData): Promise<PlatformActionResult> {
   await requirePlatformAdmin();
   const clubId = clubActionSchema.safeParse({ clubId: formData.get("clubId") });
   if (!clubId.success) return { error: "Clube inválido." };
@@ -114,7 +116,7 @@ export async function extendTrial(formData: FormData): Promise<ActionResult> {
   const { error } = await admin.from("clubs").update(next).eq("id", club.id);
   if (error) return { error: error.message };
 
-  await logPlatformAction({
+  const recorded = await logPlatformAction({
     action: "club.extend_trial",
     club: { id: club.id, name: club.name },
     details: {
@@ -127,7 +129,7 @@ export async function extendTrial(formData: FormData): Promise<ActionResult> {
   });
 
   revalidateAdmin();
-  return { success: true };
+  return successResult(recorded);
 }
 
 const courtesySchema = z.object({
@@ -137,7 +139,7 @@ const courtesySchema = z.object({
 });
 
 /** Bonificação: libera o clube sem cobrança até uma data. */
-export async function grantCourtesy(formData: FormData): Promise<ActionResult> {
+export async function grantCourtesy(formData: FormData): Promise<PlatformActionResult> {
   await requirePlatformAdmin();
   const parsed = courtesySchema.safeParse({
     clubId: formData.get("clubId"),
@@ -157,7 +159,7 @@ export async function grantCourtesy(formData: FormData): Promise<ActionResult> {
   const { error } = await admin.from("clubs").update(next).eq("id", club.id);
   if (error) return { error: error.message };
 
-  await logPlatformAction({
+  const recorded = await logPlatformAction({
     action: "club.grant_courtesy",
     club: { id: club.id, name: club.name },
     details: {
@@ -169,10 +171,10 @@ export async function grantCourtesy(formData: FormData): Promise<ActionResult> {
   });
 
   revalidateAdmin();
-  return { success: true };
+  return successResult(recorded);
 }
 
-export async function revokeCourtesy(formData: FormData): Promise<ActionResult> {
+export async function revokeCourtesy(formData: FormData): Promise<PlatformActionResult> {
   await requirePlatformAdmin();
   const parsed = clubActionSchema.safeParse({ clubId: formData.get("clubId") });
   if (!parsed.success) return { error: "Clube inválido." };
@@ -185,7 +187,7 @@ export async function revokeCourtesy(formData: FormData): Promise<ActionResult> 
   const { error } = await admin.from("clubs").update(next).eq("id", club.id);
   if (error) return { error: error.message };
 
-  await logPlatformAction({
+  const recorded = await logPlatformAction({
     action: "club.revoke_courtesy",
     club: { id: club.id, name: club.name },
     details: {
@@ -197,11 +199,11 @@ export async function revokeCourtesy(formData: FormData): Promise<ActionResult> 
   });
 
   revalidateAdmin();
-  return { success: true };
+  return successResult(recorded);
 }
 
 /** Devolve ao clube o direito à liberação automática de 48h por promessa de pagamento. */
-export async function resetPaymentPromise(formData: FormData): Promise<ActionResult> {
+export async function resetPaymentPromise(formData: FormData): Promise<PlatformActionResult> {
   await requirePlatformAdmin();
   const parsed = clubActionSchema.safeParse({ clubId: formData.get("clubId") });
   if (!parsed.success) return { error: "Clube inválido." };
@@ -216,7 +218,7 @@ export async function resetPaymentPromise(formData: FormData): Promise<ActionRes
     .eq("id", club.id);
   if (error) return { error: error.message };
 
-  await logPlatformAction({
+  const recorded = await logPlatformAction({
     action: "club.reset_payment_promise",
     club: { id: club.id, name: club.name },
     details: {
@@ -228,7 +230,7 @@ export async function resetPaymentPromise(formData: FormData): Promise<ActionRes
   });
 
   revalidateAdmin();
-  return { success: true };
+  return successResult(recorded);
 }
 
 const overrideSchema = z.object({
@@ -238,7 +240,7 @@ const overrideSchema = z.object({
 });
 
 /** Cota e preço próprios deste clube. Vazio volta ao padrão do plano. */
-export async function setClubOverrides(formData: FormData): Promise<ActionResult> {
+export async function setClubOverrides(formData: FormData): Promise<PlatformActionResult> {
   await requirePlatformAdmin();
   const parsed = overrideSchema.safeParse({
     clubId: formData.get("clubId"),
@@ -272,8 +274,9 @@ export async function setClubOverrides(formData: FormData): Promise<ActionResult
     } as Record<string, unknown>,
     next,
   );
+  let recorded = true;
   if (Object.keys(changes).length > 0) {
-    await logPlatformAction({
+    recorded = await logPlatformAction({
       action: "club.set_overrides",
       club: { id: club.id, name: club.name },
       details: { changes },
@@ -281,7 +284,7 @@ export async function setClubOverrides(formData: FormData): Promise<ActionResult
   }
 
   revalidateAdmin();
-  return { success: true };
+  return successResult(recorded);
 }
 
 const statusSchema = z.object({
@@ -289,7 +292,7 @@ const statusSchema = z.object({
   status: z.enum(["trial", "ativo", "atrasado", "bloqueado", "cancelado"]),
 });
 
-export async function setClubStatus(formData: FormData): Promise<ActionResult> {
+export async function setClubStatus(formData: FormData): Promise<PlatformActionResult> {
   await requirePlatformAdmin();
   const parsed = statusSchema.safeParse({
     clubId: formData.get("clubId"),
@@ -317,7 +320,7 @@ export async function setClubStatus(formData: FormData): Promise<ActionResult> {
   const { error } = await admin.from("clubs").update(patch).eq("id", club.id);
   if (error) return { error: error.message };
 
-  await logPlatformAction({
+  const recorded = await logPlatformAction({
     action: "club.set_status",
     club: { id: club.id, name: club.name },
     details: {
@@ -338,5 +341,5 @@ export async function setClubStatus(formData: FormData): Promise<ActionResult> {
   });
 
   revalidateAdmin();
-  return { success: true };
+  return successResult(recorded);
 }

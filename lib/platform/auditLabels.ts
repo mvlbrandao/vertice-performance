@@ -90,7 +90,6 @@ const BILLING_TYPE_LABELS: Record<string, string> = {
 const ASAAS_RESULT_LABELS: Record<string, string> = {
   cancelada: "Assinatura cancelada",
   nao_encontrada: "Já não existia no Asaas",
-  sem_credenciais: "Sem chave do Asaas — só o link foi removido",
   sem_assinatura: "O clube não tinha assinatura",
 };
 

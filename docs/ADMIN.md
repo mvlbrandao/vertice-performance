@@ -5,10 +5,12 @@ auditoria e segurança. Fica em `/admin` e é separada das telas de clube.
 
 ## Como ter acesso
 
-1. **Crie a conta.** Entre em `/cadastro` (ou crie o usuário no painel do Supabase, em
-   Authentication > Users) com o e-mail que será o administrador, e deixe-o **confirmado**.
-   Faça isso **antes** de definir a variável do passo 2: enquanto o e-mail não é reservado,
-   qualquer pessoa poderia cadastrá-lo.
+1. **Crie a conta.** No painel do Supabase, em Authentication > Users > Add user, crie o usuário
+   com o e-mail que será o administrador, marque **Auto Confirm User** (o e-mail precisa estar
+   confirmado) e defina uma senha forte. Faça isso **antes** de definir a variável do passo 2:
+   enquanto o e-mail não é reservado, qualquer pessoa poderia cadastrá-lo.
+   - Evite `/cadastro` para isso: ele também cria um clube em teste, que apareceria em
+     **Clubes** como se fosse um cliente e entraria nas contagens da visão geral.
 2. **Defina `PLATFORM_ADMIN_EMAILS`.** Valor: o seu e-mail (vários, só se necessário, separados
    por vírgula).
    - Produção: Vercel > Project Settings > Environment Variables (ambiente Production).
@@ -44,6 +46,12 @@ Limites a conhecer:
   desligado, qualquer um poderia criar direto no Auth uma conta já confirmada com o e-mail do dono.
 - Para o segundo fator funcionar, o projeto Supabase precisa ter o MFA por TOTP habilitado
   (Authentication > Sign In / Providers > Multi-Factor).
+- Perdeu o celular com o segundo fator já exigido? A tela de segurança não consegue remover um
+  fator ativo sem o código dele (o Supabase exige a sessão de nível 2 para isso), então a saída é
+  fora do app: com a service role, `supabase.auth.admin.mfa.deleteFactor({ userId, id })` apaga o
+  fator (a lista de ids sai de `supabase.auth.admin.mfa.listFactors({ userId })`). Para voltar a
+  entrar com a senha enquanto isso, tire `PLATFORM_ADMIN_REQUIRE_MFA` (ou ponha `false`) e faça
+  novo deploy. Depois cadastre o aplicativo de novo em `/admin/seguranca`.
 - O e-mail do administrador é, na prática, metade da credencial. Use uma senha forte e exclusiva e,
   de preferência, ligue o segundo fator.
 
@@ -66,6 +74,15 @@ Ações registradas na auditoria: `settings.update`, `club.extend_trial`, `club.
 `club.start_subscription`, `club.cancel_subscription`. Salvar o plano ou as cotas sem mudar nada
 não gera registro.
 
+A ação nunca é desfeita só porque a trilha não gravou, mas a tela **avisa**: um quadro amarelo
+"Ação feita, mas NÃO foi registrada na trilha de auditoria" aparece na linha do clube ou no
+formulário do plano e fica até a próxima ação. `/admin/clubes` e `/admin/configuracoes` também
+mostram o aviso de migração pendente enquanto a tabela não existir.
+
+Cancelar a cobrança de um clube exige `ASAAS_API_KEY`: sem a chave, ou se o Asaas falhar (exceto
+404, "já não existia lá"), a ação devolve erro e não apaga nada, para a assinatura não continuar
+cobrando com a tela mostrando sucesso.
+
 ## Migrações 0072 a 0075
 
 Estão em `supabase/migrations/` e **precisam ser aplicadas no banco** (por exemplo com
@@ -82,11 +99,11 @@ Estão em `supabase/migrations/` e **precisam ser aplicadas no banco** (por exem
 
 O código foi escrito para subir antes do SQL, sem quebrar:
 
-- **Ações do painel funcionam normalmente.** Se a tabela de auditoria não existe, a gravação da
-  trilha falha em silêncio para a pessoa e deixa um aviso no log do servidor
-  (`[auditoria] tabela platform_audit_log ausente (migração 0072 pendente)`). Nesse período **as
-  ações não ficam registradas**: aplique a 0072 antes de usar o painel para mudar preço ou
-  situação de clube.
+- **Ações do painel funcionam normalmente.** Se a tabela de auditoria não existe, a ação é feita,
+  a tela mostra o aviso de que ela **não foi registrada** e o log do servidor ganha
+  `[auditoria] tabela platform_audit_log ausente (migração 0072 pendente)`. Nesse período **as
+  ações não ficam registradas** e, se a conta de administrador for comprometida, não há rastro:
+  aplique a 0072 antes de usar o painel para mudar preço ou situação de clube.
 - **`/admin/auditoria`** mostra o aviso "Migração 0072 pendente" em vez de erro.
 - As páginas das fases seguintes devem seguir o mesmo padrão (`isMissingRelation` em
   `lib/platform/contracts.ts` e o componente `MigrationNotice`).
@@ -130,8 +147,9 @@ versões 0072 a 0075 da tabela de histórico para poder reaplicá-las depois.
 - Toda página nova em `app/(admin)/admin/` chama `await requirePlatformAdmin()` na primeira
   linha, e toda server action também (de `lib/platform/admin.ts`).
 - Ações que alteram algo chamam `await logPlatformAction({ action, club, details })`
-  (`lib/platform/audit.ts`) **depois** da mutação. Para mudanças, `details: { changes:
-  diffFields(antes, depois) }`. Nunca coloque segredo nos detalhes. Dê rótulo em português à ação
+  (`lib/platform/audit.ts`) **depois** da mutação, guardam o booleano que ela devolve e terminam
+  com `return successResult(recorded)` (`lib/platform/auditNotice.ts`), para a tela saber quando a
+  trilha não gravou. Para mudanças, `details: { changes: diffFields(antes, depois) }`. Nunca coloque segredo nos detalhes. Dê rótulo em português à ação
   nova em `lib/platform/auditLabels.ts`.
 - Depois de mutar, chame `revalidateAdmin()` (`lib/platform/revalidate.ts`).
 - Tabelas das migrações 0072 a 0075 podem não existir: trate com `isMissingRelation`.

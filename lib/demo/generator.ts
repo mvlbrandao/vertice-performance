@@ -147,7 +147,14 @@ export const TABELAS_DO_CLUBE = [
   "exercise_videos", "exercises", "expenses", "expense_categories", "game_events",
   "game_lineups", "game_reports", "games", "competitions", "invite_links", "media_items",
   "meetings", "mental_notes", "plays", "sub_staff_assignments", "partner_club_categories",
-  "partner_clubs", "asaas_security_events", "planning_columns", "athletes",
+  "partner_clubs", "asaas_security_events", "planning_columns", "platform_charges",
+  // Estas duas nasceram depois da lista e têm FK sem cascade para profiles
+  // (created_by / reviewed_by). Faltando aqui, apagar o perfil do treinador
+  // falha, o clube não sai e a recriação da demo morre por slug duplicado —
+  // foi o que derrubou a restauração diária e, junto, o expurgo LGPD de clube
+  // cancelado. Há um teste que confere esta lista contra as migrações.
+  "announcements", "athlete_enrollment_requests",
+  "athletes",
 ] as const;
 
 export async function apagarClube(admin: Admin, clubId: string) {

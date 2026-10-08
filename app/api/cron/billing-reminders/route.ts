@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPushToAthlete } from "@/lib/push/send";
 import { sendEmail } from "@/lib/email/send";
 import { hojeISO, somaDias } from "@/lib/utils/date";
+import { withCronRun, type CronFailure, type CronOutcome } from "@/lib/observability/cronRun";
 
 /**
  * Lembrete automático de cobrança. Chamado por agendamento (Vercel Cron) ou
@@ -18,13 +19,7 @@ function formatCents(cents: number) {
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-async function run(request: Request) {
-  const secret = process.env.CRON_SECRET;
-  const auth = request.headers.get("authorization");
-  if (!secret || auth !== `Bearer ${secret}`) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
-
+async function enviarLembretes(): Promise<CronOutcome<NextResponse>> {
   const today = hojeISO();
   const windows = [
     { due: somaDias(today, 3), kind: "prev" as const },
@@ -34,15 +29,24 @@ async function run(request: Request) {
 
   const admin = createAdminClient();
   let enviados = 0;
+  const failures: CronFailure[] = [];
 
   for (const w of windows) {
-    const { data: charges } = await admin
+    const { data: charges, error: chargesError } = await admin
       .from("athlete_charges")
       .select(
         "id, athlete_id, description, amount_cents, discount_cents, due_date, athletes(full_name, guardian_email, is_active)",
       )
       .in("status", ["Pendente", "Atrasado"])
       .eq("due_date", w.due);
+
+    // Antes o erro era descartado e a janela virava "nenhuma cobrança": o
+    // lembrete deixava de sair sem rastro. O comportamento continua o mesmo
+    // (segue para a próxima janela); a diferença é que agora aparece na tela.
+    if (chargesError) {
+      console.error(`[lembretes] falha ao ler cobranças (${w.kind}):`, chargesError.message);
+      failures.push({ message: `falha ao ler as cobranças da janela "${w.kind}": ${chargesError.message}` });
+    }
 
     for (const c of charges ?? []) {
       const a = c.athletes as unknown as {
@@ -89,7 +93,24 @@ async function run(request: Request) {
     }
   }
 
-  return NextResponse.json({ ok: true, enviados });
+  return {
+    value: NextResponse.json({ ok: true, enviados }),
+    ok: failures.length === 0,
+    summary: { enviados },
+    failures,
+  };
+}
+
+async function run(request: Request) {
+  const secret = process.env.CRON_SECRET;
+  const auth = request.headers.get("authorization");
+  if (!secret || auth !== `Bearer ${secret}`) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  // A execução fica registrada em cron_runs (tela /admin/saude). O wrapper
+  // nunca quebra o cron nem muda o que ele responde; ver lib/observability/cronRun.ts.
+  return withCronRun("billing-reminders", enviarLembretes);
 }
 
 // O Vercel Cron dispara via GET (mandando o Authorization automaticamente

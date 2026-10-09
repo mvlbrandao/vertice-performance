@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  VITALS_MAX_PER_BATCH,
+  VITAL_METRICS,
+  VITAL_THRESHOLDS,
   buildVitalReport,
   createVitalsDeduper,
   isVitalMetric,
   parseSampleRate,
+  ratingFor,
   routeForMetric,
   shouldSample,
 } from "./vitalsShared";
@@ -55,16 +59,18 @@ describe("isVitalMetric", () => {
 });
 
 describe("buildVitalReport", () => {
-  const metric = { name: "LCP", value: 1234.5678, rating: "good", navigationType: "navigate" };
+  const metric = { name: "LCP", value: 1234.5678, navigationType: "navigate" };
 
-  it("monta o corpo com valor arredondado e rota sem query string", () => {
-    expect(buildVitalReport(metric, "/athletes/42/dados?token=abc#x")).toEqual({
+  it("monta o corpo com valor arredondado e rota sem query string, sem a nota do navegador", () => {
+    const relatorio = buildVitalReport({ ...metric, rating: "good" } as typeof metric, "/athletes/42/dados?token=abc#x");
+    expect(relatorio).toEqual({
       name: "LCP",
       value: 1234.57,
-      rating: "good",
       route: "/athletes/42/dados",
       navigationType: "navigate",
     });
+    // O servidor recalcula a nota: ela não viaja.
+    expect(relatorio).not.toHaveProperty("rating");
   });
 
   it("descarta FID, métricas internas do Next e valores inválidos", () => {
@@ -73,13 +79,11 @@ describe("buildVitalReport", () => {
     expect(buildVitalReport({ ...metric, value: Number.NaN }, "/a")).toBeNull();
     expect(buildVitalReport({ ...metric, value: Number.POSITIVE_INFINITY }, "/a")).toBeNull();
     expect(buildVitalReport({ ...metric, value: -1 }, "/a")).toBeNull();
-    expect(buildVitalReport({ ...metric, rating: "otimo" }, "/a")).toBeNull();
-    expect(buildVitalReport({ name: "LCP", value: 1 }, "/a")).toBeNull();
   });
 
   it("CLS fica com duas casas e rota vazia vira '/'", () => {
-    expect(buildVitalReport({ name: "CLS", value: 0.012345, rating: "good" }, "")?.value).toBe(0.01);
-    expect(buildVitalReport({ name: "CLS", value: 0.1, rating: "good" }, "")?.route).toBe("/");
+    expect(buildVitalReport({ name: "CLS", value: 0.012345 }, "")?.value).toBe(0.01);
+    expect(buildVitalReport({ name: "CLS", value: 0.1 }, "")?.route).toBe("/");
   });
 
   it("limita rota e tipo de navegação", () => {
@@ -89,6 +93,25 @@ describe("buildVitalReport", () => {
     );
     expect(longo?.route.length).toBeLessThanOrEqual(200);
     expect(longo?.navigationType?.length).toBeLessThanOrEqual(32);
+  });
+});
+
+describe("ratingFor / VITAL_THRESHOLDS", () => {
+  it("segue a regra da biblioteca: até 'good' é bom, acima de 'poor' é ruim, no meio precisa melhorar", () => {
+    expect(ratingFor("LCP", 2_500)).toBe("good");
+    expect(ratingFor("LCP", 2_501)).toBe("needs-improvement");
+    expect(ratingFor("LCP", 4_000)).toBe("needs-improvement");
+    expect(ratingFor("LCP", 4_001)).toBe("poor");
+    expect(ratingFor("CLS", 0.1)).toBe("good");
+    expect(ratingFor("CLS", 0.26)).toBe("poor");
+    expect(ratingFor("INP", 100_000)).toBe("poor");
+  });
+
+  it("tem limites para as cinco métricas, com bom < ruim", () => {
+    for (const nome of VITAL_METRICS) {
+      expect(VITAL_THRESHOLDS[nome].good).toBeLessThan(VITAL_THRESHOLDS[nome].poor);
+    }
+    expect(VITALS_MAX_PER_BATCH).toBe(5);
   });
 });
 

@@ -125,6 +125,102 @@ describe("sanitizeMessage", () => {
     sanitizeMessage("a1".repeat(1_000_000));
     expect(Date.now() - inicio).toBeLessThan(500);
   });
+
+  it("não sofre retrocesso explosivo com repetições que imitam o início de uma regra", () => {
+    // "token_" repetido já travou uma versão da regra de credencial (grupos
+    // ambíguos dentro de um "*"); cada unidade abaixo exercita uma regra.
+    for (const unidade of ["a_", "a-", "token_", "a_1", "Key (", "invalid input syntax for ", "x@", "1.", "secret_key_", "é"]) {
+      const inicio = Date.now();
+      sanitizeMessage(unidade.repeat(5_000));
+      expect(Date.now() - inicio, JSON.stringify(unidade)).toBeLessThan(500);
+    }
+  });
+});
+
+describe("sanitizeMessage com entradas hostis (achados da revisão)", () => {
+  it("e-mail com acento: some inteiro, sem deixar parte do nome", () => {
+    expect(sanitizeMessage("falha para joão.silva@x.com")).toBe("falha para [email]");
+    const out = sanitizeMessage("Key (email)=(josé@gmail.com) already exists.");
+    expect(out).not.toContain("josé");
+    expect(out).not.toContain("gmail");
+  });
+
+  it("valor ecoado pelo Postgres em 'Key (col)=(valor)' sai; o nome da coluna fica", () => {
+    const out = sanitizeMessage("duplicate key value: Key (full_name)=(Maria (Jr) Silva) already exists.");
+    expect(out).toContain("Key (full_name)=([valor]) already exists.");
+    expect(out).not.toContain("Maria");
+    expect(out).not.toContain("Silva");
+    expect(sanitizeMessage('Key (club_id)=(7) is not present in table "clubs".')).toContain("Key (club_id)=([valor])");
+  });
+
+  it("credencial em JSON, com prefixo ou sufixo no nome", () => {
+    for (const texto of [
+      '{"password":"hunter2","token":"abc"}',
+      "secret_key=abc",
+      "client_secret=abc",
+      "api-key: abcdef",
+      "x-api-key: 12345",
+      "refresh_token=zzz",
+      "DB_PASSWORD=hunter2",
+    ]) {
+      const out = sanitizeMessage(texto);
+      expect(out, texto).toContain("[removido]");
+      expect(out, texto).not.toMatch(/hunter2|abcdef|12345|zzz|=abc|"abc"/);
+    }
+  });
+
+  it("Authorization com esquema: leva a credencial junto, não só a palavra 'Basic'", () => {
+    const out = sanitizeMessage("Authorization: Basic dXNlcjpwYXNz");
+    expect(out).toBe("Authorization=[removido]");
+    expect(sanitizeMessage("authorization: Token abc123")).toBe("authorization=[removido]");
+  });
+
+  it("não confunde nome de restrição ou palavra parecida com credencial", () => {
+    const restricao = 'duplicate key value violates unique constraint "users_token_key"';
+    expect(sanitizeMessage(restricao)).toBe(restricao);
+    expect(sanitizeMessage("tokens: 3 e secrets são lidos")).toBe("tokens: 3 e secrets são lidos");
+  });
+
+  it("o PostgREST repete o texto digitado em 'invalid input': o valor sai", () => {
+    expect(sanitizeMessage('invalid input syntax for type uuid: "Carlos Eduardo"')).toBe(
+      "invalid input syntax for type uuid: [valor]",
+    );
+    expect(sanitizeMessage('invalid input syntax for type date: "10/05/2010"')).toBe(
+      "invalid input syntax for type date: [valor]",
+    );
+    // Dentro de um JSON, as aspas vêm escapadas.
+    expect(sanitizeMessage('{"message":"invalid input syntax for type uuid: \\"Carlos Eduardo\\""}')).not.toContain("Carlos");
+    expect(sanitizeMessage('invalid input value for enum club_status: "ativo-secreto"')).not.toContain("ativo-secreto");
+    // O resto da mensagem, que explica o defeito, continua.
+    expect(sanitizeMessage('invalid input syntax for type uuid: "x"')).toContain("type uuid");
+  });
+
+  it("caracteres invisíveis e de sobrescrita bidirecional saem", () => {
+    expect(sanitizeMessage("rtl ‮abc‬ ok")).toBe("rtl abc ok");
+    expect(sanitizeMessage("a​b﻿c")).toBe("abc");
+    // Largura zero no meio do e-mail não impede o reconhecimento.
+    expect(sanitizeMessage("falha jo​hn@x.com")).toBe("falha [email]");
+    // Controles C1 também viram espaço.
+    expect(sanitizeMessage("a\u0085b")).toBe("a b");
+  });
+
+  it("token hexadecimal com dígitos vira um só [token], sem sobra de letras", () => {
+    expect(sanitizeMessage("tok 0123456789abcdef0123456789abcdef end")).toBe("tok [token] end");
+  });
+
+  it("continua idempotente com as regras novas", () => {
+    const entradas = [
+      "Key (email)=(josé@gmail.com) already exists.",
+      '{"password":"hunter2","token":"abc"}',
+      "Authorization: Basic dXNlcjpwYXNz",
+      'invalid input syntax for type uuid: "Carlos Eduardo"',
+      "x-api-key: 12345 e 0123456789abcdef0123456789abcdef",
+    ];
+    for (const entrada of entradas) {
+      const uma = sanitizeMessage(entrada);
+      expect(sanitizeMessage(uma), entrada).toBe(uma);
+    }
+  });
 });
 
 describe("messageOf", () => {

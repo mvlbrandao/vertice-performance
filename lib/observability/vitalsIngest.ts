@@ -3,28 +3,44 @@
  * cada recusa sem montar sessão nem banco (a rota só liga as dependências
  * reais). Sem "server-only".
  *
+ * Um envio traz as métricas de uma página (até 5) e custa UMA validação de
+ * sessão e UM insert em lote, não uma ida por métrica.
+ *
  * Ordem pensada para gastar o mínimo com quem não devia estar aqui:
  *  1. corpo grande demais (cabeçalho e leitura limitada)  -> 413, sem tocar em nada;
  *  2. sem sessão válida                                    -> 401 (anônimo nunca grava);
  *  3. usuário acima do limite                              -> 204 (descarta calado);
- *  4. corpo ilegível ou inválido                           -> 400, sem detalhe do porquê;
+ *  4. corpo ilegível ou sem nenhuma métrica válida         -> 400, sem detalhe do porquê;
  *  5. gravou, ou o banco falhou                            -> 204 nos dois casos.
  *
  * Telemetria é "melhor esforço": falha ao gravar NÃO vira erro para o
  * navegador (ninguém pode refazer, e um 5xx só polui o console da pessoa).
  */
-import { MAX_BODY_BYTES, parseVitalPayload, type VitalRow } from "@/lib/observability/vitalsPayload";
+import { MAX_BODY_BYTES, parseVitalsBatch, type VitalRow } from "@/lib/observability/vitalsPayload";
 import { withTimeout } from "@/lib/observability/timeout";
 
 export const VITALS_INSERT_TIMEOUT_MS = 2_000;
+
+/**
+ * Envios por usuário por janela. Um envio é uma página inteira (até 5 linhas);
+ * uma pessoa legítima manda um quando esconde a aba, então 20 por minuto é
+ * muito além do uso real e limita um script a ~100 linhas/minuto/instância.
+ * O limite é POR INSTÂNCIA (memória do processo): em serverless, requisições
+ * paralelas caem em instâncias diferentes e o teto real é maior. A defesa de
+ * fundo é o tamanho do corpo, o teto de 5 linhas por envio e o custo de uma
+ * linha; e a autenticação, que impede o anônimo de enviar. O limite roda
+ * depois da checagem de sessão, então não protege o Auth.
+ */
+export const VITALS_RATE_MAX = 20;
+export const VITALS_RATE_WINDOW_MS = 60_000;
 
 export interface VitalsIngestDeps {
   /** Id do usuário com sessão VÁLIDA (conferida no Auth), ou null. Pode lançar. */
   userId: () => Promise<string | null>;
   /** Limitador por usuário. */
   allow: (userId: string) => boolean;
-  /** Grava a linha. Pode lançar ou rejeitar. */
-  insert: (row: VitalRow) => PromiseLike<unknown>;
+  /** Grava as linhas de uma vez. Pode lançar ou rejeitar. */
+  insert: (rows: VitalRow[]) => PromiseLike<unknown>;
 }
 
 /**
@@ -85,11 +101,11 @@ export async function ingestVital(request: Request, deps: VitalsIngestDeps): Pro
     }
 
     // O user-agent só decide mobile/desktop; não é gravado.
-    const row = parseVitalPayload(json, request.headers.get("user-agent"));
-    if (!row) return 400;
+    const rows = parseVitalsBatch(json, request.headers.get("user-agent"));
+    if (rows.length === 0) return 400;
 
     try {
-      const result = (await withTimeout(deps.insert(row), VITALS_INSERT_TIMEOUT_MS, "gravação de vital")) as
+      const result = (await withTimeout(deps.insert(rows), VITALS_INSERT_TIMEOUT_MS, "gravação de vitals")) as
         | { error?: { message?: string } | null }
         | undefined;
       if (result?.error) console.warn("[vitals] não gravado:", result.error.message);

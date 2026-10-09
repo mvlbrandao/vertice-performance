@@ -16,6 +16,7 @@ import {
   collectIssues,
   cronLevel,
   cronState,
+  earliestRunMs,
   errorsLevel,
   fillDailySeries,
   hasPoorVitals,
@@ -368,6 +369,36 @@ describe("cronState", () => {
     expect(cronState(null, agora)).toBe("sem_execucao");
   });
 
+  it("sem execução, mas com prova de coleta ativa há mais de 26 h, a rotina está atrasada (não dispara)", () => {
+    const haMuito = agora - CRON_STALE_AFTER_MS - 1_000;
+    expect(cronState(null, agora, haMuito)).toBe("atrasado");
+    // No limite exato ou antes dele (primeiro dia depois do deploy): ainda não julga.
+    expect(cronState(null, agora, agora - CRON_STALE_AFTER_MS)).toBe("sem_execucao");
+    expect(cronState(null, agora, agora - 3_600_000)).toBe("sem_execucao");
+    // Sem nenhuma prova (nenhuma rotina registrou nada) continua neutro.
+    expect(cronState(null, agora, null)).toBe("sem_execucao");
+    expect(cronState(null, agora, undefined)).toBe("sem_execucao");
+    expect(cronState(null, agora, Number.NaN)).toBe("sem_execucao");
+  });
+
+  it("a prova de coleta não muda o estado de quem TEM execução", () => {
+    const haMuito = agora - 10 * CRON_STALE_AFTER_MS;
+    expect(cronState(run({}), agora, haMuito)).toBe("ok");
+    expect(cronState(run({ ok: false }), agora, haMuito)).toBe("falhou");
+  });
+
+  it("earliestRunMs: a execução mais antiga entre as listadas, ignorando datas ilegíveis", () => {
+    expect(earliestRunMs([])).toBeNull();
+    expect(
+      earliestRunMs([
+        run({ id: 1, started_at: "2026-10-07T05:30:00Z" }),
+        run({ id: 2, started_at: "lixo" }),
+        run({ id: 3, started_at: "2026-10-05T05:30:00Z" }),
+      ]),
+    ).toBe(Date.parse("2026-10-05T05:30:00Z"));
+    expect(earliestRunMs([run({ started_at: "lixo" })])).toBeNull();
+  });
+
   it("ok e recente = em dia", () => {
     expect(cronState(run({}), agora)).toBe("ok");
   });
@@ -563,6 +594,7 @@ describe("collectIssues / overallLevel", () => {
     errors24h: 0,
     config: configOk,
     vitalsPoor: false,
+    unreadable: [] as string[],
   };
 
   it("tudo em ordem = nenhum problema e semáforo verde", () => {
@@ -602,6 +634,22 @@ describe("collectIssues / overallLevel", () => {
 
   it("telemetria indisponível (null) não afirma nada", () => {
     expect(collectIssues({ ...limpo, errors24h: null, cronStates: null })).toEqual([]);
+  });
+
+  it("leitura que FALHOU deixa o semáforo amarelo: sem dado não há 'tudo certo'", () => {
+    const issues = collectIssues({
+      ...limpo,
+      errors24h: null,
+      cronStates: null,
+      unreadable: ["os erros do servidor", "as rotinas agendadas"],
+    });
+    expect(issues).toEqual([
+      { level: "atencao", text: "Não foi possível ler os erros do servidor" },
+      { level: "atencao", text: "Não foi possível ler as rotinas agendadas" },
+    ]);
+    expect(overallLevel(issues)).toBe("atencao");
+    // Um problema pior continua decidindo.
+    expect(overallLevel(collectIssues({ ...limpo, unreadable: ["x"], probes: [sonda("falha")] }))).toBe("critico");
   });
 
   it("configuração obrigatória ausente é crítico; opcional desligada não conta", () => {

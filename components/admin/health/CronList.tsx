@@ -85,6 +85,12 @@ export function CronList({ crons, nowMs }: { crons: CronView[]; nowMs: number })
                 </dl>
               )}
             </>
+          ) : cron.state === "atrasado" ? (
+            <p className="m-0 mt-3 text-[13px] text-ink-soft">
+              Nenhuma execução registrada, embora a outra rotina já registre execuções há mais de 26 horas. Esta não
+              está disparando: confira o agendamento ({cron.schedule}), se o cron está ativo no projeto da Vercel e o
+              CRON_SECRET.
+            </p>
           ) : (
             <p className="m-0 mt-3 text-[13px] text-ink-soft">
               Nenhuma execução registrada ainda. A coleta começa após o deploy desta versão; a primeira aparece no

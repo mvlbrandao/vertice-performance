@@ -20,7 +20,13 @@ const estado = vi.hoisted(() => ({
   rpc: undefined as undefined | (() => unknown),
   eventos: [] as Array<{ draft: Record<string, unknown>; options: unknown }>,
   contratos: [] as string[],
+  /** Conteúdo do bucket por pasta: nome + id (pasta tem id nulo). */
+  arquivos: {} as Record<string, Array<{ name: string; id: string | null }>>,
+  /** Quantas chamadas a remove() ainda devem falhar. */
+  removeFalhas: 0,
   demoFalha: false,
+  /** Ordem em que a demo e a limpeza da telemetria foram executadas. */
+  ordem: [] as string[],
 }));
 
 function responder(tabela: string, op: string, unica: boolean) {
@@ -70,6 +76,7 @@ function construtor(tabela: string) {
 const admin = {
   from: (tabela: string) => construtor(tabela),
   rpc: async (fn: string) => {
+    estado.ordem.push("retencao");
     estado.operacoes.push({ tabela: `rpc:${fn}`, op: "select" });
     return estado.rpc
       ? estado.rpc()
@@ -78,8 +85,16 @@ const admin = {
   auth: { admin: { deleteUser: async () => ({ error: null }) } },
   storage: {
     from: () => ({
-      list: async () => ({ data: [], error: null }),
+      list: async (path: string) => {
+        estado.operacoes.push({ tabela: "storage", op: "list", linha: { path } });
+        return { data: estado.arquivos[path] ?? [], error: null };
+      },
       remove: async (paths: string[]) => {
+        estado.operacoes.push({ tabela: "storage", op: "remove" });
+        if (estado.removeFalhas > 0) {
+          estado.removeFalhas -= 1;
+          return { data: null, error: { message: "storage indisponível" } };
+        }
         estado.contratos.push(...paths);
         return { data: paths, error: null };
       },
@@ -94,6 +109,7 @@ vi.mock("@/lib/demo/generator", () => ({
   DEMO_SLUG: "vertice-demo",
   TABELAS_DO_CLUBE: ["announcements"],
   seedDemoClub: async () => {
+    estado.ordem.push("demo");
     if (estado.demoFalha) throw new Error("slug duplicado");
     return { clubId: "demo", atletas: 10, profissionais: 2 };
   },
@@ -135,7 +151,10 @@ beforeEach(() => {
   estado.rpc = undefined;
   estado.eventos = [];
   estado.contratos = [];
+  estado.arquivos = {};
+  estado.removeFalhas = 0;
   estado.demoFalha = false;
+  estado.ordem = [];
   vi.spyOn(console, "error").mockImplementation(() => {});
   vi.spyOn(console, "warn").mockImplementation(() => {});
 });
@@ -235,14 +254,92 @@ describe("GET /api/cron/club-retention", () => {
     expect(estado.eventos).toHaveLength(1);
   });
 
-  it("antes de apagar o clube, remove os contratos do storage sob {club_id}/ (e a lista tolera bucket vazio)", async () => {
+  it("bucket vazio: nada a remover, e isso não é falha", async () => {
     const r = await chamar();
     expect((await r.json()).ok).toBe(true);
-    // Bucket vazio: nada a remover, e isso não é falha.
     expect(estado.contratos).toEqual([]);
+    expect(estado.operacoes.some((o) => o.tabela === "storage" && o.op === "remove")).toBe(false);
+  });
 
-    const ordem = estado.operacoes.map((o) => `${o.tabela}:${o.op}`);
-    expect(ordem.indexOf("clubs:delete")).toBeGreaterThan(ordem.indexOf("announcements:delete"));
+  describe("contratos assinados no storage (só saem DEPOIS de o clube sair)", () => {
+    const PASTA = `${CLUBE}/c1`;
+    const comPdfs = () => {
+      estado.arquivos = {
+        [CLUBE]: [{ name: "c1", id: null }],
+        [PASTA]: [{ name: "a.pdf", id: "f1" }, { name: "b.pdf", id: "f2" }],
+      };
+    };
+    const indice = (ordem: string[], chave: string) => ordem.indexOf(chave);
+
+    it("remove os PDFs do prefixo {club_id}/ depois do DELETE do clube", async () => {
+      comPdfs();
+      const body = await (await chamar()).json();
+
+      expect(body.ok).toBe(true);
+      expect(body.apagados).toEqual(["Clube Cancelado"]);
+      expect(estado.contratos.sort()).toEqual([`${PASTA}/a.pdf`, `${PASTA}/b.pdf`]);
+      expect(fechamento()?.linha?.summary).toMatchObject({ arquivosContrato: 2, apagados: 1 });
+
+      const ordem = estado.operacoes.map((o) => `${o.tabela}:${o.op}`);
+      expect(indice(ordem, "storage:remove")).toBeGreaterThan(indice(ordem, "clubs:delete"));
+      expect(indice(ordem, "clubs:delete")).toBeGreaterThan(indice(ordem, "announcements:delete"));
+    });
+
+    it("CASO REAL (409 no DELETE do clube): os PDFs ficam intactos, nem são listados, e o dia seguinte tenta de novo", async () => {
+      comPdfs();
+      estado.respostas["clubs:delete"] = FK_409;
+      const body = await (await chamar()).json();
+
+      expect(body.ok).toBe(false);
+      expect(body.apagados).toEqual([]);
+      expect(estado.contratos).toEqual([]);
+      expect(estado.operacoes.some((o) => o.tabela === "storage")).toBe(false);
+      // Só a falha do clube: nenhum motivo falso de "contratos" gravado.
+      expect(body.falhas.map((f: { etapa: string }) => f.etapa)).toEqual(["clube"]);
+    });
+
+    it("falha passageira do storage: a segunda tentativa na hora resolve e a execução fica verde", async () => {
+      comPdfs();
+      estado.removeFalhas = 1;
+      const body = await (await chamar()).json();
+
+      expect(body.ok).toBe(true);
+      expect(body.falhas).toEqual([]);
+      expect(estado.contratos).toHaveLength(2);
+    });
+
+    it("falha persistente do storage: execução vermelha, clube contado como apagado, e a falha cita a pasta a limpar", async () => {
+      comPdfs();
+      estado.removeFalhas = 2;
+      const r = await chamar();
+      const body = await r.json();
+
+      expect(r.status).toBe(200);
+      expect(body.ok).toBe(false);
+      expect(body.apagados).toEqual(["Clube Cancelado"]);
+      expect(body.falhas).toHaveLength(1);
+      expect(body.falhas[0]).toMatchObject({ etapa: "contratos", clube: "Clube Cancelado" });
+      expect(body.falhas[0].mensagem).toContain(`club-contracts/${CLUBE}/`);
+      expect(body.falhas[0].mensagem).toContain("storage indisponível");
+
+      expect(fechamento()?.linha).toMatchObject({ ok: false });
+      expect(estado.eventos).toHaveLength(1);
+      expect(estado.eventos[0].draft).toMatchObject({ source: "cron", severity: "error", clubId: CLUBE });
+      expect(JSON.stringify(estado.eventos)).not.toContain("Clube Cancelado");
+    });
+  });
+
+  it("restaura a demo ANTES da limpeza da telemetria (a demo vazia foi o incidente; a limpeza pode ser enorme)", async () => {
+    await chamar();
+    expect(estado.ordem).toEqual(["demo", "retencao"]);
+  });
+
+  it("demo que falha não impede a limpeza da telemetria", async () => {
+    estado.demoFalha = true;
+    const body = await (await chamar()).json();
+    expect(estado.ordem).toEqual(["demo", "retencao"]);
+    expect(body.retencao).toBe("pendente");
+    expect(body.ok).toBe(false);
   });
 
   it("falha na telemetria (cron_runs indisponível) não muda a resposta do expurgo", async () => {

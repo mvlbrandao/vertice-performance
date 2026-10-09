@@ -1,5 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  PRUNE_TIMEOUT_MS,
   TELEMETRY_KEEP_DAYS,
   classifyPruneResult,
   isMissingFunction,
@@ -82,6 +83,30 @@ describe("pruneTelemetry", () => {
   it("tolera a função ausente (42883): pendente", async () => {
     const { client } = clienteCom({ data: null, error: { code: "42883", message: "undefined_function" } });
     await expect(pruneTelemetry(client)).resolves.toEqual({ status: "pendente" });
+  });
+
+  describe("prazo", () => {
+    afterEach(() => vi.useRealTimers());
+
+    it("função que não responde: 'falhou' ao fim do prazo, em vez de prender o cron", async () => {
+      vi.useFakeTimers();
+      const client = { rpc: () => new Promise(() => {}) } as unknown as PruneClient;
+      const pendente = pruneTelemetry(client);
+      await vi.advanceTimersByTimeAsync(PRUNE_TIMEOUT_MS + 1);
+      const out = await pendente;
+      expect(out.status).toBe("falhou");
+      expect(out.message).toContain("platform_prune_telemetry excedeu");
+    });
+
+    it("resposta dentro do prazo não é afetada", async () => {
+      vi.useFakeTimers();
+      const client = {
+        rpc: () => new Promise((resolve) => setTimeout(() => resolve({ data: { cron_runs: 1 }, error: null }), PRUNE_TIMEOUT_MS - 1)),
+      } as unknown as PruneClient;
+      const pendente = pruneTelemetry(client);
+      await vi.advanceTimersByTimeAsync(PRUNE_TIMEOUT_MS);
+      await expect(pendente).resolves.toEqual({ status: "ok", removed: { cron_runs: 1 } });
+    });
   });
 
   it("erro de rede vira 'falhou', não exceção", async () => {

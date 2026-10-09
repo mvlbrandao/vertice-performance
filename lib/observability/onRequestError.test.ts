@@ -13,6 +13,7 @@ vi.mock("@/lib/observability/record", () => ({
 }));
 
 import { handleRequestError } from "./onRequestError";
+import { markRecorded } from "./dedupe";
 
 beforeEach(() => {
   gravados.lista = [];
@@ -34,6 +35,21 @@ describe("handleRequestError", () => {
     const redirect = Object.assign(new Error("NEXT_REDIRECT"), { digest: "NEXT_REDIRECT;replace;/login;307;" });
     await handleRequestError(redirect, { path: "/admin" }, { routeType: "render" });
     expect(gravados.lista).toHaveLength(0);
+  });
+
+  it("erro já registrado pelo captador do webhook NÃO é gravado de novo (uma linha por exceção)", async () => {
+    const contexto = { routePath: "/api/webhooks/asaas/[token]/route", routeType: "route" } as const;
+    const pedido = { path: "/api/webhooks/asaas/TOKEN", method: "POST" };
+
+    // O mesmo erro, marcado: o Next o entrega ao onRequestError e nada é gravado.
+    const marcado = new Error("falha no webhook");
+    markRecorded(marcado);
+    await handleRequestError(marcado, pedido, contexto);
+    expect(gravados.lista).toHaveLength(0);
+
+    // Um erro idêntico em texto, mas NÃO marcado (outra exceção), é gravado uma vez.
+    await handleRequestError(new Error("falha no webhook"), pedido, contexto);
+    expect(gravados.lista).toHaveLength(1);
   });
 
   it("NUNCA rejeita, nem se o registro quebrar", async () => {

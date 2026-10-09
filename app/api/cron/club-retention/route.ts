@@ -4,7 +4,7 @@ import { getPlatformSettings } from "@/lib/platform/license";
 import { seedDemoClub, DEMO_SLUG, TABELAS_DO_CLUBE } from "@/lib/demo/generator";
 import { withCronRun, type CronFailure, type CronOutcome } from "@/lib/observability/cronRun";
 import { pruneTelemetry } from "@/lib/observability/prune";
-import { removeClubContractFiles } from "@/lib/platform/clubRetentionStorage";
+import { CONTRACTS_BUCKET, removeClubContractFiles } from "@/lib/platform/clubRetentionStorage";
 
 /**
  * Manutenção diária: expurgo de clube cancelado e restauração da demo.
@@ -38,6 +38,18 @@ import { removeClubContractFiles } from "@/lib/platform/clubRetentionStorage";
 type Falha = { etapa: "clube" | "contratos" | "retencao" | "demo"; clube?: string; mensagem: string };
 
 type Resposta = { status: number; body: unknown };
+
+/**
+ * Remove os PDFs do clube já expurgado, com uma segunda tentativa se a
+ * primeira falhar. A operação é idempotente (lista o que sobrou e remove), então
+ * repetir não apaga nada além do que já deveria sair.
+ */
+async function removerContratos(admin: ReturnType<typeof createAdminClient>, clubId: string) {
+  const primeira = await removeClubContractFiles(admin.storage, clubId);
+  if (!primeira.error) return primeira;
+  const segunda = await removeClubContractFiles(admin.storage, clubId);
+  return { removed: primeira.removed + segunda.removed, error: segunda.error };
+}
 
 async function executarRetencao(): Promise<CronOutcome<Resposta>> {
   const falhas: Falha[] = [];
@@ -129,17 +141,6 @@ async function executarRetencao(): Promise<CronOutcome<Resposta>> {
       }
     }
 
-    // Contratos assinados ficam no storage, fora do alcance do cascade. Vem
-    // ANTES de apagar o clube: depois dele ninguém mais listaria este clube e
-    // os PDFs ficariam órfãos para sempre. Falhar aqui só avisa; não impede o
-    // expurgo (que é obrigação legal).
-    const contratos = await removeClubContractFiles(admin.storage, club.id);
-    arquivosContrato += contratos.removed;
-    if (contratos.error) {
-      console.error(`[retencao] contratos de ${club.name}:`, contratos.error);
-      falhou({ etapa: "contratos", clube: club.name, mensagem: contratos.error }, club.id);
-    }
-
     const { error: delError } = await admin.from("clubs").delete().eq("id", club.id);
     if (delError) {
       console.error(`[retencao] falha ao apagar ${club.name}:`, delError.message);
@@ -150,20 +151,40 @@ async function executarRetencao(): Promise<CronOutcome<Resposta>> {
       continue;
     }
     apagados.push(club.name);
+
+    // Contratos assinados ficam no storage, fora do alcance do cascade, e só
+    // saem DEPOIS de o clube sair. Antes era o contrário, e um DELETE que
+    // falhava (o 409 de 08/10) deixava o clube de pé com as linhas de contrato
+    // apontando para PDFs já apagados. Agora um clube que não saiu mantém tudo
+    // e o dia seguinte tenta de novo. A listagem é pelo prefixo `{club_id}/`,
+    // que não depende das linhas que o cascade acabou de levar.
+    //
+    // Se a remoção falhar aqui o clube já não existe e amanhã ninguém mais o
+    // lista: os PDFs ficam órfãos (dado pessoal). Por isso uma segunda tentativa
+    // na hora (falha de rede é o caso comum) e, se persistir, a falha cita a
+    // pasta exata a limpar à mão, em vez de se perder num texto genérico.
+    const contratos = await removerContratos(admin, club.id);
+    arquivosContrato += contratos.removed;
+    if (contratos.error) {
+      console.error(`[retencao] contratos de ${club.name}:`, contratos.error);
+      falhou(
+        {
+          etapa: "contratos",
+          clube: club.name,
+          mensagem: `clube apagado, mas os contratos em ${CONTRACTS_BUCKET}/${club.id}/ não foram removidos do storage (${contratos.error}); apague essa pasta à mão`,
+        },
+        club.id,
+      );
+    }
   }
 
-  // Retenção da telemetria (30 dias). Antes da demo, que é demorada e pode
-  // estourar o tempo da função: a limpeza é barata e não deve depender dela.
-  // A função platform_prune_telemetry ainda não foi aplicada em produção;
-  // ausente = "pendente", que NÃO deixa o cron vermelho (decisão do dono).
-  const retencao = await pruneTelemetry(admin);
-  if (retencao.status === "falhou") {
-    falhou({ etapa: "retencao", mensagem: `retenção da telemetria falhou: ${retencao.message}` });
-  }
-
-  // Restaura a demo por último: ela é grande e demorada, e uma falha aqui
-  // não pode impedir o expurgo, que é obrigação legal. Por isso o catch —
-  // o resultado reporta os dois separadamente.
+  // Restaura a demo antes da limpeza da telemetria: ela é grande e demorada, e
+  // a demo vazia por horas foi o incidente de 08/10. A limpeza pode ser
+  // arbitrariamente grande (se a função for aplicada meses depois da coleta,
+  // a primeira execução apaga tudo o que passou de 30 dias de uma vez), então
+  // não pode ficar à frente da demo nem do que resta do tempo da função. Uma
+  // falha aqui não impede o expurgo, que é obrigação legal: o catch reporta as
+  // etapas separadamente.
   let demo: string;
   try {
     const r = await seedDemoClub();
@@ -172,6 +193,14 @@ async function executarRetencao(): Promise<CronOutcome<Resposta>> {
     console.error("[demo] falha ao restaurar:", (e as Error).message);
     demo = `falhou: ${(e as Error).message}`;
     falhou({ etapa: "demo", mensagem: `restauração da demo falhou: ${(e as Error).message}` });
+  }
+
+  // Retenção da telemetria (30 dias), com prazo (ver prune.ts). A função
+  // platform_prune_telemetry ainda não foi aplicada em produção; ausente =
+  // "pendente", que NÃO deixa o cron vermelho (decisão do dono).
+  const retencao = await pruneTelemetry(admin);
+  if (retencao.status === "falhou") {
+    falhou({ etapa: "retencao", mensagem: `retenção da telemetria falhou: ${retencao.message}` });
   }
 
   return {

@@ -6,6 +6,7 @@ import {
   DEVICE_LABELS,
   HEALTH_WINDOWS,
   WINDOW_LABELS,
+  WINDOW_PERIOD_LABELS,
   healthHref,
   parseDevice,
   parseWindow,
@@ -93,8 +94,8 @@ export default async function AdminSaudePage({ searchParams }: { searchParams: S
         ) : (
           <>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
-              <Kpi label="Erros" value={formatCount(health.errors.data.totals.errors)} hint={`últimas ${WINDOW_LABELS[window]}`} />
-              <Kpi label="Avisos" value={formatCount(health.errors.data.totals.warnings)} hint="4xx e quedas de conexão" />
+              <Kpi label="Erros" value={formatCount(health.errors.data.totals.errors)} hint={WINDOW_PERIOD_LABELS[window]} />
+              <Kpi label="Avisos" value={formatCount(health.errors.data.totals.warnings)} hint="quedas de conexão e ações de versão antiga" />
               <Kpi
                 label="Causas distintas"
                 value={`${formatCount(health.errors.data.groups.length)}${health.errors.data.truncated ? "+" : ""}`}

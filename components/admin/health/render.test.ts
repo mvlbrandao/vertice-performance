@@ -209,6 +209,15 @@ describe("CronList", () => {
     expect(out).toContain("duração 1 min");
   });
 
+  it("cron que nunca executou com a coleta ativa há dias aponta o agendamento, não o deploy", () => {
+    const naoDispara: CronView = { ...semExecucao, state: "atrasado", level: "atencao" };
+    const out = html(h(CronList, { crons: [naoDispara], nowMs: agora }));
+    expect(out).toContain("Atrasado");
+    expect(out).toContain("Esta não está disparando");
+    expect(out).toContain("CRON_SECRET");
+    expect(out).not.toContain("começa após o deploy");
+  });
+
   it("cron sem execução explica que a coleta começa após o deploy", () => {
     const out = html(h(CronList, { crons: [semExecucao], nowMs: agora }));
     expect(out).toContain("Sem execuções");

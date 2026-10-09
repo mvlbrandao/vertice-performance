@@ -14,6 +14,7 @@ import {
   collectIssues,
   cronLevel,
   cronState,
+  earliestRunMs,
   fillDailySeries,
   hasPoorVitals,
   isRetentionPending,
@@ -101,7 +102,14 @@ async function guarded<T>(
 /* Sondas ao vivo                                                              */
 /* -------------------------------------------------------------------------- */
 
-const DB_PROBE_QUERIES = 3;
+/**
+ * Amostras por sonda. Todas medem 3 vezes e classificam pela mediana: a
+ * primeira ida paga a abertura da conexão (DNS + TCP + TLS), e as três sondas
+ * correm em paralelo, cada uma numa conexão nova ao mesmo host. Com uma só
+ * amostra, uma função da Vercel em região distante do Supabase acenderia
+ * "lento" no Auth e no Storage sem que nada estivesse lento.
+ */
+const PROBE_SAMPLES = 3;
 
 type Clock = () => number;
 const defaultClock: Clock = () => performance.now();
@@ -136,8 +144,8 @@ async function timeOnce(
 }
 
 /**
- * Banco, Auth e Storage, em paralelo, cada um com prazo de 5 s. O banco faz 3
- * consultas pequenas em sequência (mediana e máximo); Auth e Storage, uma.
+ * Banco, Auth e Storage, em paralelo, cada um com prazo de 5 s e 3 consultas
+ * pequenas em sequência (mediana e máximo).
  */
 export async function runProbes(client?: AdminClient, clock: Clock = defaultClock): Promise<ProbeResult[]> {
   let admin: AdminClient;
@@ -151,15 +159,19 @@ export async function runProbes(client?: AdminClient, clock: Clock = defaultCloc
 
   return Promise.all([
     runProbe("database", async (record) => {
-      for (let i = 0; i < DB_PROBE_QUERIES; i++) {
+      for (let i = 0; i < PROBE_SAMPLES; i++) {
         record(await timeOnce(clock, () => admin.from("clubs").select("id").limit(1)));
       }
     }),
     runProbe("auth", async (record) => {
-      record(await timeOnce(clock, () => admin.auth.admin.listUsers({ page: 1, perPage: 1 })));
+      for (let i = 0; i < PROBE_SAMPLES; i++) {
+        record(await timeOnce(clock, () => admin.auth.admin.listUsers({ page: 1, perPage: 1 })));
+      }
     }),
     runProbe("storage", async (record) => {
-      record(await timeOnce(clock, () => admin.storage.listBuckets()));
+      for (let i = 0; i < PROBE_SAMPLES; i++) {
+        record(await timeOnce(clock, () => admin.storage.listBuckets()));
+      }
     }),
   ]);
 }
@@ -327,10 +339,13 @@ export async function loadHealth(options: LoadHealthOptions): Promise<HealthSnap
   let crons: HealthSnapshot["crons"];
   let retentionPending = false;
   if (cronsRead.status === "ok") {
+    // A execução mais antiga que qualquer rotina registrou prova que a coleta
+    // existe há tempo; uma rotina sem NENHUMA execução depois disso não dispara.
+    const collectingSince = earliestRunMs(Object.values(cronsRead.data).flat());
     const views: CronView[] = KNOWN_CRONS.map((cron) => {
       const recent = cronsRead.data[cron.job] ?? [];
       const lastRun = recent[0] ?? null;
-      const state = cronState(lastRun, nowMs);
+      const state = cronState(lastRun, nowMs, collectingSince);
       return {
         ...cron,
         state,
@@ -348,12 +363,23 @@ export async function loadHealth(options: LoadHealthOptions): Promise<HealthSnap
 
   const config = checkConfig(options.env ?? process.env);
 
+  // Leitura que FALHOU (não "migração pendente", que é intencional) não pode
+  // deixar o semáforo verde: sem dado, "tudo certo" seria uma afirmação sem base.
+  // O erro das últimas 24 h conta também quando só essa leitura falhou.
+  const unreadable: string[] = [];
+  if (errors.status === "error" || (daily24Read !== null && daily24Read.status === "error")) {
+    unreadable.push("os erros do servidor");
+  }
+  if (vitals.status === "error") unreadable.push("o desempenho no navegador (Web Vitals)");
+  if (crons.status === "error") unreadable.push("as rotinas agendadas");
+
   const issues = collectIssues({
     probes,
     cronStates: crons.status === "ok" ? crons.data.map((c) => ({ label: c.label, state: c.state })) : null,
     errors24h,
     config,
     vitalsPoor,
+    unreadable,
   });
 
   return {

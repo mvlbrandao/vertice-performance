@@ -32,8 +32,8 @@ function base(extra: Partial<HealthSnapshot> = {}): HealthSnapshot {
     generatedAt: "2026-10-08T15:00:00.000Z",
     probes: [
       { key: "database", label: "Banco de dados", status: "ok", latencyMs: 90, maxMs: 120, samples: 3, detail: null },
-      { key: "auth", label: "Autenticação (Auth)", status: "ok", latencyMs: 150, maxMs: 150, samples: 1, detail: null },
-      { key: "storage", label: "Armazenamento (Storage)", status: "ok", latencyMs: 80, maxMs: 80, samples: 1, detail: null },
+      { key: "auth", label: "Autenticação (Auth)", status: "ok", latencyMs: 150, maxMs: 190, samples: 3, detail: null },
+      { key: "storage", label: "Armazenamento (Storage)", status: "ok", latencyMs: 80, maxMs: 95, samples: 3, detail: null },
     ],
     errors: {
       status: "ok",
@@ -120,6 +120,24 @@ describe("/admin/saude", () => {
     expect(out).toContain('href="/admin/saude?janela=30d&amp;dispositivo=mobile"');
     expect(out).toContain('href="/admin/saude?janela=7d&amp;dispositivo=desktop"');
     expect(out).toContain('href="/admin/saude?janela=7d"');
+  });
+
+  it("a dica dos erros concorda em gênero com a janela (nunca 'últimas 7 dias')", async () => {
+    estado.snapshot = base({ window: "24h" });
+    expect(await renderizar()).toContain("nas últimas 24 horas");
+    estado.snapshot = base({ window: "7d" });
+    expect(await renderizar({ janela: "7d" })).toContain("nos últimos 7 dias");
+    estado.snapshot = base({ window: "30d" });
+    const out = await renderizar({ janela: "30d" });
+    expect(out).toContain("nos últimos 30 dias");
+    expect(out).not.toMatch(/últimas (7|30) dias/);
+  });
+
+  it("o cartão de avisos descreve o que de fato vira aviso (quedas de conexão, ação de versão antiga), não 4xx", async () => {
+    estado.snapshot = base();
+    const out = await renderizar();
+    expect(out).toContain("quedas de conexão e ações de versão antiga");
+    expect(out).not.toContain("4xx");
   });
 
   it("o aviso de retenção só aparece quando pendente", async () => {

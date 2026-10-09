@@ -25,7 +25,8 @@ const HOJE = "2026-10-08";
 
 type Erro = { code?: string; message: string } | null;
 interface Respostas {
-  rpc?: Record<string, { data: unknown; error: Erro }>;
+  /** Resposta fixa, ou função dos argumentos (para devolver séries diferentes por p_days). */
+  rpc?: Record<string, { data: unknown; error: Erro } | ((args: Record<string, unknown>) => { data: unknown; error: Erro })>;
   tabelas?: Record<string, Linha[]>;
   falhasDeTabela?: string[];
   auth?: () => Promise<{ data: unknown; error: Erro }>;
@@ -41,9 +42,11 @@ function montarCliente(r: Respostas = {}) {
   const chamadasRpc: Array<{ fn: string; args: unknown }> = [];
   const client = {
     from: r.from ?? ((tabela: string) => (falso.client as unknown as { from: (t: string) => unknown }).from(tabela)),
-    rpc: async (fn: string, args: unknown) => {
+    rpc: async (fn: string, args: Record<string, unknown>) => {
       chamadasRpc.push({ fn, args });
-      return r.rpc?.[fn] ?? { data: [], error: null };
+      const resposta = r.rpc?.[fn];
+      if (typeof resposta === "function") return resposta(args);
+      return resposta ?? { data: [], error: null };
     },
     auth: { admin: { listUsers: r.auth ?? (async () => ({ data: { users: [] }, error: null })) } },
     storage: { listBuckets: r.storage ?? (async () => ({ data: [], error: null })) },
@@ -74,7 +77,7 @@ afterEach(() => {
 });
 
 describe("runProbes", () => {
-  it("mede cada serviço no seu ritmo: banco (3 amostras, mediana e máximo), Auth e Storage (1 amostra)", async () => {
+  it("mede cada serviço no seu ritmo: 3 amostras em cada um, classificadas pela mediana", async () => {
     vi.useFakeTimers();
     // Banco 100 ms por consulta (ok), Auth 450 ms (lento), Storage 1,2 s (falha).
     const { client } = montarCliente({
@@ -87,8 +90,8 @@ describe("runProbes", () => {
     const [banco, auth, storage] = await promessa;
 
     expect(banco).toMatchObject({ key: "database", status: "ok", samples: 3, latencyMs: 100, maxMs: 100 });
-    expect(auth).toMatchObject({ key: "auth", status: "lento", samples: 1, latencyMs: 450 });
-    expect(storage).toMatchObject({ key: "storage", status: "falha", samples: 1, latencyMs: 1_200 });
+    expect(auth).toMatchObject({ key: "auth", status: "lento", samples: 3, latencyMs: 450 });
+    expect(storage).toMatchObject({ key: "storage", status: "falha", samples: 3, latencyMs: 1_200 });
     expect(storage.detail).toContain("acima de 1 s");
   });
 
@@ -101,10 +104,23 @@ describe("runProbes", () => {
     });
     const inicio = Date.now();
     const promessa = runProbes(client, () => Date.now());
-    // O banco faz 3 consultas em sequência (300 ms); se as sondas fossem em série seriam 500 ms.
+    // Cada sonda faz 3 consultas em sequência (300 ms); se as sondas fossem em série seriam 900 ms.
     await vi.advanceTimersByTimeAsync(300);
     await promessa;
     expect(Date.now() - inicio).toBe(300);
+  });
+
+  it("a primeira ida (abre a conexão) não pinta o Auth de lento: a classificação é a mediana", async () => {
+    vi.useFakeTimers();
+    // 1ª chamada 700 ms (DNS + TCP + TLS), as seguintes 80 ms: sem a mediana viraria "lento".
+    let chamadas = 0;
+    const { client } = montarCliente({
+      auth: () => esperar(chamadas++ === 0 ? 700 : 80, { data: { users: [] }, error: null }),
+    });
+    const promessa = runProbes(client, () => Date.now());
+    await vi.advanceTimersByTimeAsync(PROBE_TIMEOUT_MS);
+    const [, auth] = await promessa;
+    expect(auth).toMatchObject({ key: "auth", status: "ok", samples: 3, latencyMs: 80, maxMs: 700 });
   });
 
   it("erro do banco vira falha com o motivo, sem lançar", async () => {
@@ -350,6 +366,111 @@ describe("loadHealth", () => {
       p_since: "2026-10-01T15:00:00.000Z",
     });
     if (s.errors.status === "ok") expect(s.errors.data.daily).toHaveLength(8);
+  });
+
+  it("o semáforo conta SEMPRE as últimas 24 h: janelas de 7 e 30 dias não inflam o número nem o nível", async () => {
+    // A série de 1 dia tem 2 erros (atenção); as de 7 e 30 dias, 50 e 400 (crítico se fossem contadas).
+    const porDias = (args: Record<string, unknown>) => {
+      const dias = args.p_days as number;
+      const errors = dias === 1 ? 2 : dias === 7 ? 50 : 400;
+      return { data: [{ day: HOJE, errors, warnings: 0 }], error: null };
+    };
+    for (const janela of ["24h", "7d", "30d"] as const) {
+      const { client } = montarCliente({
+        tabelas: { clubs: [{ id: "c1" }], cron_runs: [] },
+        rpc: { platform_error_daily: porDias },
+      });
+      const s = await loadHealth({ window: janela, device: "todos", nowMs: AGORA, today: HOJE, client, env: ENV_COMPLETO, clock: relogio(20) });
+      expect(s.issues, janela).toEqual([{ level: "atencao", text: "2 erros nas últimas 24 horas" }]);
+      expect(s.overall, janela).toBe("atencao");
+      // A tela mostra o total da janela escolhida, que é outro número.
+      if (s.errors.status === "ok") expect(s.errors.data.totals.errors).toBe(janela === "24h" ? 2 : janela === "7d" ? 50 : 400);
+    }
+  });
+
+  it("leitura que FALHA (timeout do banco) não deixa o semáforo verde: aparece como pendência", async () => {
+    const timeout = { data: null, error: { code: "57014", message: "canceling statement due to statement timeout" } };
+    const base = { tabelas: { clubs: [{ id: "c1" }], cron_runs: [] } };
+
+    // Erros: as duas funções estouram o prazo.
+    const erros = montarCliente({ ...base, rpc: { platform_error_groups: timeout, platform_error_daily: timeout } });
+    const a = await loadHealth({ window: "30d", device: "todos", nowMs: AGORA, today: HOJE, client: erros.client, env: ENV_COMPLETO, clock: relogio(20) });
+    expect(a.errors.status).toBe("error");
+    expect(a.issues.map((i) => i.text)).toContain("Não foi possível ler os erros do servidor");
+    expect(a.overall).toBe("atencao");
+
+    // Só a leitura das últimas 24 h falha (janela 7d): o número do semáforo falta.
+    const so24h = montarCliente({
+      ...base,
+      rpc: { platform_error_daily: (args) => (args.p_days === 1 ? timeout : { data: [], error: null }) },
+    });
+    const b = await loadHealth({ window: "7d", device: "todos", nowMs: AGORA, today: HOJE, client: so24h.client, env: ENV_COMPLETO, clock: relogio(20) });
+    expect(b.errors.status).toBe("ok");
+    expect(b.issues.map((i) => i.text)).toContain("Não foi possível ler os erros do servidor");
+
+    // Web Vitals.
+    const vitals = montarCliente({ ...base, rpc: { platform_vitals_summary: timeout } });
+    const c = await loadHealth({ window: "24h", device: "todos", nowMs: AGORA, today: HOJE, client: vitals.client, env: ENV_COMPLETO, clock: relogio(20) });
+    expect(c.vitals.status).toBe("error");
+    expect(c.issues.map((i) => i.text)).toEqual(["Não foi possível ler o desempenho no navegador (Web Vitals)"]);
+
+    // Rotinas.
+    const crons = montarCliente({ tabelas: { clubs: [{ id: "c1" }], cron_runs: [] }, falhasDeTabela: ["cron_runs"] });
+    const d = await loadHealth({ window: "24h", device: "todos", nowMs: AGORA, today: HOJE, client: crons.client, env: ENV_COMPLETO, clock: relogio(20) });
+    expect(d.crons.status).toBe("error");
+    expect(d.issues.map((i) => i.text)).toEqual(["Não foi possível ler as rotinas agendadas"]);
+  });
+
+  it("tudo lido e em ordem continua 'Tudo certo' (a pendência de leitura não aparece sem falha)", async () => {
+    const { client } = montarCliente({ tabelas: { clubs: [{ id: "c1" }], cron_runs: [] } });
+    const s = await loadHealth({ window: "24h", device: "todos", nowMs: AGORA, today: HOJE, client, env: ENV_COMPLETO, clock: relogio(20) });
+    expect(s.issues).toEqual([]);
+    expect(s.overall).toBe("ok");
+  });
+
+  it("rotina que nunca executou, com a outra registrando há mais de 26 h, fica 'atrasada' e pesa no semáforo", async () => {
+    const run = (id: number, started: string): Linha => ({
+      id,
+      job: "club-retention",
+      started_at: started,
+      finished_at: started,
+      ok: true,
+      duration_ms: 1,
+      summary: { retencao: "ok" },
+      error: null,
+    });
+    const { client } = montarCliente({
+      tabelas: { clubs: [{ id: "c1" }], cron_runs: [run(1, "2026-10-05T05:30:00Z"), run(2, "2026-10-08T05:30:00Z")] },
+    });
+    const s = await loadHealth({ window: "24h", device: "todos", nowMs: AGORA, today: HOJE, client, env: ENV_COMPLETO, clock: relogio(20) });
+    if (s.crons.status !== "ok") throw new Error("esperava cron_runs lido");
+    expect(s.crons.data.find((c) => c.job === "billing-reminders")).toMatchObject({ state: "atrasado", lastRun: null });
+    expect(s.crons.data.find((c) => c.job === "club-retention")?.state).toBe("ok");
+    expect(s.issues).toEqual([{ level: "atencao", text: "Lembretes de cobrança: atrasado" }]);
+  });
+
+  it("primeiro dia depois do deploy: execuções recentes de uma rotina não acusam a outra", async () => {
+    const { client } = montarCliente({
+      tabelas: {
+        clubs: [{ id: "c1" }],
+        cron_runs: [
+          {
+            id: 1,
+            job: "club-retention",
+            started_at: "2026-10-08T05:30:00Z",
+            finished_at: "2026-10-08T05:31:00Z",
+            ok: true,
+            duration_ms: 1,
+            summary: {},
+            error: null,
+          },
+        ],
+      },
+    });
+    const s = await loadHealth({ window: "24h", device: "todos", nowMs: AGORA, today: HOJE, client, env: ENV_COMPLETO, clock: relogio(20) });
+    if (s.crons.status !== "ok") throw new Error("esperava cron_runs lido");
+    expect(s.crons.data.find((c) => c.job === "billing-reminders")?.state).toBe("sem_execucao");
+    expect(s.issues).toEqual([]);
   });
 
   it("filtro de dispositivo recorta as rotas de Web Vitals", async () => {

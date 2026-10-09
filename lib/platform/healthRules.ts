@@ -9,6 +9,7 @@
  * aparecer numa revisão e num teste, não escondido numa tela.
  */
 import type { SystemEventSource, WebVitalMetric } from "@/lib/types/database";
+import { VITAL_THRESHOLDS } from "@/lib/observability/vitalsShared";
 import { somaDias } from "@/lib/utils/date";
 
 /* -------------------------------------------------------------------------- */
@@ -149,6 +150,13 @@ export const WINDOW_LABELS: Record<HealthWindow, string> = {
   "24h": "24 horas",
   "7d": "7 dias",
   "30d": "30 dias",
+};
+
+/** Complemento de frase ("Erros nas últimas 24 horas"): "7 dias" e "30 dias" são masculinos, "24 horas" é feminino. */
+export const WINDOW_PERIOD_LABELS: Record<HealthWindow, string> = {
+  "24h": "nas últimas 24 horas",
+  "7d": "nos últimos 7 dias",
+  "30d": "nos últimos 30 dias",
 };
 
 const WINDOW_DAYS: Record<HealthWindow, number> = { "24h": 1, "7d": 7, "30d": 30 };
@@ -309,15 +317,11 @@ export function errorsLevel(errors24h: number): HealthLevel {
 
 /**
  * Limites oficiais (web.dev): até `good` é bom; acima de `poor` é ruim; entre
- * os dois, precisa melhorar. A avaliação oficial usa o percentil 75.
+ * os dois, precisa melhorar. A avaliação oficial usa o percentil 75. A tabela
+ * mora em vitalsShared, porque o servidor a usa também para calcular a nota
+ * gravada; aqui ela só pinta a tela com a mesma régua.
  */
-export const VITAL_THRESHOLDS: Record<WebVitalMetric, { good: number; poor: number }> = {
-  LCP: { good: 2_500, poor: 4_000 },
-  INP: { good: 200, poor: 500 },
-  CLS: { good: 0.1, poor: 0.25 },
-  TTFB: { good: 800, poor: 1_800 },
-  FCP: { good: 1_800, poor: 3_000 },
-};
+export { VITAL_THRESHOLDS };
 
 export const VITAL_ORDER: readonly WebVitalMetric[] = ["LCP", "INP", "CLS", "TTFB", "FCP"];
 
@@ -473,15 +477,37 @@ export const CRON_STATE_LABELS: Record<CronState, string> = {
  * Estado da ÚLTIMA execução. Falha vem antes de atraso: um cron que falhou
  * ontem de manhã também está "atrasado", mas o que o dono precisa saber é que
  * falhou.
+ *
+ * Sem nenhuma execução, o estado depende de haver prova de que a coleta já
+ * existe há tempo: `collectingSinceMs` é o início da execução mais antiga que
+ * ALGUMA rotina conhecida registrou. Se ela é mais velha que o intervalo
+ * diário e esta rotina nunca apareceu, ela não está disparando (desativada no
+ * projeto, caminho errado no vercel.json): "atrasado", e não o neutro "sem
+ * execuções", que valeria para sempre e deixaria o semáforo verde. Sem essa
+ * prova (primeiro dia depois do deploy) continua neutro, para não acusar
+ * atraso de quem simplesmente ainda não teve o primeiro horário.
  */
-export function cronState(run: CronRunRow | null, nowMs: number): CronState {
-  if (!run) return "sem_execucao";
+export function cronState(run: CronRunRow | null, nowMs: number, collectingSinceMs?: number | null): CronState {
+  if (!run) {
+    const evidence = typeof collectingSinceMs === "number" && Number.isFinite(collectingSinceMs);
+    return evidence && nowMs - collectingSinceMs > CRON_STALE_AFTER_MS ? "atrasado" : "sem_execucao";
+  }
   const startedMs = Date.parse(run.started_at);
   const age = Number.isFinite(startedMs) ? nowMs - startedMs : Number.POSITIVE_INFINITY;
 
   if (run.finished_at === null) return age > CRON_RUNNING_MAX_MS ? "interrompida" : "em_execucao";
   if (run.ok !== true) return "falhou";
   return age > CRON_STALE_AFTER_MS ? "atrasado" : "ok";
+}
+
+/** Início da execução mais antiga entre as listadas, ou null se não há nenhuma. */
+export function earliestRunMs(runs: readonly CronRunRow[]): number | null {
+  let earliest: number | null = null;
+  for (const run of runs) {
+    const ms = Date.parse(run.started_at);
+    if (Number.isFinite(ms) && (earliest === null || ms < earliest)) earliest = ms;
+  }
+  return earliest;
 }
 
 export function cronLevel(state: CronState): HealthLevel {
@@ -711,6 +737,12 @@ export interface OverallInput {
   errors24h: number | null;
   config: readonly ConfigGroupView[];
   vitalsPoor: boolean;
+  /**
+   * Leituras que FALHARAM de verdade (erro, não "migração pendente", que é
+   * intencional). Sem dado, o semáforo não pode dizer "tudo certo": justamente
+   * quando o banco engasga é que a tela de saúde não pode ficar verde.
+   */
+  unreadable: readonly string[];
 }
 
 function plural(count: number, singular: string, pluralText: string): string {
@@ -741,6 +773,10 @@ export function collectIssues(input: OverallInput): HealthIssue[] {
         text: `${plural(input.errors24h, "erro", "erros")} nas últimas 24 horas`,
       });
     }
+  }
+
+  for (const what of input.unreadable) {
+    issues.push({ level: "atencao", text: `Não foi possível ler ${what}` });
   }
 
   for (const group of input.config) {

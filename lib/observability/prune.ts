@@ -9,8 +9,19 @@
  * execução e a tela /admin/saude mostra o aviso permanente.
  */
 import { sanitizeMessage } from "@/lib/observability/sanitize";
+import { withTimeout } from "@/lib/observability/timeout";
 
 export const TELEMETRY_KEEP_DAYS = 30;
+
+/**
+ * Prazo da chamada. A função apaga tudo o que passou do corte numa instrução
+ * só: no dia a dia são poucas linhas, mas a primeira execução depois de meses
+ * de coleta pode ser enorme, e o cron não deve ficar preso nela. Passou do
+ * prazo, deixamos de esperar (o banco termina a instrução sozinho) e a
+ * execução fica vermelha neste dia: é o sinal honesto de que a limpeza está
+ * atrasada, e o dia seguinte continua de onde parou.
+ */
+export const PRUNE_TIMEOUT_MS = 15_000;
 
 export type PruneStatus = "ok" | "pendente" | "falhou";
 
@@ -59,14 +70,18 @@ export interface PruneClient {
   ): PromiseLike<{ data: unknown; error: ErrorLike | null }>;
 }
 
-/** Nunca lança: erro de rede vira `falhou`, função ausente vira `pendente`. */
+/** Nunca lança: erro de rede ou prazo vira `falhou`, função ausente vira `pendente`. */
 export async function pruneTelemetry(
   client: PruneClient,
   keepDays: number = TELEMETRY_KEEP_DAYS,
 ): Promise<PruneOutcome> {
   try {
     return classifyPruneResult(
-      await client.rpc("platform_prune_telemetry", { p_keep_days: keepDays }),
+      await withTimeout(
+        client.rpc("platform_prune_telemetry", { p_keep_days: keepDays }),
+        PRUNE_TIMEOUT_MS,
+        "platform_prune_telemetry",
+      ),
     );
   } catch (e) {
     return { status: "falhou", message: sanitizeMessage(e) };

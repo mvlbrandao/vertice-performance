@@ -25,28 +25,45 @@ const TOKEN_CHARS = "A-Za-z0-9_-";
 
 // Ordem importa: o que é mais específico (JWT, e-mail, UUID) sai antes das
 // regras genéricas de número e de "texto opaco", senão elas comeriam pedaços
-// de um e-mail ou de um UUID e deixariam resto à mostra.
+// de um e-mail ou de um UUID e deixariam resto à mostra. O texto opaco (24+)
+// vem ANTES de telefone e número pelo motivo inverso: um token hexadecimal com
+// dígitos teria os números trocados por "[telefone]" e as letras sobrariam.
 const RULES: ReadonlyArray<readonly [RegExp, string]> = [
   // JWT: cabeçalho.corpo.assinatura em base64url; o cabeçalho começa com "eyJ" ('{"').
   [/\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}(?:\.[A-Za-z0-9_-]*)?/g, "[token]"],
   [/\bBearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer [token]"],
-  [/[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+/g, "[email]"],
+  // Classes Unicode: "josé@x.com" e "joão.silva@x.com" são e-mails de verdade
+  // aqui; com [A-Za-z] o nome ficava pela metade na tela do dono.
+  [/[\p{L}\p{N}._%+-]+@[\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)+/gu, "[email]"],
   [/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, "[id]"],
+  // O Postgres repete o valor que violou a restrição: "Key (col)=(valor) already
+  // exists". O nome da coluna ajuda a achar o defeito; o valor é do titular.
+  [
+    /\bKey \(([^)]*)\)=\(.*?\)(?=\s+(?:already exists|is (?:not present|still referenced))|\s*$)/gi,
+    "Key ($1)=([valor])",
+  ],
+  [/\bKey \(([^)]*)\)=\([^)]*\)/gi, "Key ($1)=([valor])"],
+  // "invalid input syntax for type uuid: \"Carlos Eduardo\"": o PostgREST devolve
+  // na mensagem o texto digitado, que pode ser nome, data de nascimento, etc.
+  [
+    /\b(invalid input (?:syntax|value) [^:"]*|date\/time field value out of range|malformed [^:"]*?literal|invalid (?:regular expression|byte sequence)[^:"]*):\s*\\?"[^"]*"/gi,
+    "$1: [valor]",
+  ],
   // Query string: só quando há "?chave=valor". Um "?" de pergunta no fim da
   // frase não é tocado. Sai inteira: nunca guardamos o que foi pedido na URL.
   [/\?[^\s"'`<>]*=[^\s"'`<>]*/g, ""],
-  // Credencial escrita como chave=valor/chave: valor, fora de URL.
+  // Credencial escrita como chave=valor, chave: valor ou "chave":"valor" (JSON),
+  // fora de URL. O nome pode ter prefixo e sufixo ("client_secret", "x-api-key",
+  // "secret_key"), e o valor pode vir depois do esquema ("Basic xxx"): sem
+  // consumir o esquema, a regra levava a palavra "Basic" e deixava a credencial.
+  // Prefixo e sufixo são sequências de [letras/dígitos] separadas por UM "_" ou
+  // "-" (nunca "[\w-]+" dentro de "(...)*"): a partição fica única e o
+  // retrocesso linear, em vez de exponencial numa mensagem hostil. O
+  // lookbehind faz a busca começar só no início de cada palavra.
   [
-    /\b(access_token|refresh_token|token|api_?key|secret|password|senha|authorization)\b\s*[:=]\s*["']?[^\s"',;&]+/gi,
+    /(?<![A-Za-z0-9_-])((?:[A-Za-z0-9]+[_-])*(?:token|api[-_]?key|secret|password|passwd|senha|authorization)(?:[_-][A-Za-z0-9]+)*)\b["']?\s*[:=]\s*(?:(?:Basic|Bearer|Token)\s+)?["']?[^\s"',;&]+/gi,
     "$1=[removido]",
   ],
-  [/(?<!\d)\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}(?!\d)/g, "[cnpj]"],
-  [/(?<!\d)\d{3}\.\d{3}\.\d{3}-\d{2}(?!\d)/g, "[cpf]"],
-  [/(?<!\d)\d{5}-\d{3}(?!\d)/g, "[cep]"],
-  // Telefone brasileiro, com ou sem máscara/DDI: (83) 98888-7777, 83988887777, +55 83 ...
-  [/(?<!\d)(?:\+?55[\s.-]?)?\(?\d{2}\)?[\s.-]?9?\d{4}[\s.-]?\d{4}(?!\d)/g, "[telefone]"],
-  // Qualquer sequência longa de dígitos: CPF/CNPJ sem máscara, cartão, id numérico, timestamp.
-  [/(?<!\d)\d{8,}(?!\d)/g, "[número]"],
   // Texto opaco longo e misturado (letras + dígitos, 24+ caracteres): chave de API, hash.
   // Exige dígito E letra para não apagar nome de restrição como
   // "athlete_enrollment_requests_reviewed_by_fkey", que é justamente o que
@@ -58,6 +75,13 @@ const RULES: ReadonlyArray<readonly [RegExp, string]> = [
     ),
     "[token]",
   ],
+  [/(?<!\d)\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}(?!\d)/g, "[cnpj]"],
+  [/(?<!\d)\d{3}\.\d{3}\.\d{3}-\d{2}(?!\d)/g, "[cpf]"],
+  [/(?<!\d)\d{5}-\d{3}(?!\d)/g, "[cep]"],
+  // Telefone brasileiro, com ou sem máscara/DDI: (83) 98888-7777, 83988887777, +55 83 ...
+  [/(?<!\d)(?:\+?55[\s.-]?)?\(?\d{2}\)?[\s.-]?9?\d{4}[\s.-]?\d{4}(?!\d)/g, "[telefone]"],
+  // Qualquer sequência longa de dígitos: CPF/CNPJ sem máscara, cartão, id numérico, timestamp.
+  [/(?<!\d)\d{8,}(?!\d)/g, "[número]"],
 ];
 
 /** Texto cru de qualquer valor lançado (Error, string, objeto com message, lixo). */
@@ -93,8 +117,16 @@ function truncate(text: string, max: number): string {
  */
 export function sanitizeMessage(value: unknown, max: number = MAX_MESSAGE_LENGTH): string {
   let text = messageOf(value).slice(0, MAX_INPUT_LENGTH);
-  // Quebras de linha e caracteres de controle viram espaço (uma linha só).
-  text = text.replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim();
+  // Quebras de linha e caracteres de controle (C0 e C1) viram espaço (uma linha
+  // só). Caracteres de formatação invisíveis (largura zero, sobrescrita
+  // bidirecional U+202E) saem de vez: um deles no meio de "jo<ZWSP>hn@x.com"
+  // quebraria o reconhecimento do e-mail, e a sobrescrita faria a mensagem
+  // aparecer invertida na tela do dono.
+  text = text
+    .replace(/\p{Cc}+/gu, " ")
+    .replace(/\p{Cf}+/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
 
   for (const [pattern, replacement] of RULES) {
     text = text.replace(pattern, replacement);

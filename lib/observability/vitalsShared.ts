@@ -11,6 +11,30 @@ export type VitalRating = (typeof VITAL_RATINGS)[number];
 
 export const VITALS_ENDPOINT = "/api/telemetry/vitals";
 
+/** Quantas métricas cabem num envio: uma de cada (LCP, INP, CLS, TTFB, FCP). */
+export const VITALS_MAX_PER_BATCH = VITAL_METRICS.length;
+
+/**
+ * Limites oficiais (web.dev): até `good` é bom; acima de `poor` é ruim; entre
+ * os dois, precisa melhorar. Ficam aqui, e não na tela de saúde, porque o
+ * SERVIDOR também os usa para calcular o `rating` gravado: o que o navegador
+ * diz sobre a própria nota não é de confiança (um valor de 100 s marcado como
+ * "good" iria direto para o poor_pct da tela do dono).
+ */
+export const VITAL_THRESHOLDS: Record<VitalMetricName, { good: number; poor: number }> = {
+  LCP: { good: 2_500, poor: 4_000 },
+  INP: { good: 200, poor: 500 },
+  CLS: { good: 0.1, poor: 0.25 },
+  TTFB: { good: 800, poor: 1_800 },
+  FCP: { good: 1_800, poor: 3_000 },
+};
+
+/** Mesma regra da biblioteca web-vitals: acima de `poor` é ruim, acima de `good` precisa melhorar. */
+export function ratingFor(name: VitalMetricName, value: number): VitalRating {
+  const { good, poor } = VITAL_THRESHOLDS[name];
+  return value > poor ? "poor" : value > good ? "needs-improvement" : "good";
+}
+
 export function isVitalMetric(name: unknown): name is VitalMetricName {
   return typeof name === "string" && (VITAL_METRICS as readonly string[]).includes(name);
 }
@@ -41,33 +65,33 @@ export function shouldSample(rate: number, random: () => number = Math.random): 
 export interface VitalReport {
   name: VitalMetricName;
   value: number;
-  rating: VitalRating;
   navigationType?: string;
   route: string;
 }
 
+/** Corpo de UM envio: as métricas de uma página, juntas. */
+export interface VitalsBatch {
+  metrics: VitalReport[];
+}
+
 /**
- * Corpo enviado ao servidor, a partir da métrica do Next (`useReportWebVitals`).
- * Devolve null para o que não nos interessa (FID, métricas internas do Next) ou
- * que veio inválido. A rota vai como o navegador a vê, SEM query string: o
- * servidor normaliza de novo, mas não há motivo para mandar token pela rede.
+ * Relatório de uma métrica do Next (`useReportWebVitals`). Devolve null para o
+ * que não nos interessa (FID, métricas internas do Next) ou que veio inválido.
+ * A rota vai como o navegador a vê, SEM query string: o servidor normaliza de
+ * novo, mas não há motivo para mandar token pela rede. A nota (`rating`) não
+ * viaja: o servidor a recalcula a partir de nome e valor.
  */
 export function buildVitalReport(
-  metric: { name: string; value: number; rating?: string; navigationType?: string },
+  metric: { name: string; value: number; navigationType?: string },
   pathname: string,
 ): VitalReport | null {
   if (!isVitalMetric(metric.name)) return null;
   if (!Number.isFinite(metric.value) || metric.value < 0) return null;
-  const rating = (VITAL_RATINGS as readonly string[]).includes(metric.rating ?? "")
-    ? (metric.rating as VitalRating)
-    : null;
-  if (!rating) return null;
 
   const report: VitalReport = {
     name: metric.name,
     // Dois decimais bastam (CLS é 0,0x) e deixam o corpo pequeno.
     value: Math.round(metric.value * 100) / 100,
-    rating,
     route: pathname.split(/[?#]/)[0].slice(0, 200) || "/",
   };
   if (metric.navigationType) report.navigationType = metric.navigationType.slice(0, 32);

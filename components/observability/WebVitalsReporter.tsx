@@ -1,14 +1,14 @@
 "use client";
 
 import { useReportWebVitals } from "next/web-vitals";
+import { createVitalsBatcher } from "@/lib/observability/vitalsBatch";
 import {
   buildVitalReport,
-  createVitalsDeduper,
   parseSampleRate,
   routeForMetric,
   shouldSample,
 } from "@/lib/observability/vitalsShared";
-import { sendVitalReport } from "@/lib/observability/vitalsSend";
+import { sendVitalReports } from "@/lib/observability/vitalsSend";
 
 type Reporter = Parameters<typeof useReportWebVitals>[0];
 
@@ -21,7 +21,40 @@ const SAMPLE_RATE = parseSampleRate(process.env.NEXT_PUBLIC_VITALS_SAMPLE_RATE);
 // amostra manda as cinco métricas, e as percentis por rota comparam gente com
 // o mesmo conjunto de dados. Preguiçoso para não sortear no servidor.
 let sampled: boolean | null = null;
-const notYetSent = createVitalsDeduper();
+
+// As métricas de uma página esperam aqui e saem num ÚNICO envio quando a
+// página é escondida (ver vitalsBatch.ts). Módulo, não componente: o AppShell
+// é remontado ao passar entre áreas e o lote precisa sobreviver a isso.
+const batcher = createVitalsBatcher({
+  send: (reports) => sendVitalReports(reports),
+  isHidden: () => document.visibilityState === "hidden",
+  defer: (run) => {
+    setTimeout(run, 0);
+  },
+});
+
+let listening = false;
+
+/**
+ * Envia o lote quando a página é escondida ou descarregada. Registrado em
+ * `window`, e NÃO em `document`, de propósito: a biblioteca de web-vitals que
+ * o Next usa entrega LCP, INP e CLS num `visibilitychange` ouvido em
+ * `document`, e esse evento sobe de `document` para `window`. Ouvindo em
+ * `window`, o nosso gancho roda DEPOIS de todos os dela, qualquer que seja a
+ * ordem de registro (o do CLS, por exemplo, só nasce depois do FCP). Em
+ * `document` o lote poderia sair antes das métricas finais chegarem.
+ *
+ * `pagehide` cobre o que o `visibilitychange` não alcança (navegadores que
+ * descarregam sem esconder antes) e a aba que já nasceu escondida.
+ */
+function listenForHide(): void {
+  if (listening) return;
+  listening = true;
+  window.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") batcher.flush();
+  });
+  window.addEventListener("pagehide", () => batcher.flush());
+}
 
 function navigationEntryUrl(): string | null {
   try {
@@ -42,9 +75,10 @@ const report: Reporter = (metric) => {
 
     const route = routeForMetric(metric.name, window.location.pathname, navigationEntryUrl());
     const payload = buildVitalReport(metric, route);
-    if (!payload || !notYetSent(payload.name, payload.value)) return;
+    if (!payload) return;
 
-    sendVitalReport(payload);
+    listenForHide();
+    batcher.add(payload);
   } catch {
     // Medir desempenho não pode quebrar a tela.
   }
@@ -52,8 +86,9 @@ const report: Reporter = (metric) => {
 
 /**
  * Mede LCP, INP, CLS, TTFB e FCP de quem usa o sistema (RUM) e envia para
- * /api/telemetry/vitals. Não renderiza nada. Montado uma vez no AppShell, que
- * só existe para quem está logado (o endpoint exige sessão).
+ * /api/telemetry/vitals, as cinco juntas, quando a página é escondida. Não
+ * renderiza nada. Montado uma vez no AppShell, que só existe para quem está
+ * logado (o endpoint exige sessão).
  */
 export function WebVitalsReporter() {
   useReportWebVitals(report);

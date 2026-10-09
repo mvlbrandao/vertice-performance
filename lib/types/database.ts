@@ -1733,6 +1733,21 @@ export interface Database {
         Args: { p_keep_days?: number };
         Returns: Json;
       };
+      // Troca o contrato vigente do clube numa transação só (0076). Só a service role executa.
+      platform_activate_contract: {
+        Args: { p_contract_id: string; p_replace?: boolean; p_closed_reason?: string | null };
+        Returns:
+          | {
+              ok: true;
+              club_id: string;
+              number: number;
+              replaced_id: string | null;
+              replaced_number: number | null;
+            }
+          | { ok: false; code: "not_found" }
+          | { ok: false; code: "not_draft"; status: ContractStatus }
+          | { ok: false; code: "has_active"; active_id: string; active_number: number };
+      };
       platform_club_usage: {
         Args: Record<string, never>;
         Returns: {

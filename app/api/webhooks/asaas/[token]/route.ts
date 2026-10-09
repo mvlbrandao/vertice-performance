@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { clubIdForWebhookToken } from "@/lib/asaas/credentials";
+import { recordWebhookFailure, withWebhookCapture } from "@/lib/observability/webhook";
 
 /**
  * Webhook do Asaas, um endereço por clube.
@@ -27,7 +28,7 @@ type Payload = {
 const PAGO = new Set(["PAYMENT_RECEIVED", "PAYMENT_CONFIRMED"]);
 const ATRASADO = new Set(["PAYMENT_OVERDUE"]);
 
-export async function POST(
+async function receber(
   request: Request,
   { params }: { params: Promise<{ token: string }> },
 ) {
@@ -38,6 +39,9 @@ export async function POST(
     clubId = await clubIdForWebhookToken(token);
   } catch (e) {
     console.error("[webhook asaas] falha ao resolver o clube:", (e as Error).message);
+    // Falha TRATADA (o Asaas recebe 503 e reenvia): não chega ao onRequestError,
+    // então registra aqui. A resposta é a mesma de antes.
+    await recordWebhookFailure("/api/webhooks/asaas/:id", e);
     return NextResponse.json({ error: "unavailable" }, { status: 503 });
   }
 
@@ -83,3 +87,7 @@ export async function POST(
 
   return NextResponse.json({ ok: true });
 }
+
+// Exceção não tratada vira linha em system_events (source webhook) e sobe igual: o
+// status, o corpo e a autenticação das respostas não mudam.
+export const POST = withWebhookCapture("/api/webhooks/asaas/:id", receber);

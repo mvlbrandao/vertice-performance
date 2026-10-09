@@ -94,7 +94,6 @@ function truncate(text: string, max: number): string {
 export function sanitizeMessage(value: unknown, max: number = MAX_MESSAGE_LENGTH): string {
   let text = messageOf(value).slice(0, MAX_INPUT_LENGTH);
   // Quebras de linha e caracteres de controle viram espaço (uma linha só).
-  // eslint-disable-next-line no-control-regex
   text = text.replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim();
 
   for (const [pattern, replacement] of RULES) {

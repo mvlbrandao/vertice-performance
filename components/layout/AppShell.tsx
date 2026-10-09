@@ -8,6 +8,7 @@ import { initials } from "@/lib/utils/initials";
 import { isNavActive } from "@/lib/utils/navigation";
 import { lockBodyScroll } from "@/lib/utils/scrollLock";
 import { LogoutButton } from "@/components/layout/LogoutButton";
+import { WebVitalsReporter } from "@/components/observability/WebVitalsReporter";
 import { NotificationPrompt } from "@/components/push/NotificationPrompt";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 
@@ -31,6 +32,7 @@ export function AppShell({
   mobileTabs,
   userName,
   roleLabel,
+  hideDeviceInvites = false,
   children,
 }: {
   navItems: NavItem[];
@@ -42,6 +44,12 @@ export function AppShell({
   mobileTabs?: NavItem[];
   userName: string;
   roleLabel: string;
+  /**
+   * Esconde os convites de instalar o app e de ativar notificações. Para o
+   * administrador da plataforma sem perfil de clube: o convite de push grava a
+   * inscrição no perfil e sempre falha para quem não tem um.
+   */
+  hideDeviceInvites?: boolean;
   children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -270,8 +278,13 @@ export function AppShell({
             hasTabs && "max-[840px]:pb-[calc(var(--tabbar-h)+env(safe-area-inset-bottom)+1.5rem)]",
           )}
         >
-          <InstallPrompt />
-          <NotificationPrompt />
+          <WebVitalsReporter />
+          {!hideDeviceInvites && (
+            <>
+              <InstallPrompt />
+              <NotificationPrompt />
+            </>
+          )}
           {children}
         </main>
       </div>

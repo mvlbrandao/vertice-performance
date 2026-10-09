@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { ChargeStatus } from "@/lib/types/database";
+import { withWebhookCapture } from "@/lib/observability/webhook";
 
 /**
  * Recebe eventos de pagamento do Asaas (cartão/PIX/boleto). Endpoint público
@@ -32,7 +33,7 @@ type AsaasWebhookPayload = {
   };
 };
 
-export async function POST(request: Request) {
+async function receber(request: Request) {
   const token = request.headers.get("asaas-access-token");
   if (!token || token !== process.env.ASAAS_WEBHOOK_TOKEN) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -92,3 +93,7 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ ok: true });
 }
+
+// Exceção não tratada vira linha em system_events (source webhook) e sobe igual: o
+// status, o corpo e a autenticação das respostas não mudam.
+export const POST = withWebhookCapture("/api/webhooks/asaas", receber);

@@ -44,7 +44,14 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     : navItems;
 
   return (
-    <AppShell navItems={items} userName={admin.fullName} roleLabel="Administrador da plataforma">
+    <AppShell
+      navItems={items}
+      userName={admin.fullName}
+      roleLabel="Administrador da plataforma"
+      // Sem perfil de clube o convite de push sempre falha (a inscrição é
+      // gravada no perfil), então nem se oferece.
+      hideDeviceInvites={!profile}
+    >
       {children}
     </AppShell>
   );

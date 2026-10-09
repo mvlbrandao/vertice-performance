@@ -62,10 +62,13 @@ async function executarRetencao(): Promise<CronOutcome<Resposta>> {
 
   if (error) {
     console.error("[retencao] falha ao listar clubes vencidos:", error.message);
+    // A rota devolve 500 como antes, mas isso NÃO lança: sem a falha abaixo o
+    // onRequestError não veria nada e o erro ficaria só em cron_runs.
     return {
       value: { status: 500, body: { error: error.message } },
       ok: false,
       error: `falha ao listar clubes vencidos: ${error.message}`,
+      failures: [{ message: `falha ao listar clubes vencidos: ${error.message}` }],
     };
   }
 

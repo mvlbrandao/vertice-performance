@@ -4,6 +4,7 @@ import {
   type RequestErrorContext,
   type RequestErrorRequest,
 } from "@/lib/observability/capture";
+import { wasRecorded } from "@/lib/observability/dedupe";
 import { recordSystemEvent } from "@/lib/observability/record";
 
 /**
@@ -24,6 +25,8 @@ export async function handleRequestError(
   context: RequestErrorContext | undefined,
 ): Promise<void> {
   try {
+    // O captador do webhook já gravou esta exceção; gravar de novo dobraria a contagem.
+    if (wasRecorded(error)) return;
     const draft = describeRequestError(error, request, context);
     if (!draft) return;
     await recordSystemEvent(draft);

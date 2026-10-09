@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { withWebhookCapture } from "@/lib/observability/webhook";
 
 /**
  * Mecanismo de segurança do Asaas ("Validação de saque via Webhook", em
@@ -13,7 +14,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * qualquer chamada aqui significa que a chave de API está sendo usada pra
  * mover dinheiro para fora por um caminho que este sistema não conhece.
  */
-export async function POST(request: Request) {
+async function receber(request: Request) {
   const token = request.headers.get("asaas-access-token");
   if (!token || token !== process.env.ASAAS_WITHDRAW_WEBHOOK_TOKEN) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -44,3 +45,7 @@ export async function POST(request: Request) {
     refuseReason: "Operação não iniciada pelo sistema Vértice Performance.",
   });
 }
+
+// Exceção não tratada vira linha em system_events (source webhook) e sobe igual: o
+// status, o corpo e a autenticação das respostas não mudam.
+export const POST = withWebhookCapture("/api/webhooks/asaas-withdraw-auth", receber);

@@ -31,6 +31,16 @@ export function isMissingRelation(error: { code?: string; message?: string } | n
   );
 }
 
+/** PostgREST responde PGRST202 (função fora do cache) ou 42883 (função inexistente). */
+export function isMissingFunction(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  return (
+    error.code === "PGRST202" ||
+    error.code === "42883" ||
+    /could not find the function|function .* does not exist/i.test(error.message ?? "")
+  );
+}
+
 export async function listClubContracts(
   clubId: string,
 ): Promise<ContractsResult<ClubContractRow[]>> {

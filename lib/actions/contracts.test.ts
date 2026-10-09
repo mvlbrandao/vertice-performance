@@ -36,6 +36,13 @@ const h = vi.hoisted(() => ({
   signed: [] as { path: string; ttl: number; options: unknown }[],
   storageCalls: 0,
   removeFails: false,
+  // RPC platform_activate_contract (0076): 'ausente' = função não existe (cai no plano B
+  // sequencial, como nos testes antigos); 'atomica' = emula a função SQL; 'erro' = falha do banco.
+  rpcMode: "ausente" as "ausente" | "atomica" | "erro",
+  rpcCalls: [] as string[],
+  rpcAtomicFail: false,
+  /** Roda no começo da RPC: simula alguém mexendo no contrato entre a checagem e a chamada. */
+  beforeRpc: null as null | (() => void),
 }));
 
 vi.mock("@/lib/platform/admin", () => ({
@@ -220,7 +227,52 @@ vi.mock("@/lib/supabase/admin", () => {
     },
   };
 
-  return { createAdminClient: () => ({ from, storage }) };
+  async function rpc(
+    name: string,
+    args: { p_contract_id: string; p_replace?: boolean; p_closed_reason?: string | null },
+  ): Promise<{ data: unknown; error: Erro | null }> {
+    h.rpcCalls.push(name);
+    h.beforeRpc?.();
+    if (h.rpcMode === "ausente") {
+      return {
+        data: null,
+        error: { code: "PGRST202", message: `Could not find the function public.${name}(p_closed_reason, p_contract_id, p_replace) in the schema cache` },
+      };
+    }
+    if (h.rpcMode === "erro") {
+      return { data: null, error: { code: "57014", message: "canceling statement due to statement timeout" } };
+    }
+    // Emula a função SQL: uma transação, então tudo ou nada.
+    const rows = (h.tables.club_contracts ??= []);
+    const novo = rows.find((r) => r.id === args.p_contract_id);
+    if (!novo) return { data: { ok: false, code: "not_found" }, error: null };
+    if (novo.status !== "rascunho") return { data: { ok: false, code: "not_draft", status: novo.status }, error: null };
+    const antigo = rows.find((r) => r.club_id === novo.club_id && r.status === "vigente");
+    if (antigo && !args.p_replace) {
+      return { data: { ok: false, code: "has_active", active_id: antigo.id, active_number: antigo.number }, error: null };
+    }
+    if (h.rpcAtomicFail) return { data: null, error: { message: "falha simulada ao ativar" } }; // nada foi alterado
+    if (antigo) {
+      Object.assign(antigo, {
+        status: "encerrado",
+        closed_at: "2026-10-09T12:00:00Z",
+        closed_reason: args.p_closed_reason || `Substituído pelo CT-${novo.number}`,
+      });
+    }
+    novo.status = "vigente";
+    return {
+      data: {
+        ok: true,
+        club_id: novo.club_id,
+        number: novo.number,
+        replaced_id: antigo ? antigo.id : null,
+        replaced_number: antigo ? antigo.number : null,
+      },
+      error: null,
+    };
+  }
+
+  return { createAdminClient: () => ({ from, storage, rpc }) };
 });
 
 import * as actions from "./contracts";
@@ -333,6 +385,10 @@ beforeEach(() => {
   h.signed.length = 0;
   h.storageCalls = 0;
   h.removeFails = false;
+  h.rpcMode = "ausente";
+  h.rpcCalls.length = 0;
+  h.rpcAtomicFail = false;
+  h.beforeRpc = null;
 });
 
 describe("toda ação começa por requirePlatformAdmin", () => {
@@ -1321,5 +1377,127 @@ describe("getContractDocumentUrl", () => {
     await getContractDocumentUrl(idDe(c)); // bucket ausente
     await getContractDocumentUrl("lixo");
     expect(h.logs).toEqual([]);
+  });
+});
+
+
+describe("activateContract pela função atômica (migração 0076)", () => {
+  const escritasDiretas = () => h.events.filter((e) => e === "update:club_contracts" || e === "insert:club_contracts");
+
+  it("sem vigente: ativa chamando a função, sem nenhuma escrita direta em club_contracts", async () => {
+    h.rpcMode = "atomica";
+    const rasc = semear({ status: "rascunho" });
+    const r = await activateContract(form({ contractId: idDe(rasc) }));
+    expect(r.success).toBe(true);
+    expect(rasc.status).toBe("vigente");
+    expect(h.rpcCalls).toEqual(["platform_activate_contract"]);
+    expect(escritasDiretas()).toEqual([]);
+    expect(h.logs.map((l) => l.action)).toEqual(["contract.activate"]);
+  });
+
+  it("existe vigente e não confirmou: pede confirmação, nada muda e nada vai para a trilha", async () => {
+    h.rpcMode = "atomica";
+    const vig = semear({ status: "vigente" });
+    const rasc = semear({ status: "rascunho" });
+    const r = await activateContract(form({ contractId: idDe(rasc) }));
+    expect(r.success).toBeUndefined();
+    expect(r.needsReplaceConfirmation).toEqual({ currentNumber: 1 });
+    expect(r.error).toContain("CT-1");
+    expect(vig.status).toBe("vigente");
+    expect(rasc.status).toBe("rascunho");
+    expect(h.logs).toEqual([]);
+  });
+
+  it("com confirmação: troca pela função e a trilha é a mesma do caminho sequencial", async () => {
+    h.rpcMode = "atomica";
+    const vig = semear({ status: "vigente" });
+    const rasc = semear({ status: "rascunho" });
+    const r = await activateContract(form({ contractId: idDe(rasc), replace: "true" }));
+    expect(r.success).toBe(true);
+    expect(rasc.status).toBe("vigente");
+    expect(vig).toMatchObject({ status: "encerrado", closed_reason: "Substituído pelo CT-2" });
+    expect(linhas().filter((l) => l.status === "vigente")).toHaveLength(1);
+    expect(escritasDiretas()).toEqual([]);
+
+    expect(h.logs.map((l) => l.action)).toEqual(["contract.activate", "contract.close"]);
+    expect(h.logs[0].details).toMatchObject({ number: 2, replaces: 1 });
+    expect(h.logs[1].details).toMatchObject({
+      number: 1,
+      replacedBy: 2,
+      reason: "Substituído pelo CT-2",
+      changes: { status: { from: "vigente", to: "encerrado" } },
+    });
+  });
+
+  it("falha da função desfaz TUDO: o antigo segue vigente, o rascunho segue rascunho e NÃO cai no plano B", async () => {
+    h.rpcMode = "atomica";
+    h.rpcAtomicFail = true;
+    const vig = semear({ status: "vigente" });
+    const rasc = semear({ status: "rascunho" });
+    const r = await activateContract(form({ contractId: idDe(rasc), replace: "true" }));
+    expect(r.success).toBeUndefined();
+    expect(r.error).toBeTruthy();
+    expect(vig).toMatchObject({ status: "vigente", closed_at: null, closed_reason: null });
+    expect(rasc.status).toBe("rascunho");
+    expect(h.logs).toEqual([]);
+    // Erro transitório não pode disparar o plano B: ele refaria a troca em duas gravações.
+    expect(escritasDiretas()).toEqual([]);
+    expect(h.rpcCalls).toHaveLength(1);
+  });
+
+  it("erro genérico do banco (timeout) também não cai no plano B", async () => {
+    h.rpcMode = "erro";
+    const vig = semear({ status: "vigente" });
+    const rasc = semear({ status: "rascunho" });
+    const r = await activateContract(form({ contractId: idDe(rasc), replace: "true" }));
+    expect(r.error).toBeTruthy();
+    expect(vig.status).toBe("vigente");
+    expect(rasc.status).toBe("rascunho");
+    expect(escritasDiretas()).toEqual([]);
+  });
+
+  it("contrato que já não é rascunho é recusado ANTES de chamar a função", async () => {
+    h.rpcMode = "atomica";
+    const jaVigente = semear({ status: "vigente" });
+    const r = await activateContract(form({ contractId: idDe(jaVigente) }));
+    expect(r.error).toContain("Só rascunho pode ser ativado");
+    expect(h.rpcCalls).toEqual([]);
+    expect(h.logs).toEqual([]);
+  });
+
+  it("corrida: o contrato muda de situação depois da checagem e a função devolve not_draft", async () => {
+    h.rpcMode = "atomica";
+    const rasc = semear({ status: "rascunho" });
+    h.beforeRpc = () => {
+      rasc.status = "cancelado"; // alguém cancelou entre a checagem e a chamada
+    };
+    const r = await activateContract(form({ contractId: idDe(rasc) }));
+    expect(r.success).toBeUndefined();
+    expect(r.error).toContain("mudou de situação");
+    expect(rasc.status).toBe("cancelado");
+    expect(h.logs).toEqual([]);
+  });
+
+  it("função inexistente (ambiente sem a 0076): usa o plano B sequencial e o resultado é o mesmo", async () => {
+    h.rpcMode = "ausente";
+    const vig = semear({ status: "vigente" });
+    const rasc = semear({ status: "rascunho" });
+    const r = await activateContract(form({ contractId: idDe(rasc), replace: "true" }));
+    expect(r.success).toBe(true);
+    expect(h.rpcCalls).toEqual(["platform_activate_contract"]);
+    expect(escritasDiretas().length).toBeGreaterThan(0);
+    expect(rasc.status).toBe("vigente");
+    expect(vig).toMatchObject({ status: "encerrado", closed_reason: "Substituído pelo CT-2" });
+    expect(h.logs.map((l) => l.action)).toEqual(["contract.activate", "contract.close"]);
+  });
+
+  it("criar já vigente com substituição também passa pela função", async () => {
+    h.rpcMode = "atomica";
+    const vig = semear({ status: "vigente" });
+    const r = await createContract(novo({ status: "vigente", replace: "true" }));
+    expect(r.success).toBe(true);
+    expect(h.rpcCalls).toEqual(["platform_activate_contract"]);
+    expect(vig.status).toBe("encerrado");
+    expect(linhas().filter((l) => l.status === "vigente")).toHaveLength(1);
   });
 });

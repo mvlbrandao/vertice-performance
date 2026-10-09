@@ -5,7 +5,7 @@ import { requirePlatformAdmin } from "@/lib/platform/admin";
 import { logPlatformAction } from "@/lib/platform/audit";
 import { successResult, type PlatformActionResult } from "@/lib/platform/auditNotice";
 import { revalidateAdmin } from "@/lib/platform/revalidate";
-import { isMissingRelation, type ClubContractRow } from "@/lib/platform/contracts";
+import { isMissingFunction, isMissingRelation, type ClubContractRow } from "@/lib/platform/contracts";
 import { contractChanges, truncateForAudit } from "@/lib/platform/contractAudit";
 import {
   BUCKET_MISSING_MESSAGE,
@@ -173,7 +173,108 @@ async function swapReplacedReason(
 }
 
 /**
- * Rascunho -> vigente. Se o clube já tem outro vigente, só troca quando o
+ * Trilha de uma ativação: contract.activate e, se houve troca, contract.close do
+ * antigo. Compartilhada pelos dois caminhos (função atômica e sequencial) para a
+ * trilha ser idêntica não importa por qual deles a troca aconteceu.
+ */
+async function recordActivation(
+  club: { id: string; name: string | null },
+  contract: { id: string; number: number },
+  replaced: { id: string; number: number } | null,
+): Promise<boolean> {
+  const clubRef = { id: club.id, name: club.name };
+  let recorded = await logPlatformAction({
+    action: "contract.activate",
+    club: clubRef,
+    details: {
+      contractId: contract.id,
+      number: contract.number,
+      ...(replaced ? { replaces: replaced.number } : {}),
+      changes: contractChanges({ status: "rascunho" }, { status: "vigente" }),
+    },
+  });
+  if (replaced) {
+    const closedRecorded = await logPlatformAction({
+      action: "contract.close",
+      club: clubRef,
+      details: {
+        contractId: replaced.id,
+        number: replaced.number,
+        reason: replacedReason(contract.number),
+        replacedBy: contract.number,
+        changes: contractChanges({ status: "vigente" }, { status: "encerrado" }),
+      },
+    });
+    recorded = recorded && closedRecorded;
+  }
+  return recorded;
+}
+
+/** Resposta de platform_activate_contract (migração 0076). */
+type ActivateFunctionResult =
+  | { ok: true; replaced_id: string | null; replaced_number: number | null }
+  | { ok: false; code: "not_found" }
+  | { ok: false; code: "not_draft" }
+  | { ok: false; code: "has_active"; active_id: string; active_number: number };
+
+/**
+ * Ativa pela função SQL transacional (0076): encerrar o vigente antigo e ativar
+ * o novo acontecem juntos ou nenhum acontece, e duas ativações simultâneas no
+ * mesmo clube são serializadas no banco. É o caminho principal. Devolve
+ * "indisponivel" quando a função não existe (ambiente sem a 0076), e aí quem
+ * chama usa o caminho sequencial.
+ */
+async function activateViaFunction(
+  admin: Admin,
+  contract: { id: string; number: number },
+  club: { id: string; name: string | null },
+  replace: boolean,
+): Promise<ActivationOutcome | "indisponivel"> {
+  const { data, error } = await admin.rpc("platform_activate_contract", {
+    p_contract_id: contract.id,
+    p_replace: replace,
+  });
+
+  if (error) {
+    if (isMissingFunction(error)) return "indisponivel";
+    return { error: friendlyDbError(error, `Não foi possível ativar o ${contractCode(contract.number)}.`) };
+  }
+
+  const result = data as ActivateFunctionResult | null;
+  if (!result || typeof result !== "object") {
+    return { error: `Não foi possível ativar o ${contractCode(contract.number)}: resposta inesperada do banco.` };
+  }
+  if (!result.ok) {
+    if (result.code === "has_active") {
+      return {
+        error: `O clube já tem o contrato ${contractCode(result.active_number)} vigente. Confirme a substituição para continuar.`,
+        needsReplaceConfirmation: { currentNumber: result.active_number },
+      };
+    }
+    return { error: result.code === "not_found" ? NOT_FOUND : CHANGED_MEANWHILE };
+  }
+
+  const replaced =
+    result.replaced_id && result.replaced_number !== null
+      ? { id: result.replaced_id, number: result.replaced_number }
+      : null;
+  return { recorded: await recordActivation(club, contract, replaced) };
+}
+
+/** Rascunho -> vigente: pela função atômica, ou pelo caminho sequencial se ela não existir. */
+async function activateRow(
+  admin: Admin,
+  contract: { id: string; number: number },
+  club: { id: string; name: string | null },
+  replace: boolean,
+): Promise<ActivationOutcome> {
+  const viaFunction = await activateViaFunction(admin, contract, club, replace);
+  if (viaFunction !== "indisponivel") return viaFunction;
+  return activateRowSequential(admin, contract, club, replace);
+}
+
+/**
+ * PLANO B (sem a função da 0076). Rascunho -> vigente. Se o clube já tem outro vigente, só troca quando o
  * chamador confirmou: encerra o antigo (closed_at) e ativa o novo.
  *
  * Não existe transação aqui (PostgREST faz uma chamada por vez) e o índice
@@ -190,7 +291,7 @@ async function swapReplacedReason(
  * O conserto definitivo é uma função SQL transacional (migração; ver
  * docs/ADMIN.md).
  */
-async function activateRow(
+async function activateRowSequential(
   admin: Admin,
   contract: { id: string; number: number },
   club: { id: string; name: string | null },
@@ -271,32 +372,7 @@ async function activateRow(
     warning = `Substituição feita, mas o motivo do ${contractCode(current.number)} continua como "${pendingReason}".`;
   }
 
-  const clubRef = { id: club.id, name: club.name };
-  let recorded = await logPlatformAction({
-    action: "contract.activate",
-    club: clubRef,
-    details: {
-      contractId: contract.id,
-      number: contract.number,
-      ...(current ? { replaces: current.number } : {}),
-      changes: contractChanges({ status: "rascunho" }, { status: "vigente" }),
-    },
-  });
-  if (current) {
-    const closedRecorded = await logPlatformAction({
-      action: "contract.close",
-      club: clubRef,
-      details: {
-        contractId: current.id,
-        number: current.number,
-        reason: finalReason,
-        replacedBy: contract.number,
-        changes: contractChanges({ status: "vigente" }, { status: "encerrado" }),
-      },
-    });
-    recorded = recorded && closedRecorded;
-  }
-  return { recorded, warning };
+  return { recorded: await recordActivation(club, contract, current), warning };
 }
 
 // ---------------------------------------------------------------------------

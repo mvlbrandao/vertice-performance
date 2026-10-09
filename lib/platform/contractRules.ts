@@ -16,6 +16,24 @@ export const CYCLE_MONTHS: Record<ContractBillingCycle, number> = {
   anual: 12,
 };
 
+/** Ciclos na ordem em que aparecem nas telas. */
+export const BILLING_CYCLES = ["mensal", "trimestral", "semestral", "anual"] as const satisfies readonly ContractBillingCycle[];
+
+/**
+ * Limites de texto dos campos do contrato. Espelham o que cabe numa linha de
+ * contrato, não o do banco (que é `text`). Moram aqui, e não no esquema Zod,
+ * para o formulário (cliente) usá-los em `maxLength` sem puxar o Zod no pacote.
+ */
+export const CONTRACT_LIMITS = {
+  planName: 80,
+  signerName: 120,
+  signerRole: 80,
+  termsVersion: 40,
+  notes: 2000,
+  reason: 500,
+  maxAthletes: 100_000,
+} as const;
+
 export const CYCLE_LABEL: Record<ContractBillingCycle, string> = {
   mensal: "Mensal",
   trimestral: "Trimestral",

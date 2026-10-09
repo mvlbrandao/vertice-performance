@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { isValidCivilDate, MIN_REASON_LENGTH } from "@/lib/platform/contractRules";
+import {
+  BILLING_CYCLES,
+  CONTRACT_LIMITS,
+  isValidCivilDate,
+  MIN_REASON_LENGTH,
+} from "@/lib/platform/contractRules";
 import { parseReaisToCents } from "@/lib/utils/money";
 import type { ContractBillingCycle, ContractStatus } from "@/lib/types/database";
 import type { PlatformActionResult } from "@/lib/platform/auditNotice";
@@ -19,18 +24,8 @@ export function isUuid(value: unknown): value is string {
   return typeof value === "string" && UUID.test(value);
 }
 
-/** Limites de texto. Espelham o que cabe numa linha de contrato, não o do banco (que é `text`). */
-export const CONTRACT_LIMITS = {
-  planName: 80,
-  signerName: 120,
-  signerRole: 80,
-  termsVersion: 40,
-  notes: 2000,
-  reason: 500,
-  maxAthletes: 100_000,
-} as const;
-
-export const BILLING_CYCLES = ["mensal", "trimestral", "semestral", "anual"] as const satisfies readonly ContractBillingCycle[];
+// Reexportados para quem já importava daqui; a definição mora em contractRules.ts.
+export { BILLING_CYCLES, CONTRACT_LIMITS };
 
 const trimmed = z.string().optional().transform((value) => (value ?? "").trim());
 

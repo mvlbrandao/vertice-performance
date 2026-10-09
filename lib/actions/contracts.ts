@@ -6,7 +6,7 @@ import { logPlatformAction } from "@/lib/platform/audit";
 import { successResult, type PlatformActionResult } from "@/lib/platform/auditNotice";
 import { revalidateAdmin } from "@/lib/platform/revalidate";
 import { isMissingRelation, type ClubContractRow } from "@/lib/platform/contracts";
-import { contractChanges } from "@/lib/platform/contractAudit";
+import { contractChanges, truncateForAudit } from "@/lib/platform/contractAudit";
 import {
   BUCKET_MISSING_MESSAGE,
   CONTRACT_BUCKET,
@@ -27,6 +27,8 @@ import {
   isEditable,
   nextPeriodAfter,
   replacedReason,
+  replacementAbortedReason,
+  replacementPendingReason,
 } from "@/lib/platform/contractRules";
 import {
   activateContractSchema,
@@ -84,7 +86,7 @@ function friendlyDbError(error: DbError, fallback: string): string {
   return `${fallback} Detalhe: ${error.message ?? "erro desconhecido"}.`;
 }
 
-function withWarning(result: PlatformActionResult, extra: string | null): PlatformActionResult {
+function withWarning<T extends PlatformActionResult>(result: T, extra: string | null): T {
   if (!extra) return result;
   return { ...result, warning: result.warning ? `${result.warning} ${extra}` : extra };
 }
@@ -133,18 +135,60 @@ interface ActivationOutcome {
   error?: string;
   needsReplaceConfirmation?: { currentNumber: number };
   recorded?: boolean;
+  /** A ativação deu certo, mas há algo que a pessoa precisa saber. */
+  warning?: string;
+}
+
+/** Devolve a vigência ao contrato que acabou de ser encerrado numa troca. false = não deu. */
+async function reopenReplaced(admin: Admin, contractId: string): Promise<boolean> {
+  const { data, error } = await admin
+    .from("club_contracts")
+    .update({ status: "vigente", closed_at: null, closed_reason: null, updated_at: new Date().toISOString() })
+    .eq("id", contractId)
+    .eq("status", "encerrado")
+    .select("id");
+  return !error && !!data && data.length > 0;
+}
+
+/**
+ * Troca o motivo provisório do contrato antigo por outro. O filtro por
+ * `closed_reason` garante que só se mexe no marcador que esta troca gravou:
+ * nunca se sobrescreve um motivo escrito por uma pessoa. Não toca em `status`,
+ * então não esbarra no índice único.
+ */
+async function swapReplacedReason(
+  admin: Admin,
+  contractId: string,
+  from: string,
+  to: string,
+): Promise<boolean> {
+  const { data, error } = await admin
+    .from("club_contracts")
+    .update({ closed_reason: to, updated_at: new Date().toISOString() })
+    .eq("id", contractId)
+    .eq("status", "encerrado")
+    .eq("closed_reason", from)
+    .select("id");
+  return !error && !!data && data.length > 0;
 }
 
 /**
  * Rascunho -> vigente. Se o clube já tem outro vigente, só troca quando o
- * chamador confirmou: encerra o antigo (closed_at + "Substituído pelo CT-n") e
- * ativa o novo.
+ * chamador confirmou: encerra o antigo (closed_at) e ativa o novo.
  *
  * Não existe transação aqui (PostgREST faz uma chamada por vez) e o índice
- * único proíbe dois vigentes ao mesmo tempo, então a ordem é: encerrar o
- * antigo, ativar o novo e, se a ativação falhar, REABRIR o antigo. A trava de
- * verdade é o índice único: se alguém criou outro vigente no meio do caminho,
- * a ativação volta 23505 e vira mensagem amigável.
+ * único proíbe dois vigentes ao mesmo tempo, então a ordem é obrigatória:
+ * encerrar o antigo, ativar o novo e, se a ativação falhar, REABRIR o antigo.
+ * A trava de verdade é o índice único: se alguém criou outro vigente no meio
+ * do caminho, a ativação volta 23505 e vira mensagem amigável.
+ *
+ * O que dá para evitar sem transação é gravar uma mentira. O antigo é
+ * encerrado com um motivo PROVISÓRIO ("... em andamento") e só recebe o
+ * definitivo ("Substituído pelo CT-n") depois que o novo está vigente. Assim,
+ * se o processo cair entre as duas gravações, ou a ativação falhar e a
+ * reabertura também, o antigo não afirma uma troca que nunca aconteceu.
+ * O conserto definitivo é uma função SQL transacional (migração; ver
+ * docs/ADMIN.md).
  */
 async function activateRow(
   admin: Admin,
@@ -157,7 +201,8 @@ async function activateRow(
 
   const current = lookup.current && lookup.current.id !== contract.id ? lookup.current : null;
   const now = new Date().toISOString();
-  const reason = replacedReason(contract.number);
+  const finalReason = replacedReason(contract.number);
+  const pendingReason = replacementPendingReason(contract.number);
 
   if (current) {
     if (!replace) {
@@ -168,7 +213,7 @@ async function activateRow(
     }
     const { data: closed, error: closeError } = await admin
       .from("club_contracts")
-      .update({ status: "encerrado", closed_at: now, closed_reason: reason, updated_at: now })
+      .update({ status: "encerrado", closed_at: now, closed_reason: pendingReason, updated_at: now })
       .eq("id", current.id)
       .eq("status", "vigente")
       .select("id");
@@ -186,30 +231,44 @@ async function activateRow(
     .select("id");
 
   if (activateError || !activated || activated.length === 0) {
-    let restoreFailed = false;
-    if (current) {
-      // Devolve a vigência ao antigo: sem isto o clube ficaria sem contrato vigente.
-      const { data: reopened, error: reopenError } = await admin
-        .from("club_contracts")
-        .update({ status: "vigente", closed_at: null, closed_reason: null, updated_at: new Date().toISOString() })
-        .eq("id", current.id)
-        .eq("status", "encerrado")
-        .select("id");
-      restoreFailed = !!reopenError || !reopened || reopened.length === 0;
-      if (restoreFailed) {
-        console.error(
-          `[contratos] ativação do ${contractCode(contract.number)} falhou e o ${contractCode(current.number)} não pôde ser reaberto.`,
-        );
-      }
-    }
     const base = activateError
       ? friendlyDbError(activateError, `Não foi possível ativar o ${contractCode(contract.number)}.`)
       : CHANGED_MEANWHILE;
+    if (!current) return { error: base };
+
+    // Devolve a vigência ao antigo: sem isto o clube ficaria sem contrato vigente.
+    if (await reopenReplaced(admin, current.id)) return { error: base };
+
+    console.error(
+      `[contratos] ativação do ${contractCode(contract.number)} falhou e o ${contractCode(current.number)} não pôde ser reaberto.`,
+    );
+    // O antigo ficou encerrado: o motivo provisório vira o que de fato houve (o
+    // novo nunca valeu) e a mudança de situação entra na trilha, que de outro
+    // modo não saberia dela.
+    const abortedReason = replacementAbortedReason(contract.number);
+    await swapReplacedReason(admin, current.id, pendingReason, abortedReason);
+    const trailed = await logPlatformAction({
+      action: "contract.close",
+      club,
+      details: {
+        contractId: current.id,
+        number: current.number,
+        reason: abortedReason,
+        changes: contractChanges({ status: "vigente" }, { status: "encerrado" }),
+      },
+    });
     return {
-      error: restoreFailed
-        ? `${base} ATENÇÃO: o ${contractCode(current!.number)} foi encerrado e não pôde ser reaberto; confira o clube.`
-        : base,
+      error:
+        `${base} ATENÇÃO: o ${contractCode(current.number)} foi encerrado e não pôde ser reaberto ` +
+        `(o ${contractCode(contract.number)} não foi ativado); confira o clube.` +
+        (trailed ? "" : " O encerramento também não ficou na trilha de auditoria."),
     };
+  }
+
+  let warning: string | undefined;
+  if (current && !(await swapReplacedReason(admin, current.id, pendingReason, finalReason))) {
+    console.error(`[contratos] o motivo provisório do ${contractCode(current.number)} não pôde ser trocado pelo definitivo.`);
+    warning = `Substituição feita, mas o motivo do ${contractCode(current.number)} continua como "${pendingReason}".`;
   }
 
   const clubRef = { id: club.id, name: club.name };
@@ -230,14 +289,14 @@ async function activateRow(
       details: {
         contractId: current.id,
         number: current.number,
-        reason,
+        reason: finalReason,
         replacedBy: contract.number,
         changes: contractChanges({ status: "vigente" }, { status: "encerrado" }),
       },
     });
     recorded = recorded && closedRecorded;
   }
-  return { recorded };
+  return { recorded, warning };
 }
 
 // ---------------------------------------------------------------------------
@@ -283,6 +342,7 @@ export async function createContract(formData: FormData): Promise<ContractAction
     return { error: friendlyDbError(insertError ?? {}, "Não foi possível criar o contrato.") };
   }
 
+  let warning: string | null = null;
   let recorded = await logPlatformAction({
     action: "contract.create",
     club,
@@ -305,10 +365,11 @@ export async function createContract(formData: FormData): Promise<ContractAction
       };
     }
     recorded = recorded && (outcome.recorded ?? true);
+    warning = outcome.warning ?? null;
   }
 
   revalidateAdmin();
-  return { ...successResult(recorded), contractId: created.id };
+  return withWarning({ ...successResult(recorded), contractId: created.id }, warning);
 }
 
 /** Edita rascunho ou vigente. Encerrado e cancelado são somente leitura. */
@@ -379,7 +440,7 @@ export async function activateContract(formData: FormData): Promise<ContractActi
   }
 
   revalidateAdmin();
-  return successResult(outcome.recorded ?? true);
+  return withWarning(successResult(outcome.recorded ?? true), outcome.warning ?? null);
 }
 
 async function finishContract(
@@ -423,7 +484,9 @@ async function finishContract(
     details: {
       contractId: contract.id,
       number: contract.number,
-      reason,
+      // Texto livre e a trilha é imutável: o motivo inteiro fica em closed_reason,
+      // que se corrige e se apaga com o clube; aqui só o começo (como as notas).
+      reason: truncateForAudit(reason),
       changes: contractChanges({ status: contract.status }, { status: kind }),
     },
   });
@@ -709,7 +772,17 @@ export async function removeContractDocument(contractId: string): Promise<Platfo
   );
 }
 
-/** Link de download que expira em 60 segundos, gerado só depois de checar o administrador. */
+const DOWNLOAD_NOT_RECORDED_WARNING =
+  "Download liberado, mas NÃO foi registrado na trilha de auditoria. Confira se a migração 0072 foi aplicada e veja o log do servidor.";
+
+/**
+ * Link de download que expira em 60 segundos, gerado só depois de checar o
+ * administrador. O PDF traz preço, signatário e termos, e a trilha é o único
+ * controle detetivo da conta de administrador: cada link emitido fica
+ * registrado. Depois de gerar o link, para não anotar download que não houve;
+ * e se a anotação falhar o link sai mesmo assim, com aviso (é leitura: não há
+ * o que desfazer).
+ */
 export async function getContractDocumentUrl(contractId: string): Promise<ContractDocumentLink> {
   await requirePlatformAdmin();
 
@@ -719,7 +792,7 @@ export async function getContractDocumentUrl(contractId: string): Promise<Contra
   const admin = createAdminClient();
   const loaded = await loadContract(admin, parsed.data.contractId);
   if (!loaded.ok) return { error: loaded.error };
-  const { contract } = loaded;
+  const { contract, club } = loaded;
 
   const path = contract.document_path;
   if (!path) return { error: "Este contrato não tem documento anexado." };
@@ -736,5 +809,11 @@ export async function getContractDocumentUrl(contractId: string): Promise<Contra
     if (isBucketMissingError(error)) return { error: BUCKET_MISSING_MESSAGE };
     return { error: "Não foi possível gerar o link do documento. O arquivo pode ter sido apagado do armazenamento." };
   }
-  return { url: data.signedUrl };
+
+  const recorded = await logPlatformAction({
+    action: "contract.document_download",
+    club,
+    details: { contractId: contract.id, number: contract.number },
+  });
+  return recorded ? { url: data.signedUrl } : { url: data.signedUrl, warning: DOWNLOAD_NOT_RECORDED_WARNING };
 }

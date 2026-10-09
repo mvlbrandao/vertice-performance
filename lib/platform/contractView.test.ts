@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   contractToFormValues,
+  createSubmitStep,
   defaultNewContractValues,
   expiryBadge,
   formatCivilBR,
@@ -178,5 +179,21 @@ describe("valores iniciais do formulário", () => {
     // O que o formulário oferece de partida precisa passar pela validação do servidor.
     const parsed = createContractSchema.safeParse({ clubId: "3f2b1c9e-8a47-4d1e-9c55-0a1b2c3d4e5f", ...v });
     expect(parsed.success).toBe(true);
+  });
+});
+
+describe("createSubmitStep: repetir o envio não duplica o rascunho", () => {
+  const RASCUNHO = "7a1d2e3f-4b5c-4d6e-8f70-a1b2c3d4e5f6";
+
+  it("sem rascunho pendente, o envio cria", () => {
+    expect(createSubmitStep(null)).toEqual({ kind: "create" });
+  });
+
+  it("com rascunho pendente (a ativação imediata falhou), o envio só tenta ativar aquele", () => {
+    expect(createSubmitStep(RASCUNHO)).toEqual({ kind: "activate-draft", contractId: RASCUNHO });
+  });
+
+  it("nenhum id pendente, de nenhuma forma, volta a criar", () => {
+    for (const id of [RASCUNHO, "qualquer-coisa"]) expect(createSubmitStep(id).kind).not.toBe("create");
   });
 });

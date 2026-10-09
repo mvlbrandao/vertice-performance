@@ -352,6 +352,16 @@ describe("ContractForm", () => {
     expect(out).toContain("Criar contrato");
   });
 
+  it("na primeira tela os campos estão livres (só travam depois de um rascunho pendente) e o botão cria", () => {
+    const out = html(
+      createElement(ContractForm, { mode: "create", clubs: clubes, initialClubId: null, values: valores, defaultQuota: 50 }),
+    );
+    expect(out).not.toMatch(/<fieldset[^>]*\sdisabled/);
+    expect(out).toContain("Criar contrato");
+    expect(out).not.toContain("Tentar ativar de novo");
+    expect(out).not.toContain("abra o rascunho");
+  });
+
   it("lista os clubes e avisa quais já têm contrato vigente", () => {
     const out = html(
       createElement(ContractForm, { mode: "create", clubs: clubes, initialClubId: null, values: valores, defaultQuota: 50 }),

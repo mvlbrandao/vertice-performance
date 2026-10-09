@@ -99,6 +99,19 @@ interface ContractRowForForm {
   notes: string | null;
 }
 
+/**
+ * O que o envio do formulário de criação faz. Criar já vigente grava o
+ * rascunho e depois tenta ativá-lo; se a ativação falha (rede, ou outra pessoa
+ * ativou um contrato do clube no meio), o rascunho fica de pé. Repetir o envio
+ * com `create` gravaria um SEGUNDO contrato com os mesmos dados; por isso, com
+ * um rascunho pendente, a nova tentativa só tenta ativar aquele.
+ */
+export type CreateSubmitStep = { kind: "create" } | { kind: "activate-draft"; contractId: string };
+
+export function createSubmitStep(orphanDraftId: string | null): CreateSubmitStep {
+  return orphanDraftId ? { kind: "activate-draft", contractId: orphanDraftId } : { kind: "create" };
+}
+
 /** Fim sugerido para um início e um ciclo: início + N meses - 1 dia (mesma regra da renovação). */
 export function suggestedEndsOn(startsOn: string, cycle: ContractBillingCycle): string | null {
   try {

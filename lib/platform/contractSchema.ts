@@ -301,4 +301,6 @@ export interface ContractUploadTicket extends PlatformActionResult {
 export interface ContractDocumentLink {
   error?: string;
   url?: string;
+  /** O link saiu, mas a trilha não gravou o download: a tela avisa. */
+  warning?: string;
 }

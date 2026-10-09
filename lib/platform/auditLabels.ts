@@ -39,6 +39,7 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   "contract.renew": "Renovação criada (rascunho)",
   "contract.document_attach": "Documento do contrato anexado",
   "contract.document_remove": "Documento do contrato removido",
+  "contract.document_download": "Documento do contrato baixado",
 };
 
 /** Ação sem rótulo cadastrado aparece com o código cru, nunca some nem quebra. */

@@ -15,6 +15,8 @@ import {
   monthlyEquivalentCents,
   nextPeriodAfter,
   replacedReason,
+  replacementAbortedReason,
+  replacementPendingReason,
   wholeMonthsOfPeriod,
   type ContractForComparison,
   type LicenseSnapshot,
@@ -276,6 +278,16 @@ describe("contractCode e replacedReason", () => {
 
   it("o motivo da substituição cita o contrato novo", () => {
     expect(replacedReason(2)).toBe("Substituído pelo CT-2");
+  });
+
+  it("o motivo provisório e o de troca abortada nunca afirmam que a substituição aconteceu", () => {
+    expect(replacementPendingReason(2)).toBe("Substituição pelo CT-2 em andamento");
+    expect(replacementAbortedReason(2)).toBe("Encerrado numa substituição que não terminou (o CT-2 não chegou a valer)");
+    for (const text of [replacementPendingReason(7), replacementAbortedReason(7)]) {
+      expect(text).toContain("CT-7");
+      expect(text).not.toBe(replacedReason(7));
+      expect(text).not.toMatch(/^Substituído/);
+    }
   });
 });
 

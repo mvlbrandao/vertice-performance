@@ -91,7 +91,9 @@ export function ContractDocumentPanel({
         return;
       }
       // O link expira em 60 s e vem com Content-Disposition de download: a
-      // navegação baixa o arquivo sem tirar a pessoa desta página.
+      // navegação baixa o arquivo sem tirar a pessoa desta página, então o
+      // aviso da trilha (se houver) continua visível depois.
+      if (link.warning) setWarning(link.warning);
       window.location.assign(link.url);
     } catch {
       setError("Não foi possível falar com o servidor. Confira a conexão e tente de novo.");

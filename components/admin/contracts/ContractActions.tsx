@@ -213,6 +213,9 @@ export function ContractActions({
               required
               className="px-3 py-2.5 border border-line rounded-sm bg-white text-sm focus:outline focus:outline-2 focus:outline-amber focus:outline-offset-1 focus:border-amber w-full min-w-0 resize-y"
             />
+            <span className="text-[11.5px] text-ink-faint">
+              O motivo fica inteiro no contrato; a trilha de auditoria guarda só o começo. Não escreva dados pessoais.
+            </span>
           </label>
           <div className="flex flex-wrap gap-2">
             <Button

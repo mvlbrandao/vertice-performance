@@ -644,6 +644,153 @@ describe("activateContract", () => {
   });
 });
 
+describe("substituição sem transação: nunca grava um motivo falso", () => {
+  const PROVISORIO = "Substituição pelo CT-2 em andamento";
+
+  it("na janela entre encerrar o antigo e ativar o novo, o motivo é provisório, e o definitivo só vem depois", async () => {
+    const vig = semear({ status: "vigente" });
+    const rasc = semear({ status: "rascunho" });
+    let motivoNaJanela: unknown = "não visto";
+    let statusDoNovoNaJanela: unknown = "não visto";
+    h.beforeWrite = (op, _t, patch) => {
+      if (op === "update" && patch.status === "vigente") {
+        // Instante exato da ativação: o antigo já está encerrado, o novo ainda é rascunho.
+        motivoNaJanela = vig.closed_reason;
+        statusDoNovoNaJanela = rasc.status;
+        h.beforeWrite = null;
+      }
+    };
+    const r = await activateContract(form({ contractId: idDe(rasc), replace: "true" }));
+    expect(r.success).toBe(true);
+    expect(motivoNaJanela).toBe(PROVISORIO);
+    expect(statusDoNovoNaJanela).toBe("rascunho");
+    expect(vig.closed_reason).toBe("Substituído pelo CT-2");
+    expect(r.warning).toBeUndefined();
+  });
+
+  it("o processo cai entre as duas gravações: o antigo fica 'em andamento', nunca 'Substituído'", async () => {
+    const vig = semear({ status: "vigente" });
+    const rasc = semear({ status: "rascunho" });
+    h.beforeWrite = (op, _t, patch) => {
+      if (op === "update" && patch.status === "vigente") throw new Error("função encerrada pela plataforma");
+    };
+    await expect(activateContract(form({ contractId: idDe(rasc), replace: "true" }))).rejects.toThrow();
+    expect(vig).toMatchObject({ status: "encerrado", closed_reason: PROVISORIO });
+    expect(String(vig.closed_reason)).not.toMatch(/^Substituído/);
+    expect(rasc.status).toBe("rascunho");
+    expect(h.logs).toEqual([]);
+  });
+
+  it("corrida com reabertura impossível: o antigo diz o que houve e a trilha registra o encerramento", async () => {
+    const vig = semear({ status: "vigente" });
+    const rasc = semear({ status: "rascunho" });
+    h.beforeWrite = (op, _t, patch) => {
+      if (op === "update" && patch.status === "vigente") {
+        h.beforeWrite = null;
+        // Outra aba ativou o CT-3 do mesmo clube na janela: a ativação do CT-2 e a
+        // reabertura do CT-1 batem as duas no índice único (reproduzido pelo falso).
+        semear({ status: "vigente", club_id: CLUB_A });
+      }
+    };
+    const r = await activateContract(form({ contractId: idDe(rasc), replace: "true" }));
+    expect(r.error).toContain("ATENÇÃO");
+    expect(r.error).toContain("CT-1");
+    expect(r.error).toContain("CT-2 não foi ativado");
+    expect(vig.status).toBe("encerrado");
+    expect(vig.closed_reason).not.toBe("Substituído pelo CT-2");
+    expect(vig.closed_reason).toBe("Encerrado numa substituição que não terminou (o CT-2 não chegou a valer)");
+    expect(rasc.status).toBe("rascunho");
+    expect(h.logs).toHaveLength(1);
+    expect(h.logs[0]).toMatchObject({
+      action: "contract.close",
+      details: {
+        number: 1,
+        reason: "Encerrado numa substituição que não terminou (o CT-2 não chegou a valer)",
+        changes: { status: { from: "vigente", to: "encerrado" } },
+      },
+    });
+    expect(h.logs[0].details).not.toHaveProperty("replacedBy");
+  });
+
+  it("reabertura impossível e trilha fora do ar: a mensagem avisa das duas coisas", async () => {
+    semear({ status: "vigente" });
+    const rasc = semear({ status: "rascunho" });
+    h.recorded = false;
+    h.beforeWrite = (op, _t, patch) => {
+      if (op === "update" && patch.status === "vigente") return { message: "queda de rede" };
+    };
+    const r = await activateContract(form({ contractId: idDe(rasc), replace: "true" }));
+    expect(r.error).toContain("ATENÇÃO");
+    expect(r.error).toContain("trilha de auditoria");
+  });
+
+  it("ativação falha mas a reabertura funciona: sem rastro, sem motivo, sem trilha", async () => {
+    const vig = semear({ status: "vigente" });
+    const rasc = semear({ status: "rascunho" });
+    let falhou = false;
+    h.beforeWrite = (op, _t, patch) => {
+      if (op === "update" && patch.status === "vigente" && !falhou) {
+        falhou = true;
+        return { message: "queda de rede" };
+      }
+    };
+    const r = await activateContract(form({ contractId: idDe(rasc), replace: "true" }));
+    expect(r.error).toBeTruthy();
+    expect(r.error).not.toContain("ATENÇÃO");
+    expect(vig).toMatchObject({ status: "vigente", closed_at: null, closed_reason: null });
+    expect(h.logs).toEqual([]);
+  });
+
+  it("trocar o motivo provisório pelo definitivo falhou: a troca vale e a tela recebe aviso", async () => {
+    const vig = semear({ status: "vigente" });
+    const rasc = semear({ status: "rascunho" });
+    h.beforeWrite = (op, _t, patch) => {
+      if (op === "update" && patch.closed_reason === "Substituído pelo CT-2") return { message: "queda de rede" };
+    };
+    const r = await activateContract(form({ contractId: idDe(rasc), replace: "true" }));
+    expect(r.success).toBe(true);
+    expect(r.warning).toContain(PROVISORIO);
+    expect(rasc.status).toBe("vigente");
+    expect(vig.closed_reason).toBe(PROVISORIO);
+    expect(h.logs.map((l) => l.action)).toEqual(["contract.activate", "contract.close"]);
+  });
+
+  it("nunca sobrescreve um motivo que não é o marcador desta troca", async () => {
+    const vig = semear({ status: "vigente" });
+    const rasc = semear({ status: "rascunho" });
+    h.beforeWrite = (op, _t, patch) => {
+      if (op === "update" && patch.status === "vigente") {
+        h.beforeWrite = null;
+        vig.closed_reason = "Motivo escrito por uma pessoa";
+      }
+    };
+    const r = await activateContract(form({ contractId: idDe(rasc), replace: "true" }));
+    expect(r.success).toBe(true);
+    expect(r.warning).toBeTruthy();
+    expect(vig.closed_reason).toBe("Motivo escrito por uma pessoa");
+  });
+
+  it("criar já vigente substituindo repassa o aviso do motivo", async () => {
+    const vig = semear({ status: "vigente", club_id: CLUB_A });
+    h.beforeWrite = (op, _t, patch) => {
+      if (op === "update" && patch.closed_reason === "Substituído pelo CT-2") return { message: "queda de rede" };
+    };
+    const r = await createContract(novo({ status: "vigente", replace: "true" }));
+    expect(r.success).toBe(true);
+    expect(r.warning).toContain(PROVISORIO);
+    expect(porNumero(2).status).toBe("vigente");
+    expect(vig.closed_reason).toBe(PROVISORIO);
+  });
+
+  it("ativar sem vigente anterior não toca em motivo nenhum", async () => {
+    const rasc = semear({ status: "rascunho" });
+    h.dbCalls.length = 0;
+    const r = await activateContract(form({ contractId: idDe(rasc) }));
+    expect(r.success).toBe(true);
+    expect(h.dbCalls.filter((x) => x === "update:club_contracts")).toHaveLength(1);
+  });
+});
+
 describe("updateContract", () => {
   const editar = (c: Linha, over: Record<string, string> = {}) =>
     updateContract(form({ contractId: idDe(c), ...campos, ...over }));
@@ -731,6 +878,28 @@ describe("closeContract e cancelContract", () => {
       action: "contract.close",
       details: { number: 1, reason: "Acordo terminou", changes: { status: { from: "vigente", to: "encerrado" } } },
     });
+  });
+
+  it("encerrar e cancelar: o motivo inteiro fica no contrato, só o começo vai para a trilha imutável", async () => {
+    const longo = `Cancelado a pedido de Maria Souza, telefone 11 90000-0000. ${"x".repeat(300)}`;
+    const a = semear({ status: "vigente", club_id: CLUB_A });
+    const b = semear({ status: "rascunho", club_id: CLUB_B });
+    await closeContract(form({ contractId: idDe(a), reason: longo }));
+    await cancelContract(form({ contractId: idDe(b), reason: longo }));
+    expect(a.closed_reason).toBe(longo);
+    expect(b.closed_reason).toBe(longo);
+    expect(h.logs).toHaveLength(2);
+    for (const log of h.logs) {
+      const reason = (log.details as { reason: string }).reason;
+      expect(reason).toBe(`${longo.slice(0, 120)}…`);
+      expect(reason.length).toBe(121);
+    }
+  });
+
+  it("motivo curto vai inteiro para a trilha", async () => {
+    const c = semear({ status: "vigente" });
+    await closeContract(form({ contractId: idDe(c), reason: "Acordo terminou" }));
+    expect((h.logs[0].details as { reason: string }).reason).toBe("Acordo terminou");
   });
 
   it("motivo é obrigatório para encerrar e para cancelar", async () => {
@@ -1113,5 +1282,44 @@ describe("getContractDocumentUrl", () => {
     c.document_path = `${c.club_id}/${c.id}/a.pdf`;
     h.bucketMissing = true;
     expect((await getContractDocumentUrl(idDe(c))).error).toContain("club-contracts");
+  });
+
+  it("cada link emitido fica na trilha, com contrato e número, sem o caminho do arquivo", async () => {
+    const c = semear({ status: "encerrado" });
+    c.document_path = `${c.club_id}/${c.id}/11111111-2222-4333-8444-555555555555.pdf`;
+    const r = await getContractDocumentUrl(idDe(c));
+    expect(r.url).toBeTruthy();
+    expect(r.warning).toBeUndefined();
+    expect(h.logs).toHaveLength(1);
+    expect(h.logs[0]).toMatchObject({
+      action: "contract.document_download",
+      club: { id: CLUB_A, name: "Clube A" },
+      details: { contractId: c.id, number: 1 },
+    });
+    expect(JSON.stringify(h.logs[0].details)).not.toContain(".pdf");
+    // Gerar o link não muda nada no contrato.
+    expect(h.events).toEqual(["log:contract.document_download"]);
+  });
+
+  it("a trilha falhou: o link sai mesmo assim, com aviso", async () => {
+    const c = semear({ status: "vigente" });
+    c.document_path = `${c.club_id}/${c.id}/a.pdf`;
+    h.recorded = false;
+    const r = await getContractDocumentUrl(idDe(c));
+    expect(r.url).toContain("a.pdf");
+    expect(r.error).toBeUndefined();
+    expect(r.warning).toContain("NÃO foi registrado");
+  });
+
+  it("onde nenhum link sai, nada é registrado", async () => {
+    const c = semear({ status: "vigente" });
+    await getContractDocumentUrl(idDe(c)); // sem documento
+    c.document_path = `${CLUB_B}/x/y.pdf`;
+    await getContractDocumentUrl(idDe(c)); // fora da pasta
+    c.document_path = `${c.club_id}/${c.id}/a.pdf`;
+    h.bucketMissing = true;
+    await getContractDocumentUrl(idDe(c)); // bucket ausente
+    await getContractDocumentUrl("lixo");
+    expect(h.logs).toEqual([]);
   });
 });

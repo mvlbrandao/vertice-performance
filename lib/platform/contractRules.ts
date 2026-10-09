@@ -228,6 +228,22 @@ export function replacedReason(newNumber: number): string {
   return `Substituído pelo ${contractCode(newNumber)}`;
 }
 
+/**
+ * Motivo provisório do contrato antigo durante a troca. Não há transação: entre
+ * encerrar o antigo e ativar o novo existe uma janela, e gravar já o motivo
+ * final ("Substituído pelo CT-n") afirmaria uma troca que, se o processo cair
+ * ou a ativação falhar, nunca aconteceu. O definitivo só entra depois que o
+ * novo está vigente; se ficar este, a troca não terminou e dá para ver.
+ */
+export function replacementPendingReason(newNumber: number): string {
+  return `Substituição pelo ${contractCode(newNumber)} em andamento`;
+}
+
+/** Motivo do antigo quando a troca falhou e ele não pôde ser reaberto: diz o que houve, sem culpar um CT que nunca valeu. */
+export function replacementAbortedReason(newNumber: number): string {
+  return `Encerrado numa substituição que não terminou (o ${contractCode(newNumber)} não chegou a valer)`;
+}
+
 // ---------------------------------------------------------------------------
 // Regras de edição por status
 // ---------------------------------------------------------------------------
